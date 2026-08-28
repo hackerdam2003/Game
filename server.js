@@ -4,10 +4,10 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 
-// 🧠 Import Core Systems
+// 🧠 Import Core Systems (✅ Fixed Case Sensitivity)
 import { runMatchmaking } from './core/matchmaker.js';
-import { handleRoomEvents } from './core/roomManager.js';
-import { handleChatEvents } from './core/chatManager.js'; // ✅ Chat Manager Linked
+import { handleRoomEvents } from './core/roommanager.js';
+import { handleChatEvents } from './core/chatmanager.js'; 
 
 // 🛡️ Import Game Logic & Security
 import { validateMovement } from './game-logic/antiCheat.js';
@@ -101,4 +101,3 @@ httpServer.listen(PORT, () => {
     console.log(`🛡️ ANTI-CHEAT: ACTIVE | 🪙 ECONOMY: LINKED`);
     console.log(`=========================================`);
 });
-
