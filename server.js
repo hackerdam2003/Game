@@ -1,4 +1,4 @@
-// server.js (The Ultimate Main Brain)
+// server.js (The Ultimate Main Brain - Modular Version)
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -7,6 +7,7 @@ import cors from 'cors';
 // 🧠 Import Core Systems
 import { runMatchmaking } from './core/matchmaker.js';
 import { handleRoomEvents } from './core/roomManager.js';
+import { handleChatEvents } from './core/chatManager.js'; // ✅ Chat Manager Linked
 
 // 🛡️ Import Game Logic & Security
 import { validateMovement } from './game-logic/antiCheat.js';
@@ -22,7 +23,7 @@ const io = new Server(httpServer, {
 
 const connectedPlayers = new Map();
 
-console.log("🚀 Server Booting Up... Loading Anti-Cheat & Economy Modules...");
+console.log("🚀 Server Booting Up... Loading Core Modules...");
 
 // 📡 THE MAIN SOCKET CONNECTION
 io.on('connection', (socket) => {
@@ -41,7 +42,10 @@ io.on('connection', (socket) => {
     // 2. 🪙 Economy & Traps
     handleEconomyAndTraps(socket, io, connectedPlayers);
 
-    // 3. 🔍 Matchmaking Search Event
+    // 3. 💬 Global & Team Chat System
+    handleChatEvents(socket, io, connectedPlayers);
+
+    // 4. 🔍 Matchmaking Search Event
     socket.on('findMatch', (data) => {
         console.log(`🔍 Solo Matchmaking Triggered for: ${socket.id}`);
         const player = connectedPlayers.get(socket.id);
@@ -49,7 +53,7 @@ io.on('connection', (socket) => {
             player.status = 'searching';
             player.searchStartTime = Date.now();
             
-            // Client se aayi hui profile (Age, Gender, GPS) save karo
+            // Profile Sync
             if(data.gender) player.gender = data.gender;
             if(data.age) player.age = data.age;
             if(data.location) player.location = data.location;
@@ -57,7 +61,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 4. 🚫 In-Game Anti-Cheat & Movement Sync
+    // 5. 🚫 In-Game Anti-Cheat & Movement Sync
     socket.on('playerMove', (data) => {
         const player = connectedPlayers.get(socket.id);
         if (!player || player.status !== 'in-match') return;
@@ -77,18 +81,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 5. 💬 Global & Team Chat System
-    socket.on('chatMessage', (data) => {
-        if(data.channel === 'world') {
-            io.emit('receiveChat', data); 
-        } else {
-            const player = connectedPlayers.get(socket.id);
-            if(player && player.room) {
-                io.to(player.room).emit('receiveChat', data); 
-            }
-        }
-    });
-
     // 6. 🔴 Disconnect Handler
     socket.on('disconnect', () => {
         console.log(`🔴 Player Disconnected: [ID: ${socket.id}]`);
@@ -96,8 +88,7 @@ io.on('connection', (socket) => {
     });
 });
 
-// 🧠 THE MASTER LOOP: Start The Matchmaker Engine
-// Har 2 second me check karega ki kisko kiske sath race karwani hai
+// 🧠 THE MASTER LOOP: Start The Matchmaker Engine Every 2 Seconds
 setInterval(() => {
     runMatchmaking(connectedPlayers, io);
 }, 2000);
@@ -110,3 +101,4 @@ httpServer.listen(PORT, () => {
     console.log(`🛡️ ANTI-CHEAT: ACTIVE | 🪙 ECONOMY: LINKED`);
     console.log(`=========================================`);
 });
+
