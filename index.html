@@ -10,45 +10,51 @@
         input, select, button { width: 90%; padding: 10px; margin: 10px 0; border-radius: 5px; box-sizing: border-box; }
         button { background: #ff4757; color: white; font-weight: bold; cursor: pointer; border: none; }
         button:disabled { background: #888; cursor: not-allowed; }
-        #profileForm { display: none; } /* Login ke baad dikhega agar naya user hai */
+        #profileForm { display: none; } 
+        /* Error dikhane ke liye custom box */
+        #mobile-debugger { background: black; color: red; font-size: 12px; padding: 10px; margin-top: 20px; text-align: left; display: none; border: 1px solid red;}
     </style>
+    
+    <!-- Mobile Screen Par Error Dikhane Wala Script -->
+    <script>
+        window.onerror = function(message, source, lineno) {
+            const debugBox = document.getElementById('mobile-debugger');
+            debugBox.style.display = 'block';
+            debugBox.innerHTML += `🛑 Error: ${message} <br> 📄 Line: ${lineno}<br><hr>`;
+            return true;
+        };
+    </script>
 </head>
 <body>
 
     <div class="box">
         <h2>🏎️ Racing Universe</h2>
         
-        <!-- Step 1: Google Login (Connected to HFC Bank) -->
         <div id="loginSection">
             <p>Welcome! Authenticate to enter the game.</p>
             <button id="googleLoginBtn">Login with Google</button>
             <p id="loginStatus" style="color: yellow; font-size: 14px; margin-top: 10px;"></p>
         </div>
 
-        <!-- Step 2: Strict Profile Lock & GPS Form -->
         <div id="profileForm">
             <h3>Set Your Identity (Permanent)</h3>
             <p style="color: #ff4757; font-size: 12px;">Warning: You cannot change this later!</p>
-            
             <input type="text" id="gameName" placeholder="Enter Custom Game Name" required>
-            
             <select id="genderSelect">
                 <option value="Boy">Boy</option>
                 <option value="Girl">Girl</option>
             </select>
-            
             <input type="number" id="ageInput" placeholder="Enter your Age (e.g., 20)" required>
-            
             <p id="gpsStatus">📍 Fetching GPS Location...</p>
-            
             <button id="saveProfileBtn" disabled>Lock Profile & Enter Lobby</button>
         </div>
+
+        <!-- Agar koi error aayega toh yahan screen par dikhega -->
+        <div id="mobile-debugger"></div>
     </div>
 
-    <!-- The Brains (Linked to your JS folder) -->
-    <script type="module" src="js/firebase-config.js"></script>
+    <!-- Firebase config ko HTML se hata diya hai taaki duplicate crash na ho. auth.js usko khud bula lega. -->
     <script type="module" src="js/auth.js"></script>
 
 </body>
 </html>
-
