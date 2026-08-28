@@ -18,18 +18,17 @@ const hfcBankConfig = {
 // ==========================================
 // 2. Racing Engine Config (Game Rooms & Chat)
 // ==========================================
-// NEECHE DI GAYI DETAILS KO APNE RACING ENGINE PROJECT SE REPLACE KAREIN
 const racingEngineConfig = {
-    apiKey: "YOUR_ENGINE_API_KEY",
+    apiKey: "AIzaSyCuYPugV4qIsu9ZT9E5l63bFLgIbte_S8I",
     authDomain: "racing-universe-engine.firebaseapp.com",
     projectId: "racing-universe-engine",
-    storageBucket: "racing-universe-engine.firebasestorage.app", // optional
-    messagingSenderId: "YOUR_ENGINE_MESSAGING_ID",
-    appId: "YOUR_ENGINE_APP_ID"
+    storageBucket: "racing-universe-engine.firebasestorage.app",
+    messagingSenderId: "572638328716",
+    appId: "1:572638328716:web:830bd01db1fa5b45d948a9",
+    measurementId: "G-4VYPKBPD4K"
 };
 
 // Initialize HFC Bank (Primary App)
-// (HFC Bank ko hum naam de rahe hain taaki dono mix na hon)
 const hfcApp = initializeApp(hfcBankConfig, "HFCBankApp");
 const auth = getAuth(hfcApp);
 const bankDB = getFirestore(hfcApp);
@@ -39,5 +38,4 @@ const provider = new GoogleAuthProvider();
 const engineApp = initializeApp(racingEngineConfig, "RacingEngineApp");
 const engineDB = getFirestore(engineApp);
 
-// Dono DBs aur Auth ko export karein taaki game files inhe use kar sakein
 export { auth, bankDB, engineDB, provider };
