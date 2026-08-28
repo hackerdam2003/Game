@@ -1,1 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Next-Gen Racing | Live Match</title>
+    <style>
+        body { margin: 0; padding: 0; background: #0f172a; overflow: hidden; font-family: 'Segoe UI', sans-serif; user-select: none; }
+        #game-container { width: 100vw; height: 100vh; position: relative; }
+        
+        /* The HUD (Heads-Up Display) */
+        .hud { position: absolute; z-index: 10; color: white; text-shadow: 1px 1px 2px black; }
+        #top-hud { top: 15px; left: 15px; right: 15px; display: flex; justify-content: space-between; pointer-events: none; }
+        .hud-box { background: rgba(15, 23, 42, 0.85); padding: 10px 15px; border-radius: 10px; border: 1px solid #334155; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        
+        /* Fuel Dynamics */
+        #fuel-title { font-size: 10px; color: #94a3b8; letter-spacing: 1px; font-weight: bold; }
+        #fuel-bar-container { width: 150px; height: 12px; background: #333; border-radius: 6px; margin-top: 4px; border: 1px solid #000; overflow: hidden; }
+        #fuel-fill { width: 100%; height: 100%; background: linear-gradient(90deg, #ef4444 0%, #f59e0b 50%, #10b981 100%); transition: width 0.3s linear; }
+        
+        #speedometer { font-size: 16px; font-weight: 900; margin-bottom: 5px; color: #3b82f6; }
+        
+        /* Action Controls */
+        #controls-hud { position: absolute; bottom: 20px; right: 20px; display: flex; gap: 15px; }
+        .action-btn { width: 65px; height: 65px; border-radius: 50%; font-size: 28px; font-weight: bold; border: 2px solid rgba(255,255,255,0.2); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.1s; backdrop-filter: blur(5px); }
+        .action-btn:active { transform: scale(0.9); }
+        
+        /* Trap Button (Costs 5 Coins) */
+        #btn-kil { background: rgba(239, 68, 68, 0.8); box-shadow: 0 0 15px rgba(239, 68, 68, 0.5); }
+        
+        /* Push Button (Only visible on Padal) */
+        #btn-push { background: rgba(245, 158, 11, 0.8); box-shadow: 0 0 15px rgba(245, 158, 11, 0.5); display: none; }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        
+        <!-- UI Overlay -->
+        <div id="top-hud" class="hud">
+            <div class="hud-box">
+                <div id="speedometer">SPEED: 1x (Padal)</div>
+                <div id="fuel-title">FUEL RESERVES</div>
+                <div id="fuel-bar-container"><div id="fuel-fill"></div></div>
+            </div>
+            <div class="hud-box" style="text-align: right;">
+                <div id="match-coins" style="font-size: 18px; font-weight: 900; color: #fbbf24; margin-bottom: 5px;">0 🪙</div>
+                <div style="font-size: 12px; color: #94a3b8;">PING: <span id="ping-display" style="color: #10b981;">-- ms</span></div>
+            </div>
+        </div>
 
+        <!-- Action Controls -->
+        <div id="controls-hud" class="hud">
+            <div id="btn-push" class="action-btn" title="Push Player">🥊</div>
+            <div id="btn-kil" class="action-btn" title="Drop Trap (-5 Coins)">🪤</div>
+        </div>
+
+    </div>
+
+    <!-- Required Libraries -->
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+
+    <!-- Game Brain (Modular Scripts) -->
+    <script type="module" src="js/firebase-config.js"></script>
+    <script type="module" src="js/engine.js"></script>
+</body>
+</html>
