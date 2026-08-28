@@ -1,8 +1,10 @@
-// server.js (The Ultimate Main Brain - Modular Version)
+// server.js (The Ultimate Main Brain - Modular Version with Static Server)
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 // 🧠 Import Core Systems (✅ Fixed Case Sensitivity)
 import { runMatchmaking } from './core/matchmaker.js';
@@ -16,6 +18,17 @@ import { handleEconomyAndTraps } from './game-logic/economy.js';
 // Server Setup
 const app = express();
 app.use(cors());
+
+// Path setup for serving frontend files (HTML, CSS, JS)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+app.use(express.static(path.join(__dirname)));
+
+// Route to serve lobby or index page at root URL
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'lobby.html')); // Agar aapka main page index.html hai toh yahan 'index.html' kar sakte hain
+});
+
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
     cors: { origin: "*", methods: ["GET", "POST"] }
@@ -61,7 +74,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 5. 🚫 In-Game Anti-Cheat & Movement Sync
+    // 5. 🚫 In-Code Anti-Cheat & Movement Sync
     socket.on('playerMove', (data) => {
         const player = connectedPlayers.get(socket.id);
         if (!player || player.status !== 'in-match') return;
@@ -101,3 +114,4 @@ httpServer.listen(PORT, () => {
     console.log(`🛡️ ANTI-CHEAT: ACTIVE | 🪙 ECONOMY: LINKED`);
     console.log(`=========================================`);
 });
+
