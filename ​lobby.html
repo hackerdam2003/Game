@@ -1,1 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Next-Gen Racing | Main Lobby</title>
+    <!-- Architectural Link: Iska main design css/main.css se aayega baad me -->
+    <link rel="stylesheet" href="css/main.css">
+    <style>
+        /* Temporary embedded CSS for instant Dashboard Look */
+        body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f172a; color: #f1f5f9; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        
+        /* Top Header */
+        header { background: #1e293b; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #334155; box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 10; }
+        .logo { font-size: 20px; font-weight: 900; color: #3b82f6; letter-spacing: 1px; }
+        .user-info { display: flex; align-items: center; gap: 15px; }
+        #player-name { font-weight: bold; }
+        #player-coins { background: #fbbf24; color: #000; padding: 5px 15px; border-radius: 20px; font-weight: 900; box-shadow: 0 0 10px rgba(251, 191, 36, 0.5); }
+        
+        /* 3-Column Layout */
+        .main-container { display: flex; flex: 1; overflow: hidden; padding: 20px; gap: 20px; }
+        .panel { background: #1e293b; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; border: 1px solid #334155; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        
+        /* Panel Widths */
+        .left-panel { flex: 1.2; } /* Team & Matchmaking */
+        .mid-panel { flex: 2; }   /* 4-Tier Chat System */
+        .right-panel { flex: 1; } /* Friends List */
+        
+        h3 { margin-top: 0; border-bottom: 1px solid #334155; padding-bottom: 10px; color: #cbd5e1; text-transform: uppercase; font-size: 14px; letter-spacing: 1px; }
+        
+        /* Buttons */
+        button { background: #3b82f6; color: white; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        button:hover { background: #2563eb; }
+        
+        /* Action Button (Play) */
+        .btn-play { background: #10b981; width: 100%; margin-top: auto; font-size: 18px; padding: 15px; text-transform: uppercase; letter-spacing: 2px; }
+        .btn-play:hover { background: #059669; transform: translateY(-2px); }
+        
+        /* The World Toggle */
+        .toggle-box { background: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid #334155; margin-top: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .switch { position: relative; display: inline-block; width: 40px; height: 20px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ef4444; transition: .4s; border-radius: 20px; }
+        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #10b981; }
+        input:checked + .slider:before { transform: translateX(20px); }
 
+        /* Chat System */
+        .chat-tabs { display: flex; gap: 5px; margin-bottom: 10px; }
+        .tab { background: #0f172a; padding: 10px; border-radius: 8px; cursor: pointer; flex: 1; text-align: center; font-size: 12px; font-weight: bold; border: 1px solid #334155; }
+        .tab.active { background: #3b82f6; border-color: #3b82f6; }
+        .chat-box { flex: 1; background: #0f172a; border-radius: 8px; padding: 15px; overflow-y: auto; margin-bottom: 15px; border: 1px solid #334155; }
+        .chat-input-area { display: flex; gap: 10px; }
+        input[type="text"] { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white; outline: none; }
+        input[type="text"]:focus { border-color: #3b82f6; }
+        
+        /* Friends System */
+        .friend-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #0f172a; border-radius: 8px; margin-bottom: 8px; border: 1px solid #334155; }
+        .status-indicator { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+        .status-online { background: #10b981; box-shadow: 0 0 8px #10b981; }
+        .status-inmatch { background: #fbbf24; box-shadow: 0 0 8px #fbbf24; }
+        .status-offline { background: #ef4444; }
+    </style>
+</head>
+<body>
+
+    <!-- HEADER: Profile & HFC Coins -->
+    <header>
+        <div class="logo">🏎️ RACING UNIVERSE</div>
+        <div class="user-info">
+            <span id="player-name">Loading...</span>
+            <span id="player-coins">0 🪙</span>
+        </div>
+    </header>
+
+    <div class="main-container">
+        
+        <!-- LEFT PANEL: Party & Matchmaking -->
+        <div class="panel left-panel">
+            <h3>👥 Your Party</h3>
+            <div id="party-list" style="flex: 1; background: #0f172a; border-radius: 8px; padding: 10px; overflow-y: auto; border: 1px solid #334155;">
+                <p style="text-align: center; color: #64748b; font-size: 12px; margin-top: 50px;">You are currently Solo.</p>
+            </div>
+            
+            <button id="create-team-btn" style="width: 100%; margin-top: 10px; background: #4f46e5;">+ Create Private Team</button>
+            <p id="room-code-display" style="text-align: center; font-family: monospace; color: #fbbf24; display: none;">Room Code: <span id="code-val"></span></p>
+
+            <!-- THE MASTER RULE: World Matchmaking Toggle -->
+            <div class="toggle-box" id="world-toggle-box">
+                <span style="font-size: 13px; font-weight: bold;">Allow World Players (Auto-Pull)</span>
+                <label class="switch">
+                    <input type="checkbox" id="world-toggle" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <button id="start-match-btn" class="btn-play">▶ START RACE</button>
+        </div>
+
+        <!-- MID PANEL: 4-Tier Chat System -->
+        <div class="panel mid-panel">
+            <h3>💬 Communications Hub</h3>
+            <div class="chat-tabs">
+                <div class="tab active" data-target="world">🌍 World Chat</div>
+                <div class="tab" data-target="team">🛡️ Team Chat</div>
+                <div class="tab" data-target="friends">👥 DMs</div>
+            </div>
+            
+            <div class="chat-box" id="chat-messages">
+                <p style="color: #10b981; font-size: 12px;">[Server] Welcome to the Global Server. 1:1 Matchmaking is Active.</p>
+                <!-- Messages will appear here -->
+            </div>
+            
+            <div class="chat-input-area">
+                <input type="text" id="chat-input" placeholder="Type a message... (Spam filter active)">
+                <button id="send-chat-btn">Send</button>
+            </div>
+        </div>
+
+        <!-- RIGHT PANEL: Friends System -->
+        <div class="panel right-panel">
+            <h3>🎮 Friends List</h3>
+            <div style="display: flex; gap: 5px; margin-bottom: 15px;">
+                <input type="text" id="add-friend-input" placeholder="Enter Player ID..." style="padding: 8px;">
+                <button id="add-friend-btn">Add</button>
+            </div>
+            
+            <div id="friends-list" style="overflow-y: auto; flex: 1;">
+                <!-- Dummy Data for Design Setup -->
+                <div class="friend-item">
+                    <span style="font-size: 13px;">Rahul (ProRacer)</span>
+                    <span class="status-indicator status-online" title="Online"></span>
+                </div>
+                <div class="friend-item">
+                    <span style="font-size: 13px;">Priya (SpeedyGirl)</span>
+                    <span class="status-indicator status-inmatch" title="In Match"></span>
+                </div>
+                <div class="friend-item">
+                    <span style="font-size: 13px;">Amit (Drifter)</span>
+                    <span class="status-indicator status-offline" title="Offline"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SOCKET.IO CDN (Needed for Real-time World Chat & Matchmaking) -->
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+
+    <!-- ARCHITECTURAL LINKS: connecting HTML to your JS modules -->
+    <script type="module" src="js/firebase-config.js"></script>
+    <script type="module" src="js/team.js"></script>
+    <script type="module" src="js/chat.js"></script>
+    <script type="module" src="js/friends.js"></script>
+
+</body>
+</html>
