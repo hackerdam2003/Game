@@ -3,27 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Next-Gen Racing | Login</title>
+    <title>Racing Universe | Login</title>
     <style>
         body { font-family: Arial, sans-serif; text-align: center; background: #1a1a1a; color: white; padding-top: 50px; }
         .box { background: #333; padding: 20px; border-radius: 10px; width: 90%; max-width: 400px; margin: auto; }
         input, select, button { width: 90%; padding: 10px; margin: 10px 0; border-radius: 5px; box-sizing: border-box; }
-        button { background: #ff4757; color: white; font-weight: bold; cursor: pointer; border: none; }
+        button { background: #ff4757; color: white; font-weight: bold; cursor: pointer; border: none; font-size: 16px;}
         button:disabled { background: #888; cursor: not-allowed; }
-        #profileForm { display: none; } 
-        /* Error dikhane ke liye custom box */
-        #mobile-debugger { background: black; color: red; font-size: 12px; padding: 10px; margin-top: 20px; text-align: left; display: none; border: 1px solid red;}
+        #profileForm { display: none; }
     </style>
-    
-    <!-- Mobile Screen Par Error Dikhane Wala Script -->
-    <script>
-        window.onerror = function(message, source, lineno) {
-            const debugBox = document.getElementById('mobile-debugger');
-            debugBox.style.display = 'block';
-            debugBox.innerHTML += `🛑 Error: ${message} <br> 📄 Line: ${lineno}<br><hr>`;
-            return true;
-        };
-    </script>
 </head>
 <body>
 
@@ -32,29 +20,86 @@
         
         <div id="loginSection">
             <p>Welcome! Authenticate to enter the game.</p>
-            <button id="googleLoginBtn">Login with Google</button>
+            <button id="googleLoginBtn">🔐 Login with Google</button>
             <p id="loginStatus" style="color: yellow; font-size: 14px; margin-top: 10px;"></p>
         </div>
 
         <div id="profileForm">
-            <h3>Set Your Identity (Permanent)</h3>
-            <p style="color: #ff4757; font-size: 12px;">Warning: You cannot change this later!</p>
-            <input type="text" id="gameName" placeholder="Enter Custom Game Name" required>
-            <select id="genderSelect">
-                <option value="Boy">Boy</option>
-                <option value="Girl">Girl</option>
-            </select>
-            <input type="number" id="ageInput" placeholder="Enter your Age (e.g., 20)" required>
-            <p id="gpsStatus">📍 Fetching GPS Location...</p>
-            <button id="saveProfileBtn" disabled>Lock Profile & Enter Lobby</button>
+            <h3>Set Your Identity</h3>
+            <input type="text" id="gameName" placeholder="Enter Game Name" required>
+            <select id="genderSelect"><option value="Boy">Boy</option><option value="Girl">Girl</option></select>
+            <input type="number" id="ageInput" placeholder="Enter Age" required>
+            <p id="gpsStatus">📍 GPS Locked</p>
+            <button id="saveProfileBtn">Lock Profile & Enter Lobby</button>
         </div>
-
-        <!-- Agar koi error aayega toh yahan screen par dikhega -->
-        <div id="mobile-debugger"></div>
     </div>
 
-    <!-- Firebase config ko HTML se hata diya hai taaki duplicate crash na ho. auth.js usko khud bula lega. -->
-    <script type="module" src="js/auth.js"></script>
+    <script type="module">
+        try {
+            import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+            import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+            import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
+            const hfcBankConfig = {
+                apiKey: "AIzaSyDuFOfwTplev2IfpCKfiH1ZxCSKuZaftUk",
+                authDomain: "hfc-bank-e2a34.firebaseapp.com",
+                projectId: "hfc-bank-e2a34",
+                storageBucket: "hfc-bank-e2a34.firebasestorage.app",
+                messagingSenderId: "1029449998918",
+                appId: "1:1029449998918:web:73babbd06999dbe2f16047"
+            };
+
+            const app = initializeApp(hfcBankConfig);
+            const auth = getAuth(app);
+            const db = getFirestore(app);
+            const provider = new GoogleAuthProvider();
+
+            let currentUser = null;
+
+            document.getElementById('googleLoginBtn').addEventListener('click', async () => {
+                try {
+                    document.getElementById('loginStatus').innerText = "Opening Google Login...";
+                    await signInWithPopup(auth, provider);
+                } catch (err) {
+                    alert("Popup Blocked or Error: " + err.message);
+                }
+            });
+
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    currentUser = user;
+                    document.getElementById('loginStatus').innerText = "Checking HFC Wallet...";
+                    const userRef = doc(db, "Users", user.uid);
+                    const docSnap = await getDoc(userRef);
+
+                    if (docSnap.exists() && docSnap.data().gameName) {
+                        window.location.href = "lobby.html";
+                    } else {
+                        document.getElementById('loginSection').style.display = 'none';
+                        document.getElementById('profileForm').style.display = 'block';
+                    }
+                }
+            });
+
+            document.getElementById('saveProfileBtn').addEventListener('click', async () => {
+                const gameName = document.getElementById('gameName').value;
+                if (!gameName) return alert("Enter Game Name!");
+
+                const userRef = doc(db, "Users", currentUser.uid);
+                await setDoc(userRef, {
+                    name: currentUser.displayName,
+                    email: currentUser.email,
+                    gameName: gameName,
+                    wallet_balance: 0,
+                    role: "customer"
+                }, { merge: true });
+
+                window.location.href = "lobby.html";
+            });
+
+        } catch (error) {
+            alert("Critical Script Crash: " + error.message);
+        }
+    </script>
 </body>
 </html>
