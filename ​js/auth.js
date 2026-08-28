@@ -1,7 +1,8 @@
 // js/auth.js
 import { signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { auth, db, provider } from "./firebase-config.js";
+// Yahan dhyan dein: Humne sirf 'bankDB' import kiya hai, kyunki paisa aur profile wahi rahega
+import { auth, bankDB, provider } from "./firebase-config.js";
 
 let userLocation = null;
 let currentUser = null;
@@ -16,32 +17,40 @@ const loginStatus = document.getElementById('loginStatus');
 
 // 📍 Fetch Location Logic
 function fetchLocation() {
-    navigator.geolocation.getCurrentPosition(
-        (position) => {
-            userLocation = {
-                lat: position.coords.latitude,
-                lng: position.coords.longitude
-            };
-            gpsStatus.innerText = `📍 GPS Locked!`;
-            gpsStatus.style.color = "#4ade80"; // Green
-            saveProfileBtn.disabled = false;
-        },
-        (error) => {
-            gpsStatus.innerText = "❌ Location required to play!";
-            gpsStatus.style.color = "#ff4757"; // Red
-        }
-    );
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                userLocation = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                };
+                if(gpsStatus) {
+                    gpsStatus.innerText = `📍 GPS Locked!`;
+                    gpsStatus.style.color = "#4ade80"; // Green
+                }
+                if(saveProfileBtn) saveProfileBtn.disabled = false;
+            },
+            (error) => {
+                if(gpsStatus) {
+                    gpsStatus.innerText = "❌ Location required to play!";
+                    gpsStatus.style.color = "#ff4757"; // Red
+                }
+            }
+        );
+    } else {
+        if(gpsStatus) gpsStatus.innerText = "❌ GPS not supported on this device!";
+    }
 }
 
 // 🔐 Google Login Click Handler
 if (loginBtn) {
     loginBtn.addEventListener('click', async () => {
-        loginStatus.innerText = "Connecting to HFC Secure Gateway...";
+        if(loginStatus) loginStatus.innerText = "Connecting to HFC Secure Gateway...";
         try {
             await signInWithPopup(auth, provider);
         } catch (error) {
             console.error("Login Error:", error);
-            loginStatus.innerText = "❌ Login Failed. Try again.";
+            if(loginStatus) loginStatus.innerText = "❌ Login Failed. Try again.";
         }
     });
 }
@@ -50,18 +59,19 @@ if (loginBtn) {
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         currentUser = user;
-        const userRef = doc(db, "Users", user.uid);
+        // User profile hamesha HFC Bank me check hogi
+        const userRef = doc(bankDB, "Users", user.uid);
         const docSnap = await getDoc(userRef);
 
         // Check if user exists AND has completed game profile
         if (docSnap.exists() && docSnap.data().gameName) {
-            loginStatus.innerText = `Welcome back! Wallet: ${docSnap.data().wallet_balance || 0} 🪙`;
+            if(loginStatus) loginStatus.innerText = `Welcome back! Wallet: 🪙 ${docSnap.data().wallet_balance || 0}`;
             // Redirect to Lobby
             setTimeout(() => { window.location.href = "lobby.html"; }, 1000);
         } else {
             // Naya player hai, ya HFC user hai par Game profile nahi banayi
-            loginSection.style.display = 'none';
-            profileForm.style.display = 'block';
+            if(loginSection) loginSection.style.display = 'none';
+            if(profileForm) profileForm.style.display = 'block';
             fetchLocation();
         }
     }
@@ -83,7 +93,8 @@ if (saveProfileBtn) {
         saveProfileBtn.disabled = true;
 
         try {
-            const userRef = doc(db, "Users", currentUser.uid);
+            // HFC Bank me data save karenge
+            const userRef = doc(bankDB, "Users", currentUser.uid);
             
             // { merge: true } lagaya hai taaki agar purana HFC store ka paisa ho, toh wo delete na ho jaye!
             await setDoc(userRef, {
@@ -95,19 +106,19 @@ if (saveProfileBtn) {
                 location: userLocation,
                 vehicle: "Padal", // Default vehicle
                 role: "customer", // Default role
-                // Sirf tabhi 0 karega jab balance pehle se nahi hoga
             }, { merge: true });
             
-            // Profile lock hone ke baad HFC wallet initialize (agar naya hai)
+            // Profile lock hone ke baad HFC wallet initialize (agar naya user hai jiska balance exist nahi karta)
             const updatedSnap = await getDoc(userRef);
             if (updatedSnap.data().wallet_balance === undefined) {
+                // Strict rules bypass nahi honge kyunki balance 0 se initiate ho raha hai
                 await setDoc(userRef, { wallet_balance: 0, joined: new Date().toISOString() }, { merge: true });
             }
 
             window.location.href = "lobby.html";
         } catch (error) {
             console.error("Error saving profile:", error);
-            alert("❌ Database Error!");
+            alert("❌ Database Error! HFC Security Blocked the request.");
             saveProfileBtn.innerText = "Lock Profile & Enter Lobby";
             saveProfileBtn.disabled = false;
         }
