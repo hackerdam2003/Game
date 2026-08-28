@@ -24,9 +24,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 app.use(express.static(path.join(__dirname)));
 
-// Route to serve lobby or index page at root URL
+// Route to serve index page at root URL (FIXED: lobby.html se index.html kar diya)
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'lobby.html')); // Agar aapka main page index.html hai toh yahan 'index.html' kar sakte hain
+    res.sendFile(path.join(__dirname, 'index.html')); 
 });
 
 const httpServer = createServer(app);
@@ -114,4 +114,3 @@ httpServer.listen(PORT, () => {
     console.log(`🛡️ ANTI-CHEAT: ACTIVE | 🪙 ECONOMY: LINKED`);
     console.log(`=========================================`);
 });
-
