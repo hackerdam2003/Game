@@ -11,6 +11,7 @@
         button { background: #ff4757; color: white; font-weight: bold; cursor: pointer; border: none; font-size: 16px;}
         button:disabled { background: #888; cursor: not-allowed; }
         #profileForm { display: none; }
+        #loginStatus { color: #fbbf24; font-size: 14px; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -21,7 +22,7 @@
         <div id="loginSection">
             <p>Welcome! Authenticate to enter the game.</p>
             <button id="googleLoginBtn">🔐 Login with Google</button>
-            <p id="loginStatus" style="color: yellow; font-size: 14px; margin-top: 10px;"></p>
+            <p id="loginStatus">System Ready...</p>
         </div>
 
         <div id="profileForm">
@@ -29,77 +30,13 @@
             <input type="text" id="gameName" placeholder="Enter Game Name" required>
             <select id="genderSelect"><option value="Boy">Boy</option><option value="Girl">Girl</option></select>
             <input type="number" id="ageInput" placeholder="Enter Age" required>
-            <p id="gpsStatus">📍 GPS Locked</p>
-            <button id="saveProfileBtn">Lock Profile & Enter Lobby</button>
+            <p id="gpsStatus">📍 Fetching GPS...</p>
+            <button id="saveProfileBtn" disabled>Lock Profile & Enter Lobby</button>
         </div>
     </div>
 
-    <script type="module">
-        try {
-            import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-            import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-            import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    <!-- Inline script hata diya gaya hai. Sirf auth.js yahan link hogi. -->
+    <script type="module" src="js/auth.js"></script>
 
-            const hfcBankConfig = {
-                apiKey: "AIzaSyDuFOfwTplev2IfpCKfiH1ZxCSKuZaftUk",
-                authDomain: "hfc-bank-e2a34.firebaseapp.com",
-                projectId: "hfc-bank-e2a34",
-                storageBucket: "hfc-bank-e2a34.firebasestorage.app",
-                messagingSenderId: "1029449998918",
-                appId: "1:1029449998918:web:73babbd06999dbe2f16047"
-            };
-
-            const app = initializeApp(hfcBankConfig);
-            const auth = getAuth(app);
-            const db = getFirestore(app);
-            const provider = new GoogleAuthProvider();
-
-            let currentUser = null;
-
-            document.getElementById('googleLoginBtn').addEventListener('click', async () => {
-                try {
-                    document.getElementById('loginStatus').innerText = "Opening Google Login...";
-                    await signInWithPopup(auth, provider);
-                } catch (err) {
-                    alert("Popup Blocked or Error: " + err.message);
-                }
-            });
-
-            onAuthStateChanged(auth, async (user) => {
-                if (user) {
-                    currentUser = user;
-                    document.getElementById('loginStatus').innerText = "Checking HFC Wallet...";
-                    const userRef = doc(db, "Users", user.uid);
-                    const docSnap = await getDoc(userRef);
-
-                    if (docSnap.exists() && docSnap.data().gameName) {
-                        window.location.href = "lobby.html";
-                    } else {
-                        document.getElementById('loginSection').style.display = 'none';
-                        document.getElementById('profileForm').style.display = 'block';
-                    }
-                }
-            });
-
-            document.getElementById('saveProfileBtn').addEventListener('click', async () => {
-                const gameName = document.getElementById('gameName').value;
-                if (!gameName) return alert("Enter Game Name!");
-
-                const userRef = doc(db, "Users", currentUser.uid);
-                await setDoc(userRef, {
-                    name: currentUser.displayName,
-                    email: currentUser.email,
-                    gameName: gameName,
-                    wallet_balance: 0,
-                    role: "customer"
-                }, { merge: true });
-
-                window.location.href = "lobby.html";
-            });
-
-        } catch (error) {
-            alert("Critical Script Crash: " + error.message);
-        }
-    </script>
 </body>
 </html>
