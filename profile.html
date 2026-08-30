@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Racing Universe | Login</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; background: #1a1a1a; color: white; padding-top: 50px; }
+        .box { background: #333; padding: 20px; border-radius: 10px; width: 90%; max-width: 400px; margin: auto; }
+        button { width: 90%; padding: 15px; margin: 10px 0; border-radius: 5px; background: #ff4757; color: white; font-weight: bold; cursor: pointer; border: none; font-size: 16px;}
+        #loginStatus { color: #fbbf24; font-size: 14px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="box">
+        <h2>🏎️ Racing Universe</h2>
+        <p>Welcome! Authenticate to enter the game.</p>
+        <button id="googleLoginBtn">🔐 Login with Google</button>
+        <p id="loginStatus">System Ready...</p>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, signInWithRedirect, getRedirectResult, onAuthStateChanged, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        // 🔥 RACING ENGINE ACCOUNT KEYS 🔥
+        const unifiedGameConfig = {
+            apiKey: "AIzaSyCuYPugV4qIsu9ZT9E5l63bFLgIbte_S8I",
+            authDomain: "racing-universe-engine.firebaseapp.com",
+            projectId: "racing-universe-engine",
+            storageBucket: "racing-universe-engine.firebasestorage.app",
+            messagingSenderId: "572638328716",
+            appId: "1:572638328716:web:830bd01db1fa5b45d948a9"
+        };
+
+        const app = initializeApp(unifiedGameConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
+
+        const loginBtn = document.getElementById('googleLoginBtn');
+        const loginStatus = document.getElementById('loginStatus');
+
+        // Button Click Event
+        loginBtn.addEventListener('click', (e) => {
+            e.preventDefault(); 
+            loginStatus.innerText = "Connecting to Google...";
+            signInWithRedirect(auth, provider);
+        });
+
+        // Redirect Error Catcher
+        getRedirectResult(auth).then((result) => {
+            if (result) loginStatus.innerText = "Google Authentication Successful!";
+        }).catch((error) => {
+            loginStatus.innerText = "❌ Error: " + error.message;
+        });
+
+        // 🚀 DIRECT LOBBY REDIRECT (No Form)
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                loginStatus.innerText = "Saving Profile & Loading Lobby...";
+                
+                try {
+                    const userRef = doc(db, "Users", user.uid);
+                    
+                    // Automatically Save Player Data to Firebase
+                    await setDoc(userRef, {
+                        name: user.displayName,
+                        email: user.email,
+                        gameName: user.displayName, // Direct Google name use kiya
+                        wallet_balance: 0,
+                        role: "player",
+                        joined: new Date().toISOString()
+                    }, { merge: true });
+                    
+                    // BOOM! Seedha Lobby me entry
+                    window.location.href = "lobby.html";
+
+                } catch (err) {
+                    loginStatus.innerText = "❌ Database Error: " + err.message;
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+
