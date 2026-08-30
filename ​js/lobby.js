@@ -1,10 +1,11 @@
 // js/lobby.js
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { doc, getDoc, collection, addDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-// Dono DB import karein
-import { auth, bankDB, engineDB } from "./firebase-config.js";
 
-// UI Elements (lobby.html se connect)
+// Sirf ek 'db' import kar rahe hain (bankDB aur engineDB ka system khatam)
+import { auth, db } from "./firebase-config.js";
+
+// UI Elements
 const playerNameEl = document.getElementById("playerName");
 const playerWalletEl = document.getElementById("playerWallet");
 const createRoomBtn = document.getElementById("createRoomBtn");
@@ -14,15 +15,15 @@ let currentUser = null;
 let currentUserName = "Racer";
 
 // ==========================================
-// 1. Check Login & Load Wallet from HFC Bank
+// 1. Check Login & Load Wallet from Game DB
 // ==========================================
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         currentUser = user;
         currentUserName = user.displayName || "Racer";
         
-        // HFC Bank se player ka wallet data nikaalo
-        const userRef = doc(bankDB, "Users", user.uid);
+        // Naye Single DB se player ka data nikaalo
+        const userRef = doc(db, "Users", user.uid);
         const userSnap = await getDoc(userRef);
 
         if (userSnap.exists()) {
@@ -37,19 +38,17 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // ==========================================
-// 2. Fetch Active Rooms from Racing Engine
+// 2. Fetch Active Rooms
 // ==========================================
 if (roomsListEl) {
-    const roomsCollectionRef = collection(engineDB, "GameRooms");
+    const roomsCollectionRef = collection(db, "GameRooms");
 
-    // onSnapshot real-time data lata hai bina page refresh kiye
     onSnapshot(roomsCollectionRef, (snapshot) => {
-        roomsListEl.innerHTML = ""; // Purani list saaf karein
+        roomsListEl.innerHTML = ""; 
         let hasRooms = false;
 
         snapshot.forEach((docSnap) => {
             const roomData = docSnap.data();
-            // Sirf 'waiting' wale rooms dikhayein jo abhi start nahi hue
             if (roomData.status === "waiting") {
                 hasRooms = true;
                 const li = document.createElement("li");
@@ -69,7 +68,7 @@ if (roomsListEl) {
 }
 
 // ==========================================
-// 3. Create New Game Room (In Racing Engine)
+// 3. Create New Game Room
 // ==========================================
 if (createRoomBtn) {
     createRoomBtn.addEventListener("click", async () => {
@@ -82,8 +81,7 @@ if (createRoomBtn) {
         createRoomBtn.innerText = "Creating Room...";
 
         try {
-            // Racing Engine wale DB me naya room banayen
-            const newRoomRef = await addDoc(collection(engineDB, "GameRooms"), {
+            const newRoomRef = await addDoc(collection(db, "GameRooms"), {
                 hostUid: currentUser.uid,
                 hostName: currentUserName,
                 status: "waiting", // waiting, racing, completed
@@ -106,8 +104,6 @@ if (createRoomBtn) {
 // ==========================================
 // 4. Join Room Button Logic
 // ==========================================
-// Is function ko window par daal rahe hain taaki HTML ka onclick button ise dhoond sake
 window.joinRoom = function(roomId) {
     window.location.href = `game.html?roomId=${roomId}`;
 };
-
