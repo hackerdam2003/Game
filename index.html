@@ -7,10 +7,7 @@
     <style>
         body { font-family: Arial, sans-serif; text-align: center; background: #1a1a1a; color: white; padding-top: 50px; }
         .box { background: #333; padding: 20px; border-radius: 10px; width: 90%; max-width: 400px; margin: auto; }
-        input, select, button { width: 90%; padding: 10px; margin: 10px 0; border-radius: 5px; box-sizing: border-box; }
-        button { background: #ff4757; color: white; font-weight: bold; cursor: pointer; border: none; font-size: 16px;}
-        button:disabled { background: #888; cursor: not-allowed; }
-        #profileForm { display: none; }
+        button { width: 90%; padding: 15px; margin: 10px 0; border-radius: 5px; background: #ff4757; color: white; font-weight: bold; cursor: pointer; border: none; font-size: 16px;}
         #loginStatus { color: #fbbf24; font-size: 14px; margin-top: 10px; }
     </style>
 </head>
@@ -18,29 +15,18 @@
 
     <div class="box">
         <h2>🏎️ Racing Universe</h2>
-        
-        <div id="loginSection">
-            <p>Welcome! Authenticate to enter the game.</p>
-            <button id="googleLoginBtn">🔐 Login with Google</button>
-            <p id="loginStatus">System Ready...</p>
-        </div>
-
-        <div id="profileForm">
-            <h3>Set Your Identity</h3>
-            <input type="text" id="gameName" placeholder="Enter Game Name" required>
-            <select id="genderSelect"><option value="Boy">Boy</option><option value="Girl">Girl</option></select>
-            <input type="number" id="ageInput" placeholder="Enter Age" required>
-            <p id="gpsStatus">📍 Fetching GPS...</p>
-            <button id="saveProfileBtn" disabled>Lock Profile & Enter Lobby</button>
-        </div>
+        <p>Welcome! Authenticate to enter the game.</p>
+        <button id="googleLoginBtn">🔐 Login with Google</button>
+        <p id="loginStatus">System Ready...</p>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getAuth, signInWithRedirect, getRedirectResult, onAuthStateChanged, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        // Yeh imported line bohot important hai mobile ke liye
+        import { getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-        // 🔥 RACING ENGINE ACCOUNT KEYS (SINGLE DATABASE) 🔥
+        // 🔥 RACING ENGINE ACCOUNT KEYS 🔥
         const unifiedGameConfig = {
             apiKey: "AIzaSyCuYPugV4qIsu9ZT9E5l63bFLgIbte_S8I",
             authDomain: "racing-universe-engine.firebaseapp.com",
@@ -55,105 +41,50 @@
         const db = getFirestore(app);
         const provider = new GoogleAuthProvider();
 
-        let currentUser = null;
-        let userLocation = null;
-
         const loginBtn = document.getElementById('googleLoginBtn');
         const loginStatus = document.getElementById('loginStatus');
-        const saveProfileBtn = document.getElementById('saveProfileBtn');
-        const gpsStatus = document.getElementById('gpsStatus');
 
-        function fetchLocation() {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        userLocation = {
-                            lat: position.coords.latitude,
-                            lng: position.coords.longitude
-                        };
-                        gpsStatus.innerText = `📍 GPS Locked!`;
-                        gpsStatus.style.color = "#4ade80"; 
-                        saveProfileBtn.disabled = false;
-                    },
-                    (error) => {
-                        gpsStatus.innerText = "❌ Location required to play!";
-                        gpsStatus.style.color = "#ff4757"; 
-                    }
-                );
-            } else {
-                gpsStatus.innerText = "❌ GPS not supported!";
-            }
-        }
-
+        // Button Click - Jaye Google Par
         loginBtn.addEventListener('click', (e) => {
             e.preventDefault(); 
             loginStatus.innerText = "Connecting to Google...";
             signInWithRedirect(auth, provider);
         });
 
-        getRedirectResult(auth).catch((error) => {
-            loginStatus.innerText = "❌ Login Error: " + error.message;
-        });
-
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                currentUser = user;
-                loginStatus.innerText = "Checking Game Profile...";
+        // 🚀 THE FIX: Sirf Check Karo ki Wapas Aaya Hai Ya Nahi (No AuthListener Crash)
+        getRedirectResult(auth).then(async (result) => {
+            if (result && result.user) {
+                loginStatus.innerText = "Login Success! Loading Lobby...";
+                const user = result.user;
                 
                 try {
                     const userRef = doc(db, "Users", user.uid);
-                    const docSnap = await getDoc(userRef);
+                    
+                    // Naya/Purana user ka data database me update karo aur seedha niklo
+                    await setDoc(userRef, {
+                        name: user.displayName,
+                        email: user.email,
+                        gameName: user.displayName, 
+                        wallet_balance: 0,
+                        role: "player",
+                        joined: new Date().toISOString()
+                    }, { merge: true });
+                    
+                    // Seedha Lobby me phek dega
+                    window.location.href = "lobby.html";
 
-                    if (docSnap.exists() && docSnap.data().gameName) {
-                        loginStatus.innerText = `Welcome back! Redirecting...`;
-                        setTimeout(() => { window.location.href = "lobby.html"; }, 1000);
-                    } else {
-                        document.getElementById('loginSection').style.display = 'none';
-                        document.getElementById('profileForm').style.display = 'block';
-                        fetchLocation();
-                    }
                 } catch (err) {
                     loginStatus.innerText = "❌ DB Error: " + err.message;
                 }
-            }
-        });
-
-        saveProfileBtn.addEventListener('click', async () => {
-            const gameName = document.getElementById('gameName').value;
-            const gender = document.getElementById('genderSelect').value;
-            const age = document.getElementById('ageInput').value;
-
-            if (!gameName || !age || !userLocation) {
-                alert("Please fill all details and allow GPS!");
-                return;
-            }
-
-            saveProfileBtn.innerText = "Locking Profile...";
-            saveProfileBtn.disabled = true;
-
-            try {
-                const userRef = doc(db, "Users", currentUser.uid);
-                
-                await setDoc(userRef, {
-                    name: currentUser.displayName,
-                    email: currentUser.email,
-                    gameName: gameName,
-                    gender: gender,
-                    age: parseInt(age),
-                    location: userLocation,
-                    vehicle: "Padal", 
-                    role: "customer",
-                    wallet_balance: 0,
-                    joined: new Date().toISOString()
-                }, { merge: true });
-                
+            } else if (auth.currentUser) {
+                // Agar pehle se hi login tha (Refresh par)
                 window.location.href = "lobby.html";
-            } catch (error) {
-                alert("❌ Database Error! Try again.");
-                saveProfileBtn.innerText = "Lock Profile & Enter Lobby";
-                saveProfileBtn.disabled = false;
             }
+        }).catch((error) => {
+            loginStatus.innerText = "❌ Redirect Error: " + error.message;
         });
+
     </script>
 </body>
 </html>
+
