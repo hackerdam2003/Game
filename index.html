@@ -1,31 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Racing Universe | Login</title>
-    <style>
-        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: #0f172a; color: white; padding-top: 80px; margin: 0; }
-        .box { background: #1e293b; padding: 40px 20px; border-radius: 12px; width: 90%; max-width: 400px; margin: auto; border: 1px solid #334155; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-        h2 { color: #3b82f6; margin-top: 0; text-transform: uppercase; letter-spacing: 1px; }
-        button { width: 100%; padding: 15px; border-radius: 8px; background: #ef4444; color: white; font-weight: 900; cursor: pointer; border: none; font-size: 16px; margin-top: 20px; text-transform: uppercase; }
-        button:hover { background: #dc2626; }
-        #statusText { color: #fbbf24; font-size: 14px; margin-top: 20px; font-weight: bold; }
-    </style>
-</head>
-<body>
-
-    <div class="box">
-        <h2>🏎️ Racing Universe</h2>
-        <p style="color: #cbd5e1; font-size: 14px;">Anti-Scam Servers Active.</p>
-        
-        <button id="googleLoginBtn">🔐 Login with Google</button>
-        <p id="statusText">System Ready...</p>
-    </div>
-
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getAuth, signInWithRedirect, getRedirectResult, onAuthStateChanged, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        // Redirect hata kar signInWithPopup aur browserLocalPersistence add kiya
+        import { getAuth, signInWithPopup, onAuthStateChanged, GoogleAuthProvider, browserLocalPersistence, setPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         // 🔥 RACING ENGINE DATABASE KEYS 
@@ -46,10 +22,18 @@
         const loginBtn = document.getElementById('googleLoginBtn');
         const statusText = document.getElementById('statusText');
 
-        loginBtn.addEventListener('click', (e) => {
+        // Force local persistence so mobile doesn't forget the user
+        setPersistence(auth, browserLocalPersistence);
+
+        // 🚀 POPUP LOGIN LOGIC
+        loginBtn.addEventListener('click', async (e) => {
             e.preventDefault(); 
-            statusText.innerText = "Connecting to Google Servers...";
-            signInWithRedirect(auth, provider);
+            statusText.innerText = "Opening Google Login...";
+            try {
+                await signInWithPopup(auth, provider);
+            } catch (error) {
+                statusText.innerText = "❌ Login Error: " + error.message;
+            }
         });
 
         // 🚀 THE REDIRECT BRAIN: Naya ya Purana User Check
@@ -70,11 +54,4 @@
                 }
             }
         });
-
-        // Error Catcher
-        getRedirectResult(auth).catch((error) => {
-            statusText.innerText = "❌ Redirect Error: " + error.message;
-        });
     </script>
-</body>
-</html>
