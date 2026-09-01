@@ -70,10 +70,11 @@
         .profile-card-modal span { color: #f1f5f9; font-weight: bold; }
         .btn-close-modal { background: #ef4444; color: white; border: none; padding: 8px 20px; border-radius: 6px; margin-top: 15px; font-weight: bold; cursor: pointer; width: 100%; }
 
-        /* List Items (Friends & Global Players) */
-        .list-card-item { display: flex; justify-content: space-between; align-items: center; background: #0f172a; padding: 10px; border-radius: 8px; border: 1px solid #334155; }
+        /* List Items (Friends & Search) */
+        .list-card-item { display: flex; justify-content: space-between; align-items: center; background: #0f172a; padding: 10px; border-radius: 8px; border: 1px solid #334155; cursor: pointer; }
         .action-btn-small { background: #3b82f6; border: none; color: white; padding: 5px 10px; border-radius: 5px; font-size: 11px; font-weight: bold; cursor: pointer; }
-        .action-btn-accept { background: #10b981; }
+        .search-box-row { display: flex; gap: 6px; margin-bottom: 5px; }
+        .search-box-row input { flex: 1; padding: 8px; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: white; font-size: 12px; outline: none; }
     </style>
 </head>
 <body>
@@ -100,9 +101,8 @@
             <div class="character-stage" onclick="showMyProfile()">
                 <div class="avatar-icon-big" id="main-avatar-icon">👦</div>
                 <div class="char-name" id="main-char-name">Racer</div>
-                <div class="char-sub" id="main-char-info">Owner</div>
+                <div class="char-sub" id="main-char-info">Host (You)</div>
             </div>
-            <!-- Dynamic Party Members will append here automatically -->
         </div>
     </div>
 
@@ -112,7 +112,7 @@
             <span>Matchmaking: <b style="color: #10b981;">1:1 Balanced</b></span>
             <span id="gps-status-text">📍 GPS Ready</span>
         </div>
-        <button id="start-match-btn" class="btn-play">▶ Find Match (GPS)</button>
+        <button id="start-match-btn" class="btn-play">▶ Find Match (Host)</button>
     </div>
 
     <!-- 1. CHAT DRAWER (World, Team, Friends DMs Separated) -->
@@ -123,12 +123,12 @@
         </div>
         <div class="drawer-body">
             <div class="chat-subtabs">
-                <div class="chat-tab active" onclick="switchChatTab('world', this)">World</div>
-                <div class="chat-tab" onclick="switchChatTab('team', this)">Team</div>
-                <div class="chat-tab" onclick="switchChatTab('dm', this)">DMs</div>
+                <div class="chat-tab active" onclick="switchChatTab('world', this)">🌍 World</div>
+                <div class="chat-tab" onclick="switchChatTab('team', this)">🛡️ Team</div>
+                <div class="chat-tab" onclick="switchChatTab('dm', this)">👥 DMs</div>
             </div>
             <div class="chat-messages-box" id="active-chat-box">
-                <p style="color: #10b981;" id="chat-intro-msg">[World Chat]: Connected to global server.</p>
+                <p style="color: #10b981;" id="chat-intro-msg">[World Chat]: Connected to Global Server.</p>
             </div>
             <div class="chat-input-row">
                 <input type="text" id="chat-input-field" placeholder="Type message...">
@@ -137,33 +137,33 @@
         </div>
     </div>
 
-    <!-- 2. FRIENDS LIST DRAWER (Live Players, Requests, Add Friend) -->
+    <!-- 2. FRIENDS & SEARCH DRAWER (UID Search, Requests) -->
     <div class="drawer" id="friends-drawer">
         <div class="drawer-header">
-            <span>👥 Friends & Live Players</span>
+            <span>👥 Friends & Search</span>
             <button class="close-drawer" id="close-friends">✕</button>
         </div>
         <div class="drawer-body">
-            <div style="font-size: 11px; font-weight: bold; color: #3b82f6; text-transform: uppercase;">Incoming Requests</div>
-            <div id="incoming-requests-container" style="display:flex; flex-direction:column; gap:6px;">
-                <div class="list-card-item">
-                    <span style="font-size: 12px;">👧 Priya (Age 21)</span>
-                    <button class="action-btn-small action-btn-accept" onclick="acceptRequest('Priya')">Accept</button>
-                </div>
+            <!-- UID Search Box -->
+            <div style="font-size: 11px; font-weight: bold; color: #3b82f6; text-transform: uppercase;">Search Player by UID</div>
+            <div class="search-box-row">
+                <input type="text" id="search-uid-input" placeholder="Enter Tag (e.g. RU-XXXX)">
+                <button class="action-btn-small" onclick="searchPlayerByUID()">Search</button>
             </div>
 
-            <div style="font-size: 11px; font-weight: bold; color: #10b981; text-transform: uppercase; margin-top: 10px;">Live Global Players</div>
-            <div id="live-players-container" style="display:flex; flex-direction:column; gap:6px;">
-                <!-- Clickable live player to view profile / add friend -->
-                <div class="list-card-item" onclick="openUserProfile('Amit Kumar', '23', 'India, Delhi', 'Boy')">
-                    <span style="font-size: 12px;">👦 Amit (23) • Delhi</span>
-                    <button class="action-btn-small" onclick="event.stopPropagation(); sendFriendReq('Amit')">Add</button>
-                </div>
+            <div style="font-size: 11px; font-weight: bold; color: #fbbf24; text-transform: uppercase; margin-top: 10px;">Friend Requests</div>
+            <div id="incoming-requests-container" style="display:flex; flex-direction:column; gap:6px;">
+                <p style="color: #64748b; font-size: 11px;">No pending requests.</p>
+            </div>
+
+            <div style="font-size: 11px; font-weight: bold; color: #10b981; text-transform: uppercase; margin-top: 10px;">Your Friends List</div>
+            <div id="friends-list-container" style="display:flex; flex-direction:column; gap:6px;">
+                <p style="color: #64748b; font-size: 11px;">No friends added yet.</p>
             </div>
         </div>
     </div>
 
-    <!-- 3. PROFILE POPUP MODAL (Real Name, Age, Location) -->
+    <!-- 3. PROFILE POPUP MODAL (Real Name, Age, Location, UID) -->
     <div class="modal-overlay" id="profile-modal">
         <div class="profile-card-modal">
             <div style="font-size: 45px; margin-bottom: 5px;" id="modal-avatar">👦</div>
@@ -171,8 +171,9 @@
             <p style="font-size: 11px; color: #10b981; margin-bottom: 12px;" id="modal-realname">Real Identity Verified</p>
             
             <div style="text-align: left; background: #0f172a; padding: 12px; border-radius: 8px; border: 1px solid #334155; display: flex; flex-direction: column; gap: 6px;">
+                <p>UID: <span id="modal-uid" style="color: #fbbf24; font-weight: bold;">--</span></p>
                 <p>Age: <span id="modal-age">--</span></p>
-                <p>Location: <span id="modal-location">India, CG</span></p>
+                <p>Location: <span id="modal-location">India</span></p>
                 <p>Gender: <span id="modal-gender">Boy</span></p>
             </div>
             
@@ -180,11 +181,14 @@
         </div>
     </div>
 
+    <!-- Socket.io Script for Real-Time Chat -->
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+
     <!-- Core Logic Script -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         const engineConfig = {
             apiKey: "AIzaSyCuYPugV4qIsu9ZT9E5l63bFLgIbte_S8I",
@@ -201,6 +205,9 @@
 
         let localUser = null;
         let myProfileData = null;
+        let currentChannel = 'world'; // Default chat channel
+
+        const socket = io(); // Connects to Render backend
 
         // UI References
         const playerNameEl = document.getElementById("player-name");
@@ -210,6 +217,8 @@
         const mainAvatarIcon = document.getElementById("main-avatar-icon");
         const gpsStatusText = document.getElementById("gps-status-text");
         const startMatchBtn = document.getElementById("start-match-btn");
+        const chatMessagesBox = document.getElementById("active-chat-box");
+        const chatInputField = document.getElementById("chat-input-field");
 
         // Load Authenticated User Profile
         onAuthStateChanged(auth, async (user) => {
@@ -219,12 +228,15 @@
                     const docSnap = await getDoc(doc(db, "Users", user.uid));
                     if (docSnap.exists()) {
                         myProfileData = docSnap.data();
-                        playerNameEl.innerText = myProfileData.gameName;
+                        playerNameEl.innerText = `${myProfileData.gameName}`;
                         playerCoinsEl.innerText = `${myProfileData.wallet_balance || 0} 🪙`;
                         
                         mainCharName.innerText = myProfileData.gameName;
-                        mainCharInfo.innerText = `${myProfileData.gender} • Age: ${myProfileData.age}`;
+                        mainCharInfo.innerText = `Host • Age: ${myProfileData.age}`;
                         mainAvatarIcon.innerText = myProfileData.gender === 'Girl' ? '👧' : '👦';
+                        
+                        // Register socket player name
+                        socket.emit('registerPlayer', { uid: user.uid, gameName: myProfileData.gameName });
                     } else {
                         window.location.href = "profile.html";
                     }
@@ -236,7 +248,7 @@
             }
         });
 
-        // 📍 GPS Matchmaking Logic
+        // 📍 HOST MATCHMAKING LOGIC (Fixing the Black Screen to Pre-Match Lobby)
         startMatchBtn.addEventListener('click', () => {
             if (navigator.geolocation) {
                 gpsStatusText.innerText = "📍 Requesting GPS Location...";
@@ -244,18 +256,16 @@
 
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
-                        const lat = position.coords.latitude;
-                        const lng = position.coords.longitude;
-                        gpsStatusText.innerText = `✅ GPS Locked! Finding 1:1 Match...`;
+                        gpsStatusText.innerText = `✅ GPS Locked! Creating Room...`;
                         gpsStatusText.style.color = "#10b981";
-                        
-                        startMatchBtn.innerText = "Searching Room...";
+                        startMatchBtn.innerText = "Setting up Room...";
                         startMatchBtn.disabled = true;
                         
                         setTimeout(() => {
-                            alert("Match found! Entering racing engine...");
-                            window.location.href = "game.html";
-                        }, 1500);
+                            // GENERATES NEW ROOM & SETS ISHOST=TRUE
+                            const newRoomId = "RU-" + Math.floor(1000 + Math.random() * 9000);
+                            window.location.href = `/game.html?roomId=${newRoomId}&isHost=true`;
+                        }, 1000);
                     },
                     (error) => {
                         gpsStatusText.innerText = "❌ GPS Permission Denied!";
@@ -268,6 +278,84 @@
             }
         });
 
+        // 💬 WORKING LIVE CHAT SYSTEM
+        window.switchChatTab = function(type, el) {
+            document.querySelectorAll('.chat-tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            currentChannel = type;
+            
+            chatMessagesBox.innerHTML = '';
+            const p = document.createElement('p');
+            p.style.color = "#10b981";
+            p.style.fontSize = "12px";
+            
+            if(type === 'world') p.innerText = "[World Chat]: Connected to Global Server.";
+            else if(type === 'team') p.innerText = "[Team Chat]: Start a party to chat.";
+            else if(type === 'dm') p.innerText = "[Friend DMs]: Private messaging channel.";
+            
+            chatMessagesBox.appendChild(p);
+        };
+
+        window.sendChatMessage = function() {
+            const text = chatInputField.value.trim();
+            if(!text || !myProfileData) return;
+
+            // Emit to server
+            socket.emit('chatMessage', {
+                channel: currentChannel,
+                sender: myProfileData.gameName,
+                text: text
+            });
+            chatInputField.value = '';
+        };
+
+        // Listen for incoming messages
+        socket.on('receiveChat', (data) => {
+            if (data.channel === currentChannel || data.channel === 'all') {
+                const p = document.createElement('p');
+                p.style.margin = "4px 0";
+                p.style.fontSize = "12px";
+                p.innerHTML = `<b style="color: #3b82f6;">${data.sender}:</b> <span style="color: #f8fafc;">${data.text}</span>`;
+                chatMessagesBox.appendChild(p);
+                chatMessagesBox.scrollTop = chatMessagesBox.scrollHeight;
+            }
+        });
+
+        // 🔍 FIREBASE UID SEARCH LOGIC
+        window.searchPlayerByUID = async function() {
+            const tag = document.getElementById('search-uid-input').value.trim().toUpperCase();
+            if(!tag) return;
+            
+            const searchBtn = document.querySelector('.search-box-row button');
+            searchBtn.innerText = "...";
+
+            try {
+                const q = query(collection(db, "Users"), where("playerTag", "==", tag));
+                const querySnapshot = await getDocs(q);
+
+                if(querySnapshot.empty) {
+                    alert("Player not found with this UID!");
+                    searchBtn.innerText = "Search";
+                    return;
+                }
+
+                querySnapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    if(docSnap.id === localUser.uid) {
+                        alert("You cannot add yourself!");
+                        searchBtn.innerText = "Search";
+                        return;
+                    }
+                    // Open Profile Modal for the searched player
+                    openUserProfile(data.gameName, data.age, data.location || "India", data.gender, data.playerTag);
+                });
+                searchBtn.innerText = "Search";
+            } catch (err) {
+                alert("Database Search error!");
+                searchBtn.innerText = "Search";
+            }
+        };
+
         // Drawer Event Controls
         const setupDrawer = (btnId, drawerId, closeId) => {
             document.getElementById(btnId).addEventListener('click', () => document.getElementById(drawerId).classList.add('open'));
@@ -276,17 +364,17 @@
 
         setupDrawer('btn-chat', 'chat-drawer', 'close-chat');
         setupDrawer('btn-friends', 'friends-drawer', 'close-friends');
-        setupDrawer('btn-party-create', 'party-drawer', 'close-party'); // Placeholder
+        setupDrawer('btn-party-create', 'party-drawer', 'close-party');
 
-        // Global Profile Modal Control (Clicking any character opens this)
+        // Global Profile Modal Control
         window.showMyProfile = function() {
             if (!myProfileData) return;
-            openUserProfile(myProfileData.gameName, myProfileData.age, "India, CG", myProfileData.gender);
+            openUserProfile(myProfileData.gameName, myProfileData.age, "India", myProfileData.gender, myProfileData.playerTag || "RU-XXXX");
         };
 
-        window.openUserProfile = function(name, age, location, gender) {
+        window.openUserProfile = function(name, age, location, gender, uidTag) {
             document.getElementById('modal-gamename').innerText = name;
-            document.getElementById('modal-realname').innerText = `Real Identity Verified`;
+            document.getElementById('modal-uid').innerText = uidTag;
             document.getElementById('modal-age').innerText = age;
             document.getElementById('modal-location').innerText = location;
             document.getElementById('modal-gender').innerText = gender;
@@ -297,38 +385,7 @@
         window.closeProfileModal = function() {
             document.getElementById('profile-modal').style.display = 'none';
         };
-
-        // Chat Tabs Switching (World, Team, DMs)
-        window.switchChatTab = function(type, el) {
-            document.querySelectorAll('.chat-tab').forEach(t => t.classList.remove('active'));
-            el.classList.add('active');
-            
-            const introMsg = document.getElementById('chat-intro-msg');
-            if(type === 'world') introMsg.innerText = "[World Chat]: Connected to global server.";
-            else if(type === 'team') introMsg.innerText = "[Team Chat]: No active team room.";
-            else if(type === 'dm') introMsg.innerText = "[Friend DMs]: Select a friend to chat.";
-        };
-
-        window.sendChatMessage = function() {
-            const input = document.getElementById('chat-input-field');
-            const box = document.getElementById('active-chat-box');
-            if(!input.value.trim()) return;
-
-            const p = document.createElement('p');
-            p.style.color = "#38bdf8";
-            p.innerText = `You: ${input.value}`;
-            box.appendChild(p);
-            input.value = '';
-            box.scrollTop = box.scrollHeight;
-        };
-
-        window.sendFriendReq = function(name) {
-            alert(`Friend request sent to ${name}!`);
-        };
-
-        window.acceptRequest = function(name) {
-            alert(`You are now friends with ${name}!`);
-        };
     </script>
 </body>
 </html>
+
