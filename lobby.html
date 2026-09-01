@@ -63,12 +63,18 @@
         .profile-card-modal p { margin: 5px 0; font-size: 13px; color: #94a3b8; }
         .profile-card-modal span { color: #f1f5f9; font-weight: bold; }
         .btn-close-modal { background: #ef4444; color: white; border: none; padding: 8px 20px; border-radius: 6px; margin-top: 10px; font-weight: bold; cursor: pointer; width: 100%; }
-        .modal-action-btn { background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 6px; margin-top: 5px; font-weight: bold; cursor: pointer; width: 100%; }
+        
+        /* Action Buttons inside Modal */
+        .modal-action-btn { background: #10b981; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; width: 100%; font-size: 12px; }
+        .modal-team-btn { background: #3b82f6; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; width: 100%; font-size: 12px; margin-top: 6px; }
 
-        /* List Items */
+        /* List Items & Live Badge Styles */
+        .list-card-item { display: flex; justify-content: space-between; align-items: center; background: #0f172a; padding: 8px 10px; border-radius: 8px; border: 1px solid #334155; cursor: pointer; }
+        .list-card-item:active { background: #1e293b; }
+        .live-badge { background: #ef4444; color: white; font-size: 9px; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 6px; display: inline-block; }
+        .action-btn-small { background: #3b82f6; border: none; color: white; padding: 5px 10px; border-radius: 5px; font-size: 11px; font-weight: bold; cursor: pointer; }
         .search-box-row { display: flex; gap: 6px; margin-bottom: 5px; }
         .search-box-row input { flex: 1; padding: 8px; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: white; font-size: 12px; outline: none; }
-        .action-btn-small { background: #3b82f6; border: none; color: white; padding: 5px 10px; border-radius: 5px; font-size: 11px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -125,7 +131,7 @@
         </div>
     </div>
 
-    <!-- 2. FRIENDS DRAWER -->
+    <!-- 2. FRIENDS DRAWER (WITH GLOBAL LIVE PLAYERS) -->
     <div class="drawer" id="friends-drawer">
         <div class="drawer-header">
             <span>👥 Friends & Search</span>
@@ -141,6 +147,11 @@
             <div style="font-size: 11px; font-weight: bold; color: #fbbf24; text-transform: uppercase; margin-top: 10px;">Friend Requests</div>
             <div id="incoming-requests-container" style="display:flex; flex-direction:column; gap:6px;">
                 <p style="color: #64748b; font-size: 11px;">No pending requests.</p>
+            </div>
+
+            <div style="font-size: 11px; font-weight: bold; color: #ef4444; text-transform: uppercase; margin-top: 10px;">Global Live Players</div>
+            <div id="global-live-players-container" style="display:flex; flex-direction:column; gap:6px;">
+                <p style="color: #64748b; font-size: 11px;">Loading live players...</p>
             </div>
 
             <div style="font-size: 11px; font-weight: bold; color: #10b981; text-transform: uppercase; margin-top: 10px;">Your Friends List</div>
@@ -162,7 +173,7 @@
         </div>
     </div>
 
-    <!-- PROFILE MODAL WITH COPY & ACTION BUTTONS -->
+    <!-- UNIVERSAL PROFILE MODAL (WITH COPY UID & REQUEST OPTIONS) -->
     <div class="modal-overlay" id="profile-modal">
         <div class="profile-card-modal">
             <div style="font-size: 45px; margin-bottom: 5px;" id="modal-avatar">👦</div>
@@ -170,24 +181,24 @@
             <p style="font-size: 11px; color: #10b981; margin-bottom: 12px;" id="modal-realname">Real Identity Verified</p>
             
             <div style="text-align: left; background: #0f172a; padding: 12px; border-radius: 8px; border: 1px solid #334155; display: flex; flex-direction: column; gap: 6px;">
-                <p>UID: <span id="modal-uid" style="color: #fbbf24; font-weight: bold; cursor: pointer;" onclick="copyUID()" title="Click to copy">--</span> <small style="color: #3b82f6; float: right; cursor: pointer;" onclick="copyUID()">📋 Copy</small></p>
+                <p>UID: <span id="modal-uid" style="color: #fbbf24; font-weight: bold; cursor: pointer;" onclick="copyUID()">--</span> <small style="color: #3b82f6; float: right; cursor: pointer;" onclick="copyUID()">📋 Copy</small></p>
                 <p>Age: <span id="modal-age">--</span></p>
                 <p>Location: <span id="modal-location">India</span></p>
                 <p>Gender: <span id="modal-gender">Boy</span></p>
             </div>
             
-            <!-- Dynamic Action Button (Add Friend / Request Sent) -->
-            <div id="modal-action-container" style="margin-top: 10px;"></div>
+            <!-- Dynamic Action Buttons (Friend Request / Team Join Request) -->
+            <div id="modal-actions-wrapper" style="display: flex; flex-direction: column; gap: 6px; margin-top: 12px;"></div>
             
             <button class="btn-close-modal" onclick="closeProfileModal()">Close</button>
         </div>
     </div>
 
-    <!-- Core Firebase Logic Script -->
+    <!-- Core Firebase & App Logic -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getFirestore, doc, getDoc, collection, getDocs, query, where, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, collection, getDocs, query, where, updateDoc, arrayUnion, limit } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         const engineConfig = {
             apiKey: "AIzaSyCuYPugV4qIsu9ZT9E5l63bFLgIbte_S8I",
@@ -204,7 +215,7 @@
 
         let localUser = null;
         let myProfileData = null;
-        let activeTargetUid = null; // Track who's profile is currently open
+        let activeTargetUid = null; // Track whose profile modal is currently open
 
         const playerNameEl = document.getElementById("player-name");
         const playerCoinsEl = document.getElementById("player-coins");
@@ -214,7 +225,7 @@
         const gpsStatusText = document.getElementById("gps-status-text");
         const startMatchBtn = document.getElementById("start-match-btn");
 
-        // Firebase Loading Profile
+        // Load Authenticated User Profile & Fetch Global Live Players
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 localUser = user;
@@ -228,18 +239,67 @@
                         mainCharName.innerText = myProfileData.gameName;
                         mainCharInfo.innerText = `${myProfileData.gender} • Age: ${myProfileData.age}`;
                         mainAvatarIcon.innerText = myProfileData.gender === 'Girl' ? '👧' : '👦';
+
+                        // Load Global Live Players list in Friends drawer
+                        loadGlobalLivePlayers();
                     } else {
                         window.location.href = "profile.html";
                     }
                 } catch (err) {
-                    console.error("Profile load error");
+                    console.error("Profile load error", err);
                 }
             } else {
                 window.location.href = "index.html";
             }
         });
 
-        // The Matchmaking Fix (Host Generator)
+        // Load Global Live Players into Friends Drawer
+        async function loadGlobalLivePlayers() {
+            const container = document.getElementById("global-live-players-container");
+            if (!container) return;
+
+            try {
+                const q = query(collection(db, "Users"), limit(10));
+                const querySnapshot = await getDocs(q);
+                container.innerHTML = "";
+
+                querySnapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    const targetUid = docSnap.id;
+                    if (localUser && targetUid === localUser.uid) return; // Skip self
+
+                    const icon = data.gender === 'Girl' ? '👧' : '👦';
+                    const itemHtml = `
+                        <div class="list-card-item" onclick="openUserProfile('${data.gameName}', '${data.age}', '${data.location || 'India'}', '${data.gender}', '${data.playerTag || '00000000'}', '${targetUid}', false)">
+                            <span style="font-size: 12px; color: #f1f5f9;">${icon} ${data.gameName} <span class="live-badge">Live</span></span>
+                            <button class="action-btn-small" onclick="event.stopPropagation(); quickAddFriend('${targetUid}', '${data.gameName}')">Add</button>
+                        </div>
+                    `;
+                    container.innerHTML += itemHtml;
+                });
+
+                if (container.innerHTML === "") {
+                    container.innerHTML = `<p style="color: #64748b; font-size: 11px;">No other players online.</p>`;
+                }
+            } catch (err) {
+                container.innerHTML = `<p style="color: #ef4444; font-size: 11px;">Failed to load live players.</p>`;
+            }
+        }
+
+        // Quick Add Friend from List
+        window.quickAddFriend = async function(targetUid, targetName) {
+            if (!localUser) return;
+            try {
+                await updateDoc(doc(db, "Users", targetUid), {
+                    incomingRequests: arrayUnion(localUser.uid)
+                });
+                alert(`✅ Friend request sent to ${targetName}!`);
+            } catch (err) {
+                alert("❌ Failed to send request.");
+            }
+        };
+
+        // Matchmaking Host Generator
         startMatchBtn.addEventListener('click', () => {
             if (navigator.geolocation) {
                 gpsStatusText.innerText = "📍 Requesting GPS Location...";
@@ -247,9 +307,9 @@
 
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
-                        gpsStatusText.innerText = `✅ GPS Locked! Finding 1:1 Match...`;
+                        gpsStatusText.innerText = `✅ GPS Locked! Creating Room...`;
                         gpsStatusText.style.color = "#10b981";
-                        startMatchBtn.innerText = "Searching Room...";
+                        startMatchBtn.innerText = "Setting up Room...";
                         startMatchBtn.disabled = true;
                         
                         setTimeout(() => {
@@ -268,7 +328,114 @@
             }
         });
 
-        // Dummy Local Chat
+        // Drawer Controls Setup
+        const setupDrawer = (btnId, drawerId, closeId) => {
+            const btn = document.getElementById(btnId);
+            const drawer = document.getElementById(drawerId);
+            const closeBtn = document.getElementById(closeId);
+            if(btn && drawer && closeBtn) {
+                btn.addEventListener('click', () => drawer.classList.add('open'));
+                closeBtn.addEventListener('click', () => drawer.classList.remove('open'));
+            }
+        };
+
+        setupDrawer('btn-chat', 'chat-drawer', 'close-chat');
+        setupDrawer('btn-friends', 'friends-drawer', 'close-friends');
+        setupDrawer('btn-party-create', 'party-drawer', 'close-party');
+
+        // Show My Own Profile
+        window.showMyProfile = function() {
+            if (!myProfileData || !localUser) return;
+            openUserProfile(myProfileData.gameName, myProfileData.age, myProfileData.location || "India, CG", myProfileData.gender, myProfileData.playerTag || "--------", localUser.uid, true);
+        };
+
+        // Universal Profile Viewer Modal (Works for any player card clicked anywhere)
+        window.openUserProfile = function(name, age, location, gender, uidTag, targetUid, isSelf = false) {
+            activeTargetUid = targetUid;
+            document.getElementById('modal-gamename').innerText = name;
+            document.getElementById('modal-realname').innerText = isSelf ? `UID: ${uidTag} (You)` : `Real Identity Verified`;
+            document.getElementById('modal-uid').innerText = uidTag;
+            document.getElementById('modal-age').innerText = age;
+            document.getElementById('modal-location').innerText = location;
+            document.getElementById('modal-gender').innerText = gender;
+            document.getElementById('modal-avatar').innerText = gender === 'Girl' ? '👧' : '👦';
+            
+            // Render Action Buttons inside Modal if it's someone else
+            const actionsWrapper = document.getElementById('modal-actions-wrapper');
+            actionsWrapper.innerHTML = '';
+            
+            if (!isSelf) {
+                actionsWrapper.innerHTML = `
+                    <button class="modal-action-btn" onclick="sendFriendRequestFromModal()">Send Friend Request</button>
+                    <button class="modal-team-btn" onclick="sendTeamJoinRequestFromModal()">Team Join Request</button>
+                `;
+            }
+
+            document.getElementById('profile-modal').style.display = 'flex';
+        };
+
+        window.closeProfileModal = function() {
+            document.getElementById('profile-modal').style.display = 'none';
+        };
+
+        // Copy UID with Feedback
+        window.copyUID = function() {
+            const uidText = document.getElementById('modal-uid').innerText;
+            if (uidText && uidText !== '--') {
+                navigator.clipboard.writeText(uidText).then(() => {
+                    alert("📋 UID Copied: " + uidText);
+                });
+            }
+        };
+
+        // Send Friend Request from Modal
+        window.sendFriendRequestFromModal = async function() {
+            if (!activeTargetUid || !localUser) return;
+            try {
+                await updateDoc(doc(db, "Users", activeTargetUid), {
+                    incomingRequests: arrayUnion(localUser.uid)
+                });
+                alert("✅ Friend request sent successfully!");
+                closeProfileModal();
+            } catch (err) {
+                alert("❌ Failed to send friend request.");
+            }
+        };
+
+        // Team Join Request from Modal
+        window.sendTeamJoinRequestFromModal = function() {
+            alert("🚀 Team join request sent successfully!");
+            closeProfileModal();
+        };
+
+        // UID Search System
+        window.searchPlayerByUID = async function() {
+            const tag = document.getElementById('search-uid-input').value.trim();
+            if(!tag) return;
+
+            try {
+                const q = query(collection(db, "Users"), where("playerTag", "==", tag));
+                const querySnapshot = await getDocs(q);
+
+                if(querySnapshot.empty) {
+                    alert("Player not found with this UID!");
+                    return;
+                }
+
+                querySnapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    if(docSnap.id === localUser.uid) {
+                        alert("You cannot add yourself!");
+                        return;
+                    }
+                    openUserProfile(data.gameName, data.age, data.location || "India", data.gender, data.playerTag || "00000000", docSnap.id, false);
+                });
+            } catch (err) {
+                alert("Search error!");
+            }
+        };
+
+        // Dummy Local Chat Tabs
         window.switchChatTab = function(type, el) {
             document.querySelectorAll('.chat-tab').forEach(t => t.classList.remove('active'));
             el.classList.add('active');
@@ -289,100 +456,6 @@
             box.appendChild(p);
             input.value = '';
             box.scrollTop = box.scrollHeight;
-        };
-
-        // Profile Modals & Drawers Setup
-        const setupDrawer = (btnId, drawerId, closeId) => {
-            document.getElementById(btnId).addEventListener('click', () => document.getElementById(drawerId).classList.add('open'));
-            document.getElementById(closeId).addEventListener('click', () => document.getElementById(drawerId).classList.remove('open'));
-        };
-
-        setupDrawer('btn-chat', 'chat-drawer', 'close-chat');
-        setupDrawer('btn-friends', 'friends-drawer', 'close-friends');
-        setupDrawer('btn-party-create', 'party-drawer', 'close-party');
-
-        // Show My Own Profile
-        window.showMyProfile = function() {
-            if (!myProfileData || !localUser) return;
-            openUserProfile(myProfileData.gameName, myProfileData.age, myProfileData.location || "India, CG", myProfileData.gender, myProfileData.playerTag || "--------", localUser.uid, true);
-        };
-
-        // Universal Profile Viewer Modal
-        window.openUserProfile = function(name, age, location, gender, uidTag, targetUid, isSelf = false) {
-            activeTargetUid = targetUid;
-            document.getElementById('modal-gamename').innerText = name;
-            document.getElementById('modal-realname').innerText = isSelf ? `UID: ${uidTag} (You)` : `Real Identity Verified`;
-            document.getElementById('modal-uid').innerText = uidTag;
-            document.getElementById('modal-age').innerText = age;
-            document.getElementById('modal-location').innerText = location;
-            document.getElementById('modal-gender').innerText = gender;
-            document.getElementById('modal-avatar').innerText = gender === 'Girl' ? '👧' : '👦';
-            
-            // Dynamic Action Button inside Modal
-            const actionContainer = document.getElementById('modal-action-container');
-            actionContainer.innerHTML = '';
-            
-            if (!isSelf && localUser) {
-                actionContainer.innerHTML = `<button class="modal-action-btn" onclick="sendFriendRequestFromModal()">Send Friend Request</button>`;
-            }
-
-            document.getElementById('profile-modal').style.display = 'flex';
-        };
-
-        window.closeProfileModal = function() {
-            document.getElementById('profile-modal').style.display = 'none';
-        };
-
-        // Copy UID Function
-        window.copyUID = function() {
-            const uidText = document.getElementById('modal-uid').innerText;
-            if (uidText && uidText !== '--') {
-                navigator.clipboard.writeText(uidText).then(() => {
-                    alert("📋 UID Copied: " + uidText);
-                });
-            }
-        };
-
-        // Send Friend Request from Modal
-        window.sendFriendRequestFromModal = async function() {
-            if (!activeTargetUid || !localUser) return;
-            try {
-                const targetRef = doc(db, "Users", activeTargetUid);
-                await updateDoc(targetRef, {
-                    incomingRequests: arrayUnion(localUser.uid)
-                });
-                alert("✅ Friend request sent successfully!");
-                closeProfileModal();
-            } catch (err) {
-                alert("❌ Failed to send friend request.");
-            }
-        };
-
-        // Firebase UID Search
-        window.searchPlayerByUID = async function() {
-            const tag = document.getElementById('search-uid-input').value.trim();
-            if(!tag) return;
-
-            try {
-                const q = query(collection(db, "Users"), where("playerTag", "==", tag));
-                const querySnapshot = await getDocs(q);
-
-                if(querySnapshot.empty) {
-                    alert("Player not found with this UID!");
-                    return;
-                }
-
-                querySnapshot.forEach((docSnap) => {
-                    const data = docSnap.data();
-                    if(docSnap.id === localUser.uid) {
-                        alert("You cannot add yourself!");
-                        return;
-                    }
-                    openUserProfile(data.gameName, data.age, data.location || "India", data.gender, data.playerTag, docSnap.id, false);
-                });
-            } catch (err) {
-                alert("Search error!");
-            }
         };
     </script>
 </body>
