@@ -1,5 +1,5 @@
 // js/friends.js
-import { collection, getDocs, query, where, limit, doc, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { collection, getDocs, query, limit, doc, updateDoc, arrayUnion, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 console.log("👥 Friends Module Linked Safely!");
 
@@ -12,7 +12,6 @@ window.searchPlayerByUID = async function() {
     searchBtn.innerText = "...";
 
     try {
-        // window.db is passed safely from lobby.html
         const q = query(collection(window.db, "Users"), where("playerTag", "==", tag));
         const querySnapshot = await getDocs(q);
 
@@ -26,9 +25,10 @@ window.searchPlayerByUID = async function() {
             const data = docSnap.data();
             if(docSnap.id === window.localUser.uid) {
                 alert("You cannot add yourself!");
+                searchBtn.innerText = "Search";
                 return;
             }
-            window.openUserProfile(data.gameName, data.age, data.location || "India", data.gender, data.playerTag, docSnap.id);
+            window.openUserProfile(data.gameName, data.age, data.location || "India", data.gender, data.playerTag || "00000000", docSnap.id, false);
         });
         searchBtn.innerText = "Search";
     } catch (err) {
@@ -39,7 +39,7 @@ window.searchPlayerByUID = async function() {
 
 // 2. Global Live Players System
 window.loadGlobalPlayers = async function() {
-    const container = document.getElementById('friends-list-container');
+    const container = document.getElementById('global-live-players-container');
     if (!container) return;
     
     container.innerHTML = '<p style="color: #64748b; font-size: 11px;">Scanning Global Server...</p>';
@@ -53,16 +53,22 @@ window.loadGlobalPlayers = async function() {
             if (docSnap.id === window.localUser.uid) return;
             const data = docSnap.data();
             const icon = data.gender === 'Girl' ? '👧' : '👦';
+            const location = data.location || 'India';
+            const tag = data.playerTag || '00000000';
             
             container.innerHTML += `
-                <div class="list-card-item" onclick="openUserProfile('${data.gameName}', '${data.age}', 'India', '${data.gender}', '${data.playerTag}', '${docSnap.id}')">
-                    <span style="font-size: 12px;">${icon} ${data.gameName}</span>
+                <div class="list-card-item" onclick="openUserProfile('${data.gameName}', '${data.age}', '${location}', '${data.gender}', '${tag}', '${docSnap.id}', false)">
+                    <span style="font-size: 12px; color: #f1f5f9;">${icon} ${data.gameName} <span class="live-badge" style="background: #ef4444; color: white; font-size: 9px; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 6px;">Live</span></span>
                     <button class="action-btn-small" onclick="event.stopPropagation(); sendFriendReq('${docSnap.id}', '${data.gameName}')">Add</button>
                 </div>
             `;
         });
+
+        if (container.innerHTML === '') {
+            container.innerHTML = '<p style="color: #64748b; font-size: 11px;">No other players online.</p>';
+        }
     } catch(e) {
-        container.innerHTML = '<p style="color: #ef4444; font-size: 11px;">Error loading players.</p>';
+        container.innerHTML = '<p style="color: #ef4444; font-size: 11px;">Error loading live players.</p>';
     }
 };
 
@@ -81,6 +87,9 @@ window.sendFriendReq = async function(targetUid, targetName) {
 };
 
 // Trigger Global Load when clicking Friends button
-document.getElementById('btn-friends').addEventListener('click', () => {
-    window.loadGlobalPlayers();
-});
+const btnFriends = document.getElementById('btn-friends');
+if (btnFriends) {
+    btnFriends.addEventListener('click', () => {
+        window.loadGlobalPlayers();
+    });
+}
