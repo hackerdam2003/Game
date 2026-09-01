@@ -1,7 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Racing Universe | Login</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: #0f172a; color: white; padding-top: 80px; margin: 0; }
+        .box { background: #1e293b; padding: 40px 20px; border-radius: 12px; width: 90%; max-width: 400px; margin: auto; border: 1px solid #334155; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        h2 { color: #3b82f6; margin-top: 0; text-transform: uppercase; letter-spacing: 1px; }
+        button { width: 100%; padding: 15px; border-radius: 8px; background: #ef4444; color: white; font-weight: 900; cursor: pointer; border: none; font-size: 16px; margin-top: 20px; text-transform: uppercase; }
+        button:hover { background: #dc2626; }
+        #statusText { color: #fbbf24; font-size: 14px; margin-top: 20px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="box">
+        <h2>🏎️ Racing Universe</h2>
+        <p style="color: #cbd5e1; font-size: 14px;">Anti-Scam Servers Active.</p>
+        
+        <button id="googleLoginBtn">🔐 Login with Google</button>
+        <p id="statusText">System Ready...</p>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        // Redirect hata kar signInWithPopup aur browserLocalPersistence add kiya
-        import { getAuth, signInWithPopup, onAuthStateChanged, GoogleAuthProvider, browserLocalPersistence, setPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        // signInWithPopup import kiya gaya hai
+        import { getAuth, signInWithPopup, onAuthStateChanged, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         // 🔥 RACING ENGINE DATABASE KEYS 
@@ -22,36 +47,51 @@
         const loginBtn = document.getElementById('googleLoginBtn');
         const statusText = document.getElementById('statusText');
 
-        // Force local persistence so mobile doesn't forget the user
-        setPersistence(auth, browserLocalPersistence);
-
-        // 🚀 POPUP LOGIN LOGIC
+        // 🚀 THE FIX: DIRECT POPUP & REDIRECT LOGIC
         loginBtn.addEventListener('click', async (e) => {
             e.preventDefault(); 
             statusText.innerText = "Opening Google Login...";
+            
             try {
-                await signInWithPopup(auth, provider);
+                // Code yahan rukega jab tak aap account select nahi karte
+                const result = await signInWithPopup(auth, provider);
+                const user = result.user;
+                
+                // Account select hote hi yeh text aayega
+                statusText.innerText = "Login Done! Checking Profile...";
+                
+                // Turant Database check hoga
+                const docSnap = await getDoc(doc(db, "Users", user.uid));
+                
+                if (docSnap.exists() && docSnap.data().gender) {
+                    statusText.innerText = "Profile Found! Entering Lobby...";
+                    window.location.href = "lobby.html";
+                } else {
+                    statusText.innerText = "New Player! Redirecting to setup...";
+                    window.location.href = "profile.html";
+                }
             } catch (error) {
-                statusText.innerText = "❌ Login Error: " + error.message;
+                // Agar popup band kar diya ya error aaya toh screen par code chhap jayega
+                statusText.innerText = "❌ Error: " + error.message;
             }
         });
 
-        // 🚀 THE REDIRECT BRAIN: Naya ya Purana User Check
+        // Agar user pehle se login hai aur page refresh karta hai (Auto-Login)
         onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                statusText.innerText = "Login Success! Verifying identity...";
+            if (user && statusText.innerText === "System Ready...") {
+                statusText.innerText = "Auto-Login detected. Verifying...";
                 try {
                     const docSnap = await getDoc(doc(db, "Users", user.uid));
                     if (docSnap.exists() && docSnap.data().gender) {
-                        // Purana user -> Direct Lobby
                         window.location.href = "lobby.html";
                     } else {
-                        // Naya user -> Profile Form
                         window.location.href = "profile.html";
                     }
                 } catch (error) {
-                    statusText.innerText = "❌ Database Error. Check Rules.";
+                    statusText.innerText = "❌ DB Error: " + error.message;
                 }
             }
         });
     </script>
+</body>
+</html>
