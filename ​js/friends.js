@@ -1,5 +1,5 @@
 // js/friends.js
-import { collection, getDocs, query, limit, doc, updateDoc, arrayUnion, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { collection, getDocs, query, limit, doc, getDoc, updateDoc, arrayUnion, arrayRemove, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 console.log("👥 Friends Module Linked Safely!");
 
@@ -58,7 +58,7 @@ window.loadGlobalPlayers = async function() {
             
             container.innerHTML += `
                 <div class="list-card-item" onclick="openUserProfile('${data.gameName}', '${data.age}', '${location}', '${data.gender}', '${tag}', '${docSnap.id}', false)">
-                    <span style="font-size: 12px; color: #f1f5f9;">${icon} ${data.gameName} <span class="live-badge" style="background: #ef4444; color: white; font-size: 9px; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 6px;">Live</span></span>
+                    <span style="font-size: 12px; color: #f1f5f9;">${icon} ${data.gameName} <span class="live-badge">Live</span></span>
                     <button class="action-btn-small" onclick="event.stopPropagation(); sendFriendReq('${docSnap.id}', '${data.gameName}')">Add</button>
                 </div>
             `;
@@ -72,8 +72,74 @@ window.loadGlobalPlayers = async function() {
     }
 };
 
-// 3. Send Friend Request Logic
+// 3. Load My Personal Friends & Incoming Requests
+window.loadMyFriendsData = async function() {
+    if (!window.localUser || !window.db) return;
+
+    const reqContainer = document.getElementById('incoming-requests-container');
+    const friendsContainer = document.getElementById('friends-list-container');
+
+    try {
+        const myDocSnap = await getDoc(doc(window.db, "Users", window.localUser.uid));
+        if (!myDocSnap.exists()) return;
+
+        const myData = myDocSnap.data();
+        const requests = myData.incomingRequests || [];
+        const friends = myData.friendsList || [];
+
+        // --- Render Incoming Requests ---
+        reqContainer.innerHTML = '';
+        if (requests.length === 0) {
+            reqContainer.innerHTML = '<p style="color: #64748b; font-size: 11px;">No pending requests.</p>';
+        } else {
+            for (let reqUid of requests) {
+                const reqSnap = await getDoc(doc(window.db, "Users", reqUid));
+                if (reqSnap.exists()) {
+                    const reqData = reqSnap.data();
+                    const icon = reqData.gender === 'Girl' ? '👧' : '👦';
+                    reqContainer.innerHTML += `
+                        <div class="list-card-item">
+                            <span style="font-size: 12px; color: #f1f5f9;">${icon} ${reqData.gameName}</span>
+                            <div style="display: flex; gap: 5px;">
+                                <button class="action-btn-small" style="background: #10b981;" onclick="acceptFriend('${reqUid}')">✔</button>
+                                <button class="action-btn-small" style="background: #ef4444;" onclick="rejectFriend('${reqUid}')">✖</button>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        // --- Render Friends List ---
+        friendsContainer.innerHTML = '';
+        if (friends.length === 0) {
+            friendsContainer.innerHTML = '<p style="color: #64748b; font-size: 11px;">No friends added yet.</p>';
+        } else {
+            for (let friendUid of friends) {
+                const fSnap = await getDoc(doc(window.db, "Users", friendUid));
+                if (fSnap.exists()) {
+                    const fData = fSnap.data();
+                    const icon = fData.gender === 'Girl' ? '👧' : '👦';
+                    const tag = fData.playerTag || '00000000';
+                    const loc = fData.location || 'India';
+                    
+                    friendsContainer.innerHTML += `
+                        <div class="list-card-item" onclick="openUserProfile('${fData.gameName}', '${fData.age}', '${loc}', '${fData.gender}', '${tag}', '${friendUid}', false)">
+                            <span style="font-size: 12px; color: #f1f5f9;">${icon} ${fData.gameName}</span>
+                            <button class="action-btn-small" style="background: #8b5cf6;" onclick="event.stopPropagation(); inviteToTeam('${friendUid}')">Invite</button>
+                        </div>
+                    `;
+                }
+            }
+        }
+    } catch (err) {
+        console.error("Error loading friends data:", err);
+    }
+};
+
+// 4. Send Friend Request Logic
 window.sendFriendReq = async function(targetUid, targetName) {
+    if (!window.localUser) return;
     try {
         const targetRef = doc(window.db, "Users", targetUid);
         await updateDoc(targetRef, {
@@ -86,10 +152,54 @@ window.sendFriendReq = async function(targetUid, targetName) {
     }
 };
 
-// Trigger Global Load when clicking Friends button
+// 5. Accept Friend Request
+window.acceptFriend = async function(targetUid) {
+    if (!window.localUser) return;
+    try {
+        const myRef = doc(window.db, "Users", window.localUser.uid);
+        const targetRef = doc(window.db, "Users", targetUid);
+
+        // Update My Document
+        await updateDoc(myRef, {
+            incomingRequests: arrayRemove(targetUid),
+            friendsList: arrayUnion(targetUid)
+        });
+
+        // Update Target Document (Mutual Friendship)
+        await updateDoc(targetRef, {
+            friendsList: arrayUnion(window.localUser.uid)
+        });
+
+        window.loadMyFriendsData(); // Refresh UI instantly
+    } catch (e) {
+        alert("Error accepting request.");
+    }
+};
+
+// 6. Reject Friend Request
+window.rejectFriend = async function(targetUid) {
+    if (!window.localUser) return;
+    try {
+        const myRef = doc(window.db, "Users", window.localUser.uid);
+        await updateDoc(myRef, {
+            incomingRequests: arrayRemove(targetUid)
+        });
+        window.loadMyFriendsData(); // Refresh UI instantly
+    } catch (e) {
+        alert("Error rejecting request.");
+    }
+};
+
+// 7. Team Invite Placeholder (Ties into your roomManager later)
+window.inviteToTeam = function(targetUid) {
+    alert("Party Invite feature will connect to your Socket.io Room Manager soon!");
+};
+
+// Trigger Load Functions when clicking the Friends Drawer Button
 const btnFriends = document.getElementById('btn-friends');
 if (btnFriends) {
     btnFriends.addEventListener('click', () => {
         window.loadGlobalPlayers();
+        window.loadMyFriendsData(); // Load actual DB friends when drawer opens
     });
 }
