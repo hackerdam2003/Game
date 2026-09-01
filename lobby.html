@@ -1,4 +1,161 @@
-<meta name="theme-color" content="#0b1020"> <meta name="description" content="Racing Universe multiplayer racing lobby"> <title>Racing Universe | Lobby</title> <style> * { box-sizing: border-box; } html, body { margin: 0; min-height: 100%; } body { font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; background: radial-gradient(circle at top, #18254a 0%, #0b1020 45%, #05070d 100%); color: #f8fafc; padding: 20px; } button, input { font: inherit; } button { border: 0; } .page { width: 100%; max-width: 760px; margin: 0 auto; } /* ========================= HEADER ========================== */ .topbar { display: flex; justify-content: space-between; align-items: center; gap: 15px; margin-bottom: 18px; } .brand { text-align: left; } .brand-title { margin: 0; font-size: clamp(22px, 5vw, 30px); font-weight: 900; letter-spacing: 1px; } .brand-subtitle { margin: 4px 0 0; color: #94a3b8; font-size: 12px; } #logoutBtn { width: auto; margin: 0; padding: 9px 13px; border-radius: 8px; background: #1e293b; color: #cbd5e1; border: 1px solid #334155; cursor: pointer; } #logoutBtn:hover { background: #334155; } /* ========================= MAIN CARD ========================== */ .box { width: 100%; background: rgba(15, 23, 42, 0.94); border: 1px solid #334155; border-radius: 16px; padding: 20px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45), inset 0 1px rgba(255, 255, 255, 0.03); } /* ========================= PROFILE ========================== */ .profile-card { display: grid; grid-template-columns: 1fr auto; gap: 15px; align-items: center; background: #0b1224; border: 1px solid #25324a; padding: 16px; border-radius: 12px; margin-bottom: 18px; text-align: left; } .identity { min-width: 0; } #playerName { margin: 0 0 5px; color: #f8fafc; font-size: 18px; font-weight: 800; overflow-wrap: anywhere; } #playerRealName { margin: 0 0 10px; color: #64748b; font-size: 12px; } #playerStats { margin: 0; color: #94a3b8; font-size: 13px; } #playerWallet { margin: 0; min-width: 120px; padding: 11px 14px; border-radius: 10px; background: rgba(251, 191, 36, 0.10); border: 1px solid rgba(251, 191, 36, 0.25); color: #fbbf24; font-size: 16px; font-weight: 900; text-align: center; } /* ========================= MATCHMAKING STATUS ========================== */ .status-card { background: #0b1224; border: 1px solid #25324a; border-radius: 12px; padding: 14px; margin-bottom: 18px; } .status-title { color: #64748b; text-transform: uppercase; letter-spacing: 1px; font-size: 10px; font-weight: 800; margin-bottom: 6px; } #gpsStatus { margin: 0; color: #fbbf24; font-size: 13px; line-height: 1.5; } #matchStatus { margin: 7px 0 0; color: #60a5fa; font-size: 13px; display: none; } /* ========================= ACTIONS ========================== */ .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; } .action-btn { min-height: 58px; border-radius: 10px; padding: 12px; cursor: pointer; font-weight: 900; font-size: 14px; transition: transform 0.15s ease, filter 0.15s ease, opacity 0.15s ease; } .action-btn:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.08); } .action-btn:active:not(:disabled) { transform: scale(0.98); } .action-btn:disabled { opacity: 0.45; cursor: not-allowed; } .btn-create { background: #ef4444; color: white; } .btn-find { background: #2563eb; color: white; } /* ========================= MATCHMAKING SETTINGS ========================== */ .settings-card { margin-top: 15px; padding: 14px; border-radius: 10px; background: #0b1224; border: 1px solid #25324a; } .settings-row { display: flex; justify-content: space-between; align-items: center; gap: 15px; } .settings-label { text-align: left; } .settings-label strong { display: block; font-size: 13px; } .settings-label span { display: block; margin-top: 3px; color: #64748b; font-size: 11px; } #radiusSelect { width: auto; min-width: 100px; padding: 8px; border-radius: 7px; border: 1px solid #334155; background: #111827; color: white; outline: none; } /* ========================= ROOMS ========================== */ .rooms-header { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 28px; margin-bottom: 10px; } .rooms-header h3 { margin: 0; font-size: 15px; } #roomsCount { color: #64748b; font-size: 11px; } .room-list { list-style: none; padding: 0; margin: 0; } .room-item { display: flex; justify-content: space-between; align-items: center; gap: 15px; background: #111827; border: 1px solid #25324a; margin: 9px 0; padding: 13px; border-radius: 10px; } .room-info { min-width: 0; text-align: left; } .room-title { font-size: 13px; font-weight: 800; overflow-wrap: anywhere; } .room-meta { margin-top: 5px; color: #64748b; font-size: 11px; } .room-distance { margin-top: 4px; color: #60a5fa; font-size: 11px; font-weight: 700; } .join-room-btn { width: auto; flex-shrink: 0; margin: 0; padding: 9px 14px; border-radius: 7px; background: #10b981; color: white; font-size: 12px; font-weight: 800; cursor: pointer; } .join-room-btn:hover { background: #059669; } /* ========================= EMPTY / ERROR STATES ========================== */ .empty-state { padding: 28px 15px; text-align: center; border: 1px dashed #334155; border-radius: 10px; color: #64748b; font-size: 12px; } .loading { animation: pulse 1.4s infinite ease-in-out; } @keyframes pulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } } /* ========================= SECURITY / INFO FOOTER ========================== */ .info { margin-top: 18px; padding: 12px; border-radius: 9px; background: rgba(59, 130, 246, 0.06); border: 1px solid rgba(59, 130, 246, 0.15); color: #64748b; font-size: 10px; line-height: 1.5; text-align: left; } /* ========================= MOBILE ========================== */ @media (max-width: 560px) { body { padding: 12px; } .box { padding: 14px; border-radius: 13px; } .topbar { align-items: flex-start; } .profile-card { grid-template-columns: 1fr; } #playerWallet { width: 100%; } .actions { grid-template-columns: 1fr; } .room-item { align-items: stretch; flex-direction: column; } .join-room-btn { width: 100%; min-height: 42px; } } </style> 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Next-Gen Racing | Main Lobby</title>
+    <!-- Architectural Link: css/main.css -->
+    <link rel="stylesheet" href="css/main.css">
+    <style>
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #f1f5f9; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        header { background: #1e293b; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #334155; z-index: 10; }
+        .logo { font-size: 20px; font-weight: 900; color: #3b82f6; letter-spacing: 1px; }
+        .user-info { display: flex; align-items: center; gap: 15px; }
+        #player-name { font-weight: bold; color: #10b981; }
+        #player-coins { background: #fbbf24; color: #000; padding: 5px 15px; border-radius: 20px; font-weight: 900; }
+        
+        .main-container { display: flex; flex: 1; overflow: hidden; padding: 20px; gap: 20px; }
+        .panel { background: #1e293b; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; border: 1px solid #334155; }
+        .left-panel { flex: 1.2; } 
+        .mid-panel { flex: 2; }   
+        .right-panel { flex: 1; } 
+        
+        h3 { margin-top: 0; border-bottom: 1px solid #334155; padding-bottom: 10px; color: #cbd5e1; text-transform: uppercase; font-size: 14px; }
+        button { background: #3b82f6; color: white; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #2563eb; }
+        .btn-play { background: #10b981; width: 100%; margin-top: auto; font-size: 18px; padding: 15px; text-transform: uppercase; }
+        
+        .toggle-box { background: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid #334155; margin-top: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .switch { position: relative; display: inline-block; width: 40px; height: 20px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ef4444; border-radius: 20px; transition: .4s; }
+        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; border-radius: 50%; transition: .4s; }
+        input:checked + .slider { background-color: #10b981; }
+        input:checked + .slider:before { transform: translateX(20px); }
 
-<!-- ========================= HEADER ========================== --> <header class="topbar"> <div class="brand"> <h1 class="brand-title">🏎️ RACING UNIVERSE</h1> <p class="brand-subtitle"> Multiplayer Racing Lobby </p> </div> <button id="logoutBtn" type="button"> Logout </button> </header> <!-- ========================= MAIN LOBBY ========================== --> <main class="box"> <!-- PLAYER PROFILE --> <section class="profile-card"> <div class="identity"> <p id="playerName"> 👤 Driver: Loading... </p> <p id="playerRealName"> Google identity: Loading... </p> <p id="playerStats"> 🧬 Age: -- &nbsp;|&nbsp; Gender: -- </p> </div> <p id="playerWallet"> 🪙 0 </p> </section> <!-- MATCHMAKING STATUS --> <section class="status-card"> <div class="status-title"> Matchmaking Status </div> <p id="gpsStatus"> GPS has not been requested. </p> <p id="matchStatus"> Ready. </p> </section> <!-- PRIMARY ACTIONS --> <section class="actions"> <button id="createRoomBtn" class="action-btn btn-create" type="button"> 📍 CREATE LOCAL MATCH </button> <button id="findMatchBtn" class="action-btn btn-find" type="button"> 🔎 FIND NEARBY MATCH </button> </section> <!-- MATCHMAKING SETTINGS --> <section class="settings-card"> <div class="settings-row"> <div class="settings-label"> <strong>Search Radius</strong> <span> Nearby rooms are sorted by distance. </span> </div> <select id="radiusSelect"> <option value="10">10 km</option> <option value="25">25 km</option> <option value="50" selected>50 km</option> <option value="100">100 km</option> <option value="250">250 km</option> </select> </div> </section> <!-- ROOM LIST --> <section> <div class="rooms-header"> <h3> 🏁 Nearby Race Rooms </h3> <span id="roomsCount"> 0 rooms </span> </div> <ul id="roomsList" class="room-list"> <li class="empty-state"> Press <strong>Find Nearby Match</strong> to scan for local race rooms. </li> </ul> </section> <!-- INFORMATION --> <div class="info"> <strong>Location Privacy:</strong> GPS is requested only when you start local matchmaking or attempt to join a local room. Your exact coordinates are not displayed to other players. </div> </main> 
+        .chat-tabs { display: flex; gap: 5px; margin-bottom: 10px; }
+        .tab { background: #0f172a; padding: 10px; border-radius: 8px; cursor: pointer; flex: 1; text-align: center; font-size: 12px; font-weight: bold; border: 1px solid #334155; }
+        .tab.active { background: #3b82f6; border-color: #3b82f6; }
+        .chat-box { flex: 1; background: #0f172a; border-radius: 8px; padding: 15px; overflow-y: auto; margin-bottom: 15px; border: 1px solid #334155; }
+        .chat-input-area { display: flex; gap: 10px; }
+        input[type="text"] { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white; outline: none; }
+        
+        .friend-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #0f172a; border-radius: 8px; margin-bottom: 8px; border: 1px solid #334155; }
+        .status-indicator { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+        .status-online { background: #10b981; }
+    </style>
+</head>
+<body>
 
+    <header>
+        <div class="logo">🏎️ RACING UNIVERSE</div>
+        <div class="user-info">
+            <span id="player-name">Loading Profile...</span>
+            <span id="player-coins">0 🪙</span>
+        </div>
+    </header>
+
+    <div class="main-container">
+        
+        <!-- LEFT PANEL: Party & Matchmaking -->
+        <div class="panel left-panel">
+            <h3>👥 Your Party</h3>
+            <div id="party-list" style="flex: 1; background: #0f172a; border-radius: 8px; padding: 10px; border: 1px solid #334155;">
+                <p style="text-align: center; color: #64748b; font-size: 12px; margin-top: 50px;">You are currently Solo.</p>
+            </div>
+            
+            <button id="create-team-btn" style="width: 100%; margin-top: 10px; background: #4f46e5;">+ Create Private Team</button>
+
+            <div class="toggle-box" id="world-toggle-box">
+                <span style="font-size: 13px; font-weight: bold;">Allow World Players (Auto-Pull)</span>
+                <label class="switch">
+                    <input type="checkbox" id="world-toggle" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <button id="start-match-btn" class="btn-play">▶ FIND MATCH (GPS)</button>
+        </div>
+
+        <!-- MID PANEL: Chat Hub -->
+        <div class="panel mid-panel">
+            <h3>💬 Communications Hub</h3>
+            <div class="chat-tabs">
+                <div class="tab active" data-target="world">🌍 World Chat</div>
+                <div class="tab" data-target="team">🛡️ Team Chat</div>
+                <div class="tab" data-target="friends">👥 DMs</div>
+            </div>
+            
+            <div class="chat-box" id="chat-messages">
+                <p style="color: #10b981; font-size: 12px;">[Server] Welcome to the Global Server. 1:1 Matchmaking is Active.</p>
+            </div>
+            
+            <div class="chat-input-area">
+                <input type="text" id="chat-input" placeholder="Type a message... (Spam filter active)">
+                <button id="send-chat-btn">Send</button>
+            </div>
+        </div>
+
+        <!-- RIGHT PANEL: Friends -->
+        <div class="panel right-panel">
+            <h3>🎮 Friends List</h3>
+            <div style="display: flex; gap: 5px; margin-bottom: 15px;">
+                <input type="text" id="add-friend-input" placeholder="Enter ID..." style="padding: 8px; flex: 1;">
+                <button id="add-friend-btn">Add</button>
+            </div>
+            <div id="friends-list" style="overflow-y: auto; flex: 1;">
+                <div class="friend-item">
+                    <span style="font-size: 13px; color: #64748b;">No friends online.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase Auth Guard for Lobby -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        const engineConfig = {
+            apiKey: "AIzaSyCuYPugV4qIsu9ZT9E5l63bFLgIbte_S8I",
+            authDomain: "racing-universe-engine.firebaseapp.com",
+            projectId: "racing-universe-engine",
+            storageBucket: "racing-universe-engine.firebasestorage.app",
+            messagingSenderId: "572638328716",
+            appId: "1:572638328716:web:830bd01db1fa5b45d948a9"
+        };
+
+        const app = initializeApp(engineConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // UI Variables
+        const playerNameEl = document.getElementById("player-name");
+        const playerCoinsEl = document.getElementById("player-coins");
+
+        // Auth Check & Load Data
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                const userRef = doc(db, "Users", user.uid);
+                const docSnap = await getDoc(userRef);
+                
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    playerNameEl.innerText = `${data.gameName} [${data.gender}]`;
+                    playerCoinsEl.innerText = `${data.wallet_balance || 0} 🪙`;
+                } else {
+                    window.location.href = "profile.html"; // Profile missing
+                }
+            } else {
+                window.location.href = "index.html"; // Not logged in
+            }
+        });
+    </script>
+
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <!-- Keep your modular architectural JS here -->
+    <!-- <script type="module" src="js/team.js"></script> -->
+    <!-- <script type="module" src="js/chat.js"></script> -->
+</body>
+</html>
