@@ -62,7 +62,8 @@
         .profile-card-modal h3 { margin: 10px 0 2px 0; color: #3b82f6; font-size: 18px; }
         .profile-card-modal p { margin: 5px 0; font-size: 13px; color: #94a3b8; }
         .profile-card-modal span { color: #f1f5f9; font-weight: bold; }
-        .btn-close-modal { background: #ef4444; color: white; border: none; padding: 8px 20px; border-radius: 6px; margin-top: 15px; font-weight: bold; cursor: pointer; width: 100%; }
+        .btn-close-modal { background: #ef4444; color: white; border: none; padding: 8px 20px; border-radius: 6px; margin-top: 10px; font-weight: bold; cursor: pointer; width: 100%; }
+        .modal-action-btn { background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 6px; margin-top: 5px; font-weight: bold; cursor: pointer; width: 100%; }
 
         /* List Items */
         .search-box-row { display: flex; gap: 6px; margin-bottom: 5px; }
@@ -133,7 +134,7 @@
         <div class="drawer-body">
             <div style="font-size: 11px; font-weight: bold; color: #3b82f6; text-transform: uppercase;">Search Player by UID</div>
             <div class="search-box-row">
-                <input type="text" id="search-uid-input" placeholder="Enter Tag (e.g. RU-XXXX)">
+                <input type="text" id="search-uid-input" placeholder="Enter Numeric Tag (e.g. 83729104)">
                 <button class="action-btn-small" onclick="searchPlayerByUID()">Search</button>
             </div>
 
@@ -161,7 +162,7 @@
         </div>
     </div>
 
-    <!-- PROFILE MODAL -->
+    <!-- PROFILE MODAL WITH COPY & ACTION BUTTONS -->
     <div class="modal-overlay" id="profile-modal">
         <div class="profile-card-modal">
             <div style="font-size: 45px; margin-bottom: 5px;" id="modal-avatar">👦</div>
@@ -169,21 +170,24 @@
             <p style="font-size: 11px; color: #10b981; margin-bottom: 12px;" id="modal-realname">Real Identity Verified</p>
             
             <div style="text-align: left; background: #0f172a; padding: 12px; border-radius: 8px; border: 1px solid #334155; display: flex; flex-direction: column; gap: 6px;">
-                <p>UID: <span id="modal-uid" style="color: #fbbf24; font-weight: bold;">--</span></p>
+                <p>UID: <span id="modal-uid" style="color: #fbbf24; font-weight: bold; cursor: pointer;" onclick="copyUID()" title="Click to copy">--</span> <small style="color: #3b82f6; float: right; cursor: pointer;" onclick="copyUID()">📋 Copy</small></p>
                 <p>Age: <span id="modal-age">--</span></p>
                 <p>Location: <span id="modal-location">India</span></p>
                 <p>Gender: <span id="modal-gender">Boy</span></p>
             </div>
             
+            <!-- Dynamic Action Button (Add Friend / Request Sent) -->
+            <div id="modal-action-container" style="margin-top: 10px;"></div>
+            
             <button class="btn-close-modal" onclick="closeProfileModal()">Close</button>
         </div>
     </div>
 
-    <!-- Core Firebase Logic Script (No Socket.io to prevent crash) -->
+    <!-- Core Firebase Logic Script -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getFirestore, doc, getDoc, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, collection, getDocs, query, where, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         const engineConfig = {
             apiKey: "AIzaSyCuYPugV4qIsu9ZT9E5l63bFLgIbte_S8I",
@@ -200,6 +204,7 @@
 
         let localUser = null;
         let myProfileData = null;
+        let activeTargetUid = null; // Track who's profile is currently open
 
         const playerNameEl = document.getElementById("player-name");
         const playerCoinsEl = document.getElementById("player-coins");
@@ -296,19 +301,31 @@
         setupDrawer('btn-friends', 'friends-drawer', 'close-friends');
         setupDrawer('btn-party-create', 'party-drawer', 'close-party');
 
+        // Show My Own Profile
         window.showMyProfile = function() {
-            if (!myProfileData) return;
-            openUserProfile(myProfileData.gameName, myProfileData.age, "India, CG", myProfileData.gender, myProfileData.playerTag || "RU-OWN");
+            if (!myProfileData || !localUser) return;
+            openUserProfile(myProfileData.gameName, myProfileData.age, myProfileData.location || "India, CG", myProfileData.gender, myProfileData.playerTag || "--------", localUser.uid, true);
         };
 
-        window.openUserProfile = function(name, age, location, gender, uidTag) {
+        // Universal Profile Viewer Modal
+        window.openUserProfile = function(name, age, location, gender, uidTag, targetUid, isSelf = false) {
+            activeTargetUid = targetUid;
             document.getElementById('modal-gamename').innerText = name;
-            document.getElementById('modal-realname').innerText = `UID: ${uidTag}`;
+            document.getElementById('modal-realname').innerText = isSelf ? `UID: ${uidTag} (You)` : `Real Identity Verified`;
             document.getElementById('modal-uid').innerText = uidTag;
             document.getElementById('modal-age').innerText = age;
             document.getElementById('modal-location').innerText = location;
             document.getElementById('modal-gender').innerText = gender;
             document.getElementById('modal-avatar').innerText = gender === 'Girl' ? '👧' : '👦';
+            
+            // Dynamic Action Button inside Modal
+            const actionContainer = document.getElementById('modal-action-container');
+            actionContainer.innerHTML = '';
+            
+            if (!isSelf && localUser) {
+                actionContainer.innerHTML = `<button class="modal-action-btn" onclick="sendFriendRequestFromModal()">Send Friend Request</button>`;
+            }
+
             document.getElementById('profile-modal').style.display = 'flex';
         };
 
@@ -316,9 +333,34 @@
             document.getElementById('profile-modal').style.display = 'none';
         };
 
+        // Copy UID Function
+        window.copyUID = function() {
+            const uidText = document.getElementById('modal-uid').innerText;
+            if (uidText && uidText !== '--') {
+                navigator.clipboard.writeText(uidText).then(() => {
+                    alert("📋 UID Copied: " + uidText);
+                });
+            }
+        };
+
+        // Send Friend Request from Modal
+        window.sendFriendRequestFromModal = async function() {
+            if (!activeTargetUid || !localUser) return;
+            try {
+                const targetRef = doc(db, "Users", activeTargetUid);
+                await updateDoc(targetRef, {
+                    incomingRequests: arrayUnion(localUser.uid)
+                });
+                alert("✅ Friend request sent successfully!");
+                closeProfileModal();
+            } catch (err) {
+                alert("❌ Failed to send friend request.");
+            }
+        };
+
         // Firebase UID Search
         window.searchPlayerByUID = async function() {
-            const tag = document.getElementById('search-uid-input').value.trim().toUpperCase();
+            const tag = document.getElementById('search-uid-input').value.trim();
             if(!tag) return;
 
             try {
@@ -336,7 +378,7 @@
                         alert("You cannot add yourself!");
                         return;
                     }
-                    openUserProfile(data.gameName, data.age, "India", data.gender, data.playerTag);
+                    openUserProfile(data.gameName, data.age, data.location || "India", data.gender, data.playerTag, docSnap.id, false);
                 });
             } catch (err) {
                 alert("Search error!");
@@ -345,3 +387,4 @@
     </script>
 </body>
 </html>
+
