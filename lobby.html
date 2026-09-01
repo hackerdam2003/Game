@@ -65,7 +65,7 @@
         <div class="party-stage" id="party-stage-container">
             <div class="character-stage" onclick="showMyProfile()">
                 <div class="avatar-icon-big" id="main-avatar-icon">👦</div>
-                <div class="char-name" id="main-char-name">Racer</div>
+                <div class="char-name" id="main-char-name">Loading...</div>
                 <div class="char-sub" id="main-char-info">Host (You)</div>
             </div>
         </div>
@@ -158,11 +158,8 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { getFirestore, doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-        
-        // 🛑 HOTFAKE ENGINE (REALTIME DATABASE IMPORTS)
         import { getDatabase, ref, onValue, onDisconnect, set, serverTimestamp as rtdbTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-        // 🛑 Added databaseURL here for RTDB Support!
         const engineConfig = {
             apiKey: "AIzaSyCuYPugV4qIsu9ZT9E5l63bFLgIbte_S8I",
             authDomain: "racing-universe-engine.firebaseapp.com",
@@ -194,16 +191,22 @@
 
                     if (docSnap.exists()) {
                         window.myProfileData = docSnap.data();
+                        
+                        // Top Header Updates
                         document.getElementById("player-name").innerText = `${window.myProfileData.gameName} (${window.myProfileData.playerTag || 'UID'})`;
                         document.getElementById("player-coins").innerText = `${window.myProfileData.wallet_balance || 0} 🪙`;
 
-                        // 🛑 HOTFAKE MAGIC: Real-time Presence Engine
+                        // 🛑 MISSING CODE FIX: Center Stage Character Update 
+                        document.getElementById("main-char-name").innerText = window.myProfileData.gameName || "Racer";
+                        document.getElementById("main-char-info").innerText = `${window.myProfileData.gender || 'Boy'} • Age: ${window.myProfileData.age || '--'}`;
+                        document.getElementById("main-avatar-icon").innerText = window.myProfileData.gender === 'Girl' ? '👧' : '👦';
+
+                        // Real-time Presence Engine
                         const myStatusRef = ref(rtdb, 'status/' + user.uid);
                         const connectedRef = ref(rtdb, '.info/connected');
 
                         onValue(connectedRef, (snap) => {
                             if (snap.val() === true) {
-                                // Agar internet band ho, to RTDB khud ise offline kar dega!
                                 onDisconnect(myStatusRef).set({ state: 'offline' }).then(() => {
                                     set(myStatusRef, { state: 'online' });
                                 });
