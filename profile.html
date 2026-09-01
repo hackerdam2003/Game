@@ -45,7 +45,6 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        // ✅ BUG FIX: Added getDoc to read existing data before saving
         import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         const engineConfig = {
@@ -62,7 +61,7 @@
         const db = getFirestore(app);
         
         let currentUser = null;
-        let existingPlayerTag = null; // Purana UID save rakhne ke liye
+        let existingData = {}; // 🛑 STORE EVERYTHING TO PREVENT DATA LOSS
 
         const displayNameDisplay = document.getElementById('displayNameDisplay');
         const saveProfileBtn = document.getElementById('saveProfileBtn');
@@ -70,7 +69,6 @@
         const locationInput = document.getElementById('locationInput');
         const dobInput = document.getElementById('dobInput');
 
-        // ✅ BUG FIX: Check if profile already exists so we don't wipe UID/Friends
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 currentUser = user;
@@ -79,11 +77,11 @@
                 try {
                     const userSnap = await getDoc(doc(db, "Users", user.uid));
                     if (userSnap.exists()) {
-                        const data = userSnap.data();
-                        if (data.playerTag) existingPlayerTag = data.playerTag;
-                        if (data.gender) genderSelect.value = data.gender;
-                        if (data.location) locationInput.value = data.location;
-                        if (data.dob) dobInput.value = data.dob;
+                        existingData = userSnap.data(); // Purana saara data yahan save ho jayega
+                        
+                        if (existingData.gender) genderSelect.value = existingData.gender;
+                        if (existingData.location) locationInput.value = existingData.location;
+                        if (existingData.dob) dobInput.value = existingData.dob;
                     }
                 } catch (e) {
                     console.error("Error reading profile:", e);
@@ -114,24 +112,31 @@
             saveProfileBtn.innerText = "Locking Database...";
             saveProfileBtn.disabled = true;
 
-            // ✅ BUG FIX: Only generate new UID if user doesn't already have one
-            const finalUID = existingPlayerTag || Math.floor(10000000 + Math.random() * 90000000).toString();
+            const finalUID = existingData.playerTag || Math.floor(10000000 + Math.random() * 90000000).toString();
+
+            // Safe Payload
+            const profilePayload = {
+                name: currentUser.displayName || "Racer",
+                email: currentUser.email || "",
+                gameName: currentUser.displayName || "Racer", 
+                gender: gender,
+                location: location,
+                dob: dob,
+                age: age,
+                playerTag: finalUID,
+                role: existingData.role || "player" // Preserve role (e.g., if user is admin)
+            };
+
+            // 🛑 ECONOMY & JOIN DATE PROTECTOR: Sirf tab set karo jab user bilkul naya ho
+            if (existingData.wallet_balance === undefined) {
+                profilePayload.wallet_balance = 0;
+            }
+            if (!existingData.joined) {
+                profilePayload.joined = new Date().toISOString();
+            }
 
             try {
-                await setDoc(doc(db, "Users", currentUser.uid), {
-                    name: currentUser.displayName || "Racer",
-                    email: currentUser.email || "",
-                    gameName: currentUser.displayName || "Racer", 
-                    gender: gender,
-                    location: location,
-                    dob: dob,
-                    age: age,
-                    playerTag: finalUID, // Uses safe UID
-                    wallet_balance: 0,
-                    role: "player",
-                    joined: new Date().toISOString()
-                }, { merge: true });
-                
+                await setDoc(doc(db, "Users", currentUser.uid), profilePayload, { merge: true });
                 window.location.href = "lobby.html";
             } catch (error) {
                 alert("❌ Database Error! Try again.");
