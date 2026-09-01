@@ -10,7 +10,7 @@ export function handleRoomEvents(socket, io, connectedPlayers) {
         activeRooms.set(data.roomCode, {
             code: data.roomCode,
             leaderId: socket.id,
-            allowWorld: data.allowWorld,
+            allowWorld: data.allowWorld || false,
             players: [socket.id]
         });
 
@@ -24,7 +24,37 @@ export function handleRoomEvents(socket, io, connectedPlayers) {
         console.log(`🛡️ Room [${data.roomCode}] Created by Leader: ${socket.id} | Allow World: ${data.allowWorld}`);
     });
 
-    // ⚙️ 2. Update Toggle (Leader changes World Player setting)
+    // 🤝 2. Join Private Team (Naya Event doston ke liye)
+    socket.on('joinRoom', (data) => {
+        const room = activeRooms.get(data.roomCode);
+        if (room) {
+            // Max 4 players limit (Aap isko badha sakte hain)
+            if (room.players.length >= 4) {
+                socket.emit('roomError', { message: "Room is currently full!" });
+                return;
+            }
+
+            room.players.push(socket.id);
+            const player = connectedPlayers.get(socket.id);
+            if (player) {
+                player.status = 'in-party';
+                player.room = data.roomCode;
+            }
+
+            socket.join(data.roomCode);
+            console.log(`🤝 Player ${socket.id} joined Room [${data.roomCode}]`);
+            
+            // Sabko batao ki naya dost party me aagaya
+            io.to(data.roomCode).emit('playerJoinedRoom', { 
+                playerId: socket.id, 
+                playerCount: room.players.length 
+            });
+        } else {
+            socket.emit('roomError', { message: "Party not found or closed!" });
+        }
+    });
+
+    // ⚙️ 3. Update Toggle (Leader changes World Player setting)
     socket.on('updateRoomSettings', (data) => {
         const room = activeRooms.get(data.room);
         if (room && room.leaderId === socket.id) {
@@ -33,7 +63,7 @@ export function handleRoomEvents(socket, io, connectedPlayers) {
         }
     });
 
-    // 🏁 3. Start Team Race
+    // 🏁 4. Start Team Race
     socket.on('startTeamMatch', (data) => {
         const room = activeRooms.get(data.roomCode);
         
@@ -54,15 +84,23 @@ export function handleRoomEvents(socket, io, connectedPlayers) {
                 console.log(`🌍 Team [${data.roomCode}] sent to Global Matchmaking!`);
             } else {
                 // STRICTLY PRIVATE RACE:
-                // Toggle OFF hai, toh duniya se koi nahi aayega. Seedha doston ke beech race start!
-                const matchId = "RACE_" + data.roomCode;
+                const matchId = "RU-" + Math.floor(1000 + Math.random() * 9000); // Standardize ID formatting
+                
                 teamPlayers.forEach(p => {
                     p.status = 'in-match';
                     p.room = matchId;
+                    
+                    // Force join naye game room me
+                    io.in(p.id).socketsJoin(matchId);
+
+                    // 🛠️ THE FIX: Server bata raha hai ki Host kon hai aur Client kon
+                    const isLeader = (p.id === room.leaderId);
+                    io.to(p.id).emit('matchFound', { 
+                        matchId: matchId, 
+                        isHost: isLeader // Leader ko Host power, baaki doston ko sirf wait permission
+                    });
                 });
                 
-                // Signal bhej do race start karne ka
-                io.to(data.roomCode).emit('matchFound', { matchId: matchId });
                 console.log(`🔒 Private Race started for Room [${data.roomCode}]`);
             }
         }
