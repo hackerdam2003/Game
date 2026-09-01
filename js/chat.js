@@ -7,8 +7,8 @@ console.log("💬 [Chat] WhatsApp Style DM & World Chat Module Loaded!");
 window.currentChatChannel = 'world';
 window.currentChatTarget = null; 
 window.currentChatTargetName = "";
+window.unsubscribeDM = null; // 🛑 GHOST LISTENER KILLER
 
-// ⏳ Temporary Memory for World and Team Chats
 window.worldChatHistory = [];
 window.teamChatHistory = [];
 
@@ -16,7 +16,6 @@ function renderTemporaryChat(channel) {
     const box = document.getElementById('active-chat-box');
     if (!box || window.currentChatChannel !== channel) return;
     
-    // Clear box but keep the intro message
     const introMsg = document.getElementById('chat-intro-msg');
     box.innerHTML = '';
     if(introMsg) box.appendChild(introMsg);
@@ -41,16 +40,22 @@ window.switchChatTab = async function(type, el) {
     window.currentChatChannel = type;
     window.currentChatTarget = null; 
     
+    // Purana chat listener band karo taaki duplicate message na aaye
+    if (window.unsubscribeDM) {
+        window.unsubscribeDM();
+        window.unsubscribeDM = null;
+    }
+    
     chatBox.innerHTML = '<p id="chat-intro-msg" style="color: #10b981; font-size:12px; margin-bottom:10px;"></p>';
     const introMsg = document.getElementById('chat-intro-msg');
 
     if(type === 'world') {
         introMsg.innerText = "[🌍 World Chat]: Messages auto-delete after 60s.";
-        renderTemporaryChat('world'); // Puraani world chat wapas load karega
+        renderTemporaryChat('world'); 
     } 
     else if(type === 'team') {
         introMsg.innerText = "[🛡️ Team Chat]: Connected to active room.";
-        renderTemporaryChat('team'); // Team chat load karega
+        renderTemporaryChat('team'); 
     } 
     else if(type === 'dm') {
         introMsg.innerText = "[👥 Friend DMs]: Loading your friends...";
@@ -70,15 +75,19 @@ window.switchChatTab = async function(type, el) {
                                 const fData = fSnap.data();
                                 const name = fData.gameName || fData.name || 'Racer';
                                 
-                                // 🛑 DOT COLOR LOGIC: Green for Online, Red for Offline
+                                // 🛑 DOT GLOW & SIZE UPGRADE
                                 const statusObj = window.userStatuses ? window.userStatuses[friendUid] : null;
                                 const isOnline = statusObj && statusObj.state === 'online';
-                                const statusColor = isOnline ? '#10b981' : '#ef4444'; 
+                                const statusColor = isOnline ? '#00ff00' : '#ff0000'; 
+                                const shadow = isOnline ? '0 0 10px #00ff00' : '0 0 10px #ff0000';
                                 
                                 chatBox.innerHTML += `
                                     <div style="background: #1e293b; padding: 8px 12px; border-radius: 6px; margin-top: 6px; border: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; cursor: pointer;"
                                          onclick="openPrivateChat('${friendUid}', '${name}')">
-                                        <span style="color: #f1f5f9; font-size: 12px;">👤 ${name} <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${statusColor}; margin-left:5px; box-shadow: 0 0 5px ${statusColor};"></span></span>
+                                        <span style="color: #f1f5f9; font-size: 12px; display:flex; align-items:center;">
+                                            👤 ${name} 
+                                            <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:${statusColor}; margin-left:8px; box-shadow:${shadow}; border:1px solid #fff;"></span>
+                                        </span>
                                         <button style="background: #3b82f6; border: none; color: white; padding: 4px 10px; border-radius: 4px; font-size: 10px; font-weight: bold; cursor: pointer;">Chat</button>
                                     </div>
                                 `;
@@ -92,6 +101,10 @@ window.switchChatTab = async function(type, el) {
 };
 
 window.closePrivateChat = function() {
+    if (window.unsubscribeDM) {
+        window.unsubscribeDM();
+        window.unsubscribeDM = null;
+    }
     window.switchChatTab('dm', document.querySelectorAll('.chat-tab')[2]);
 };
 
@@ -100,17 +113,25 @@ window.openPrivateChat = function(friendUid, friendName) {
     window.currentChatTargetName = friendName;
     window.currentChatChannel = 'dm';
     
+    // Purana chat listener kill karo
+    if (window.unsubscribeDM) {
+        window.unsubscribeDM();
+        window.unsubscribeDM = null;
+    }
+    
     const statusObj = window.userStatuses ? window.userStatuses[friendUid] : null;
     const isOnline = statusObj && statusObj.state === 'online';
-    const statusTxt = isOnline ? `<span style="color:#10b981;">Online</span>` : `<span style="color:#ef4444;">Offline</span>`;
+    const statusTxt = isOnline ? `<span style="color:#00ff00;">Online</span>` : `<span style="color:#ff0000;">Offline</span>`;
 
     const chatBox = document.getElementById('active-chat-box');
+    
+    // 🛑 KHALI SPACE FIX: Removed max-height and overflow-y from the inner div
     chatBox.innerHTML = `
         <div style="background: #334155; padding: 5px 10px; border-radius: 4px; margin-bottom: 5px; display:flex; justify-content:space-between; align-items:center;">
             <span style="color: #f1f5f9; font-size: 11px; font-weight:bold;">Chatting with: ${friendName} <br>${statusTxt}</span>
             <button onclick="closePrivateChat()" style="background:transparent; border:none; color:#ef4444; font-size:10px; cursor:pointer;">✖ Back</button>
         </div>
-        <div id="dm-message-list" style="display:flex; flex-direction:column; gap:6px; overflow-y:auto; max-height:220px; padding-bottom:10px;"></div>
+        <div id="dm-message-list" style="display:flex; flex-direction:column; gap:6px; padding-bottom:10px; width:100%;"></div>
     `;
 
     const uid1 = window.localUser.uid;
@@ -119,7 +140,7 @@ window.openPrivateChat = function(friendUid, friendName) {
 
     const chatRef = ref(window.rtdb, 'PrivateChats/' + chatId);
     
-    onValue(chatRef, (snap) => {
+    window.unsubscribeDM = onValue(chatRef, (snap) => {
         const list = document.getElementById('dm-message-list');
         if (!list || window.currentChatChannel !== 'dm') return;
         
@@ -131,25 +152,20 @@ window.openPrivateChat = function(friendUid, friendName) {
                 const key = childSnap.key;
                 const msg = childSnap.val();
                 
-                // 🛑 BLUE TICK LOGIC (Read Receipts)
-                // Agar message kisi aur ne bheja hai aur humne chat khol li, toh usko 'read' mark kar do
                 if (msg.senderUid !== window.localUser.uid && msg.status !== 'read') {
                     update(ref(window.rtdb, `PrivateChats/${chatId}/${key}`), { status: 'read' });
                 }
 
-                // 📅 DATE & TIME LOGIC
                 const msgDate = new Date(msg.timestamp);
                 const dateStr = msgDate.toLocaleDateString();
                 const timeStr = msgDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
-                // Har naye din par Date ka tag laga do
                 if (dateStr !== lastDate) {
                     list.innerHTML += `<div style="text-align:center; margin: 10px 0;"><span style="background:#0f172a; padding:2px 8px; border-radius:10px; font-size:9px; color:#64748b; border: 1px solid #334155;">${dateStr}</span></div>`;
                     lastDate = dateStr;
                 }
 
                 if (msg.senderUid === window.localUser.uid) {
-                    // Mere dwara bheja gaya message (Double Blue Ticks)
                     const ticks = msg.status === 'read' ? '<span style="color:#38bdf8; font-weight:bold;">✓✓</span>' : '<span style="color:#94a3b8;">✓</span>';
                     list.innerHTML += `
                         <div style="align-self: flex-end; max-width: 80%; margin-bottom: 2px;">
@@ -160,7 +176,6 @@ window.openPrivateChat = function(friendUid, friendName) {
                         </div>
                     `;
                 } else {
-                    // Dost dwara bheja gaya message
                     list.innerHTML += `
                         <div style="align-self: flex-start; max-width: 80%; margin-bottom: 2px;">
                             <span style="background:#1e293b; color:white; padding:6px 10px; border-radius:0 8px 8px 8px; display:inline-block; border: 1px solid #334155; font-size:12px;">
@@ -171,8 +186,7 @@ window.openPrivateChat = function(friendUid, friendName) {
                     `;
                 }
             });
-            const chatBoxOuter = document.getElementById('active-chat-box');
-            chatBoxOuter.scrollTop = chatBoxOuter.scrollHeight; // Auto-scroll to latest msg
+            chatBox.scrollTop = chatBox.scrollHeight; 
         } else {
             list.innerHTML = '<p style="color:#64748b; font-size:11px; text-align:center;">No messages yet. Say hi!</p>';
         }
@@ -194,7 +208,6 @@ window.sendChatMessage = async function() {
         const uid2 = window.currentChatTarget;
         const chatId = uid1 < uid2 ? `${uid1}_${uid2}` : `${uid2}_${uid1}`;
 
-        // Send to Database with default status as 'sent'
         push(ref(window.rtdb, 'PrivateChats/' + chatId), {
             senderUid: window.localUser.uid,
             senderName: senderName,
@@ -204,13 +217,12 @@ window.sendChatMessage = async function() {
         });
     } 
     else {
-        // WORLD / TEAM CHAT SOCKET EMIT
         if (window.socket) {
             window.socket.emit('chatMessage', {
                 sender: senderName,
                 message: messageText,
                 channel: window.currentChatChannel,
-                timestamp: Date.now() // Send time to socket too
+                timestamp: Date.now() 
             });
         }
     }
@@ -220,7 +232,7 @@ window.initChatSystem = function() {
     if (window.socket) {
         window.socket.off('receiveChat'); 
         window.socket.on('receiveChat', (data) => {
-            if(data.channel === 'dm') return; // DMs are handled by DB
+            if(data.channel === 'dm') return; 
 
             const timeStr = new Date(data.timestamp || Date.now()).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
             
@@ -233,10 +245,9 @@ window.initChatSystem = function() {
 
             if (data.channel === 'world') {
                 window.worldChatHistory.push(msgObj);
-                // 🛑 AUTO DELETE WORLD CHAT AFTER 60 SECONDS
                 setTimeout(() => {
                     window.worldChatHistory = window.worldChatHistory.filter(m => m.id !== msgObj.id);
-                    renderTemporaryChat('world'); // Refresh UI safely
+                    renderTemporaryChat('world'); 
                 }, 60000); 
                 renderTemporaryChat('world');
             } 
@@ -248,12 +259,9 @@ window.initChatSystem = function() {
     }
 };
 
-// 🛑 TEAM CHAT DELETE TOOL
-// Jab player team leave kare (Leave Team Button par click kare) toh frontend se ise call kijiye: window.clearTeamChat();
 window.clearTeamChat = function() {
     window.teamChatHistory = [];
     if(window.currentChatChannel === 'team') {
         renderTemporaryChat('team');
     }
 };
-
