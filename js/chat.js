@@ -2,12 +2,12 @@
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { ref, onValue, push, update } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-console.log("💬 [Chat] WhatsApp Style DM & World Chat Module Loaded!");
+console.log("💬 [Chat] Clean Dot UI Module Loaded!");
 
 window.currentChatChannel = 'world';
 window.currentChatTarget = null; 
 window.currentChatTargetName = "";
-window.unsubscribeDM = null; // 🛑 GHOST LISTENER KILLER
+window.unsubscribeDM = null; 
 
 window.worldChatHistory = [];
 window.teamChatHistory = [];
@@ -40,7 +40,6 @@ window.switchChatTab = async function(type, el) {
     window.currentChatChannel = type;
     window.currentChatTarget = null; 
     
-    // Purana chat listener band karo taaki duplicate message na aaye
     if (window.unsubscribeDM) {
         window.unsubscribeDM();
         window.unsubscribeDM = null;
@@ -58,7 +57,7 @@ window.switchChatTab = async function(type, el) {
         renderTemporaryChat('team'); 
     } 
     else if(type === 'dm') {
-        introMsg.innerText = "[👥 Friend DMs]: Loading your friends...";
+        introMsg.innerText = "[👥 Friend DMs]: Select a friend to chat:";
         
         if (window.localUser && window.db) {
             try {
@@ -68,25 +67,25 @@ window.switchChatTab = async function(type, el) {
                     if (friends.length === 0) {
                         introMsg.innerText = "You have no friends added yet.";
                     } else {
-                        introMsg.innerText = "Select a friend to chat (Messages are permanent):";
                         friends.forEach(async (friendUid) => {
                             const fSnap = await getDoc(doc(window.db, "Users", friendUid));
                             if (fSnap.exists()) {
                                 const fData = fSnap.data();
                                 const name = fData.gameName || fData.name || 'Racer';
                                 
-                                // 🛑 DOT GLOW & SIZE UPGRADE
                                 const statusObj = window.userStatuses ? window.userStatuses[friendUid] : null;
                                 const isOnline = statusObj && statusObj.state === 'online';
-                                const statusColor = isOnline ? '#00ff00' : '#ff0000'; 
-                                const shadow = isOnline ? '0 0 10px #00ff00' : '0 0 10px #ff0000';
+                                
+                                // 🛑 CLEAN UI: Online par glowing green dot, Offline par koi dot nahi (sirf clean text)
+                                const dotHtml = isOnline 
+                                    ? `<span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#00ff00; margin-left:8px; box-shadow:0 0 8px #00ff00;"></span>` 
+                                    : `<span style="font-size:10px; color:#64748b; margin-left:6px;">(Offline)</span>`;
                                 
                                 chatBox.innerHTML += `
                                     <div style="background: #1e293b; padding: 8px 12px; border-radius: 6px; margin-top: 6px; border: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; cursor: pointer;"
                                          onclick="openPrivateChat('${friendUid}', '${name}')">
                                         <span style="color: #f1f5f9; font-size: 12px; display:flex; align-items:center;">
-                                            👤 ${name} 
-                                            <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:${statusColor}; margin-left:8px; box-shadow:${shadow}; border:1px solid #fff;"></span>
+                                            👤 ${name} ${dotHtml}
                                         </span>
                                         <button style="background: #3b82f6; border: none; color: white; padding: 4px 10px; border-radius: 4px; font-size: 10px; font-weight: bold; cursor: pointer;">Chat</button>
                                     </div>
@@ -113,7 +112,6 @@ window.openPrivateChat = function(friendUid, friendName) {
     window.currentChatTargetName = friendName;
     window.currentChatChannel = 'dm';
     
-    // Purana chat listener kill karo
     if (window.unsubscribeDM) {
         window.unsubscribeDM();
         window.unsubscribeDM = null;
@@ -121,14 +119,12 @@ window.openPrivateChat = function(friendUid, friendName) {
     
     const statusObj = window.userStatuses ? window.userStatuses[friendUid] : null;
     const isOnline = statusObj && statusObj.state === 'online';
-    const statusTxt = isOnline ? `<span style="color:#00ff00;">Online</span>` : `<span style="color:#ff0000;">Offline</span>`;
+    const statusTxt = isOnline ? `<span style="color:#00ff00;">Online</span>` : `<span style="color:#64748b;">Offline</span>`;
 
     const chatBox = document.getElementById('active-chat-box');
-    
-    // 🛑 KHALI SPACE FIX: Removed max-height and overflow-y from the inner div
     chatBox.innerHTML = `
         <div style="background: #334155; padding: 5px 10px; border-radius: 4px; margin-bottom: 5px; display:flex; justify-content:space-between; align-items:center;">
-            <span style="color: #f1f5f9; font-size: 11px; font-weight:bold;">Chatting with: ${friendName} <br>${statusTxt}</span>
+            <span style="color: #f1f5f9; font-size: 11px; font-weight:bold;">Chatting with: ${friendName} - ${statusTxt}</span>
             <button onclick="closePrivateChat()" style="background:transparent; border:none; color:#ef4444; font-size:10px; cursor:pointer;">✖ Back</button>
         </div>
         <div id="dm-message-list" style="display:flex; flex-direction:column; gap:6px; padding-bottom:10px; width:100%;"></div>
