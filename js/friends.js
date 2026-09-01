@@ -2,13 +2,13 @@
 import { collection, query, limit, doc, getDoc, updateDoc, arrayUnion, arrayRemove, onSnapshot, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-console.log("👥 [Friends] HotFake Status Module Loaded!");
+console.log("👥 [Friends] Advanced Anti-Duplicate Module Loaded!");
 
 window.userStatuses = {};
+window.myFriendsList = []; // Naya array taaki hum doston ko track kar sakein
 
 window.initFriendsSystem = function() {
     if (window.rtdb) {
-        // Hamesha track karega kaun sach me online hai
         onValue(ref(window.rtdb, 'status'), (snap) => {
             window.userStatuses = snap.val() || {};
             if (window.loadGlobalPlayers) window.loadGlobalPlayers();
@@ -22,7 +22,7 @@ window.loadGlobalPlayers = function() {
     if (!container || !window.db) return;
     
     try {
-        const q = query(collection(window.db, "Users"), limit(15));
+        const q = query(collection(window.db, "Users"), limit(25));
         onSnapshot(q, (querySnapshot) => {
             container.innerHTML = '';
             let count = 0;
@@ -30,7 +30,19 @@ window.loadGlobalPlayers = function() {
 
             querySnapshot.forEach((docSnap) => {
                 const targetUid = docSnap.id;
+                
+                // 1. Khud ko aur duplicate print ko roko
                 if (!window.localUser || targetUid === window.localUser.uid || seenUids.has(targetUid)) return;
+                
+                // 2. Agar ye player pehle se dost hai, toh ise Global list se hide kar do!
+                if (window.myFriendsList.includes(targetUid)) return;
+
+                const statusObj = window.userStatuses[targetUid];
+                const isOnline = statusObj && statusObj.state === 'online';
+                
+                // 3. 🛑 SIRF ONLINE PLAYERS KO DIKHAO (Offline ko hide karo)
+                if (!isOnline) return;
+
                 seenUids.add(targetUid);
                 count++;
                 
@@ -38,19 +50,15 @@ window.loadGlobalPlayers = function() {
                 const name = data.gameName || data.name || 'Racer';
                 const icon = data.gender === 'Girl' ? '👧' : '👦';
                 
-                // 🛑 READ TRUE STATUS
-                const statusObj = window.userStatuses[targetUid];
-                const isOnline = statusObj && statusObj.state === 'online';
-                const badgeHtml = isOnline ? '<span class="live-badge" style="background: #10b981;">Online</span>' : '<span class="live-badge" style="background: #64748b;">Offline</span>';
-                
                 container.innerHTML += `
                     <div class="list-card-item" onclick="openUserProfile('${name}', '${data.age}', '${data.location}', '${data.gender}', '${data.playerTag}', '${targetUid}', false)">
-                        <span style="font-size: 12px; color: #f1f5f9;">${icon} ${name} ${badgeHtml}</span>
+                        <span style="font-size: 12px; color: #f1f5f9;">${icon} ${name} <span class="live-badge" style="background: #10b981;">Online</span></span>
                         <button class="action-btn-small" onclick="event.stopPropagation(); sendFriendReq('${targetUid}', '${name}')">Add</button>
                     </div>
                 `;
             });
-            if (count === 0) container.innerHTML = '<p style="color: #64748b; font-size: 11px;">No players found.</p>';
+
+            if (count === 0) container.innerHTML = '<p style="color: #64748b; font-size: 11px;">No other players are currently online.</p>';
         });
     } catch(e) { console.error(e); }
 };
@@ -63,8 +71,12 @@ window.loadMyFriendsData = function() {
     onSnapshot(doc(window.db, "Users", window.localUser.uid), async (myDocSnap) => {
         if (!myDocSnap.exists()) return;
         const myData = myDocSnap.data();
-        const requests = myData.incomingRequests || [];
-        const friends = myData.friendsList || [];
+        
+        // 🛑 FIX: Duplicate UIDs ko Set() use karke automatically delete kar dega
+        const requests = [...new Set(myData.incomingRequests || [])];
+        const friends = [...new Set(myData.friendsList || [])];
+        
+        window.myFriendsList = friends; // List ko global save karo taaki spam na ho
 
         if (reqContainer) {
             reqContainer.innerHTML = '';
@@ -102,7 +114,6 @@ window.loadMyFriendsData = function() {
                             const fData = fSnap.data();
                             const name = fData.gameName || fData.name || 'Racer';
                             
-                            // 🛑 READ TRUE STATUS FOR FRIENDS
                             const statusObj = window.userStatuses[friendUid];
                             const isOnline = statusObj && statusObj.state === 'online';
                             const badgeHtml = isOnline ? '<span class="live-badge" style="background: #10b981;">Online</span>' : '<span class="live-badge" style="background: #64748b;">Offline</span>';
@@ -123,6 +134,13 @@ window.loadMyFriendsData = function() {
 
 window.sendFriendReq = async function(targetUid, targetName) {
     if (!window.localUser) return;
+
+    // 🛑 NAYA LOGIC: Agar pehle se dost hai, toh alert dikhao aur ruk jao
+    if (window.myFriendsList && window.myFriendsList.includes(targetUid)) {
+        alert(`You are already friends with ${targetName}!`);
+        return;
+    }
+
     try {
         await updateDoc(doc(window.db, "Users", targetUid), { incomingRequests: arrayUnion(window.localUser.uid) });
         alert(`✅ Friend request sent to ${targetName}!`);
