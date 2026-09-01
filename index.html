@@ -3,87 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#080c18">
-    <meta name="description" content="Racing Universe secure Google login and player onboarding">
-    <title>Racing Universe | Login</title>
-    <!-- Use shared main CSS and specific auth CSS -->
+    <title>Racing Universe | Adult Authentication Gate</title>
     <link rel="stylesheet" href="css/main.css">
-    <link rel="stylesheet" href="css/auth.css">
+    <style>
+        .auth-container { max-width: 440px; margin: 40px auto; padding: 25px; background: #1e293b; border-radius: 12px; border: 1px solid #334155; text-align: center; }
+        .age-gate-banner { background: #ef4444; color: #fff; padding: 12px; border-radius: 8px; font-weight: bold; margin-bottom: 20px; font-size: 14px; }
+        .form-group { margin-bottom: 15px; text-align: left; }
+        .form-group label { display: block; margin-bottom: 5px; font-size: 13px; color: #94a3b8; }
+        .form-group input, .form-group select { width: 100%; padding: 12px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 8px; box-sizing: border-box; }
+        .btn-auth { width: 100%; padding: 14px; background: #3b82f6; border: none; border-radius: 8px; font-weight: bold; color: white; cursor: pointer; font-size: 16px; margin-top: 10px; }
+        .modal-denied { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 100; align-items: center; justify-content: center; }
+        .modal-box { background: #1e293b; border: 2px solid #ef4444; padding: 30px; border-radius: 12px; max-width: 380px; text-align: center; }
+    </style>
 </head>
-<body class="auth-body">
+<body>
 
-    <header class="brand">
-        <div class="brand-logo">🏎️</div>
-        <h1>RACING UNIVERSE</h1>
-        <p>Enter the race. Build your legacy.</p>
-    </header>
+    <div class="auth-container">
+        <div class="age-gate-banner">
+            ⚠️ WARNING: RACING UNIVERSE IS AN 18+ GAME<br>
+            <span style="font-size: 11px; font-weight: normal;">Strict identity verification & age calculations enforced.</span>
+        </div>
 
-    <main class="box auth-box">
-        <!-- LOGIN SECTION -->
-        <section id="loginSection">
-            <h2 class="section-title">Welcome Racer</h2>
-            <p class="section-description">Sign in with your Google account to enter Racing Universe.</p>
-            
-            <button id="googleLoginBtn" class="google-btn" type="button">
-                🔐 Continue with Google
-            </button>
-            <p id="loginStatus">System Ready...</p>
-        </section>
+        <h2 style="margin-top: 0;">🏎️ RACING UNIVERSE</h2>
+        <p style="color: #94a3b8; font-size: 13px;">Sign in with Google to establish your real identity.</p>
 
-        <!-- PROFILE SECTION (Hidden by default) -->
-        <section id="profileSection" style="display: none;">
-            <h2 class="section-title">Set Your Identity</h2>
-            <p class="section-description">Complete your player profile before entering the lobby.</p>
+        <div id="login-section">
+            <button id="googleLoginBtn" class="btn-auth" style="background: #ea4335;">🔐 Sign in with Google</button>
+            <p id="loginStatus" style="font-size: 13px; color: #fbbf24; margin-top: 15px;">Awaiting user action...</p>
+        </div>
 
-            <div class="identity-card">
-                <p class="identity-label">Verified Google Identity</p>
-                <p id="googleName">Loading...</p>
-                <p id="googleEmail">Loading...</p>
+        <div id="onboarding-section" style="display: none;">
+            <hr style="border: 0; border-top: 1px solid #334155; margin: 20px 0;">
+            <h4 style="margin: 0 0 10px 0; color: #38bdf8;">Complete Adult Identity Setup</h4>
+
+            <div class="form-group">
+                <label>Verified Google Identity</label>
+                <input type="text" id="googleDisplayName" disabled style="opacity: 0.7;">
             </div>
 
             <div class="form-group">
-                <label for="gameName">Player Name</label>
-                <input id="gameName" type="text" readonly autocomplete="off">
-                <p class="field-help">Your verified Google name is used as your Racing Universe identity.</p>
+                <label>Custom Game Name</label>
+                <input type="text" id="gameNameInput" placeholder="Enter your racer tag...">
             </div>
 
             <div class="form-group">
-                <label for="genderSelect">Gender <span class="text-red">*</span></label>
+                <label>Permanent Gender (Required for 1:1 Matchmaking)</label>
                 <select id="genderSelect">
-                    <option value="">Select Gender</option>
                     <option value="Boy">Boy</option>
                     <option value="Girl">Girl</option>
                 </select>
-                <p class="field-help">Gender becomes permanently locked after profile creation.</p>
             </div>
 
             <div class="form-group">
-                <label for="dobInput">Date of Birth <span class="text-red">*</span></label>
-                <input id="dobInput" type="date" autocomplete="bday">
-                <p class="field-help">Your age is calculated automatically by the server.</p>
+                <label>Date of Birth (YYYY-MM-DD)</label>
+                <input type="date" id="dobInput" required>
             </div>
 
-            <div class="age-preview">
-                <span>Calculated Age Preview</span>
-                <span id="calculatedAge">--</span>
-            </div>
-
-            <div class="lock-notice">
-                <strong>Identity Lock:</strong> Gender and date of birth are permanent profile attributes. They cannot be changed after registration.
-            </div>
-
-            <button id="saveProfileBtn" class="btn-success" type="button" disabled>
-                Lock Profile & Enter Lobby
-            </button>
-            <p id="profileStatus"></p>
-        </section>
-    </main>
-
-    <div class="footer">
-        Google authentication required. GPS permission is requested later, only when local matchmaking requires it.
+            <button id="saveProfileBtn" class="btn-auth" style="background: #10b981;">Complete Onboarding & Enter</button>
+        </div>
     </div>
 
-    <!-- Firebase Auth Logic -->
+    <div id="minorBlockedModal" class="modal-denied">
+        <div class="modal-box">
+            <h2 style="color: #ef4444; margin-top: 0;">⚠️ ACCESS DENIED</h2>
+            <p>Racing Universe is strictly available to players <strong>18 years of age or older</strong>.</p>
+            <p style="color: #94a3b8; font-size: 12px;">Your registration has been blocked by server policy.</p>
+        </div>
+    </div>
+
     <script type="module" src="js/auth.js"></script>
 </body>
 </html>
