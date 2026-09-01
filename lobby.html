@@ -181,7 +181,7 @@
         </div>
     </div>
 
-    <!-- Socket.io Script for Real-Time Chat -->
+    <!-- 🚀 THE MISSING FIX: Socket.io Script for Real-Time System -->
     <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
 
     <!-- Core Logic Script -->
@@ -205,9 +205,10 @@
 
         let localUser = null;
         let myProfileData = null;
-        let currentChannel = 'world'; // Default chat channel
+        let currentChannel = 'world';
 
-        const socket = io(); // Connects to Render backend
+        // Initialize Socket.io NOW works because the script tag is present above
+        const socket = io(); 
 
         // UI References
         const playerNameEl = document.getElementById("player-name");
@@ -241,7 +242,7 @@
                         window.location.href = "profile.html";
                     }
                 } catch (err) {
-                    console.error("Profile load error");
+                    console.error("Profile load error", err);
                 }
             } else {
                 window.location.href = "index.html";
@@ -300,7 +301,6 @@
             const text = chatInputField.value.trim();
             if(!text || !myProfileData) return;
 
-            // Emit to server
             socket.emit('chatMessage', {
                 channel: currentChannel,
                 sender: myProfileData.gameName,
@@ -309,7 +309,6 @@
             chatInputField.value = '';
         };
 
-        // Listen for incoming messages
         socket.on('receiveChat', (data) => {
             if (data.channel === currentChannel || data.channel === 'all') {
                 const p = document.createElement('p');
@@ -346,7 +345,6 @@
                         searchBtn.innerText = "Search";
                         return;
                     }
-                    // Open Profile Modal for the searched player
                     openUserProfile(data.gameName, data.age, data.location || "India", data.gender, data.playerTag);
                 });
                 searchBtn.innerText = "Search";
