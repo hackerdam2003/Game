@@ -4,6 +4,7 @@ console.log("💬 [Chat] Private DM Module Loaded!");
 window.currentChatChannel = 'world';
 window.currentChatTarget = null; 
 window.currentChatTargetName = "";
+window.chatHistory = window.chatHistory || {}; 
 
 window.switchChatTab = async function(type, el) {
     document.querySelectorAll('.chat-tab').forEach(t => t.classList.remove('active'));
@@ -11,7 +12,7 @@ window.switchChatTab = async function(type, el) {
     
     const chatBox = document.getElementById('active-chat-box');
     window.currentChatChannel = type;
-    window.currentChatTarget = null; // Reset target on tab switch
+    window.currentChatTarget = null; 
     
     chatBox.innerHTML = '<p id="chat-intro-msg" style="color: #10b981; font-size:12px; margin-bottom:10px;"></p>';
     const introMsg = document.getElementById('chat-intro-msg');
@@ -33,7 +34,7 @@ window.switchChatTab = async function(type, el) {
                 if (myDocSnap.exists()) {
                     const friends = myDocSnap.data().friendsList || [];
                     if (friends.length === 0) {
-                        introMsg.innerText = "You have no friends added yet. Add friends from the Global list!";
+                        introMsg.innerText = "You have no friends added yet.";
                     } else {
                         introMsg.innerText = "Select a friend to start chatting:";
                         
@@ -56,13 +57,11 @@ window.switchChatTab = async function(type, el) {
                 }
             } catch(e) {
                 introMsg.innerText = "Failed to load friends.";
-                console.error(e);
             }
         }
     }
 };
 
-// 🛑 NAYA FUNCTION: Dost par click karne se Private Chat UI open hoga
 window.openPrivateChat = function(friendUid, friendName) {
     window.currentChatTarget = friendUid;
     window.currentChatTargetName = friendName;
@@ -74,8 +73,20 @@ window.openPrivateChat = function(friendUid, friendName) {
             <span style="color: #f1f5f9; font-size: 11px; font-weight:bold;">Chatting with: ${friendName}</span>
             <button onclick="switchChatTab('dm', document.querySelectorAll('.chat-tab')[2])" style="background:transparent; border:none; color:#ef4444; font-size:10px; cursor:pointer;">✖ Back</button>
         </div>
-        <div id="dm-message-list" style="display:flex; flex-direction:column; gap:4px;"></div>
+        <div id="dm-message-list" style="display:flex; flex-direction:column; gap:6px; overflow-y:auto; max-height:220px;"></div>
     `;
+
+    const list = document.getElementById('dm-message-list');
+    if (list && window.chatHistory[friendUid]) {
+        window.chatHistory[friendUid].forEach(msg => {
+            if (msg.isSelf) {
+                list.innerHTML += `<p style="margin: 0; font-size: 12px; text-align:right;"><span style="background:#3b82f6; color:white; padding:4px 8px; border-radius:8px 0 8px 8px; display:inline-block;">${msg.text}</span></p>`;
+            } else {
+                list.innerHTML += `<p style="margin: 0; font-size: 12px; text-align:left;"><span style="background:#1e293b; color:white; padding:4px 8px; border-radius:0 8px 8px 8px; display:inline-block; border: 1px solid #334155;"><b>${msg.sender}:</b> ${msg.text}</span></p>`;
+            }
+        });
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
 };
 
 window.sendChatMessage = function() {
@@ -85,7 +96,6 @@ window.sendChatMessage = function() {
     const messageText = input.value.trim();
     const senderName = window.myProfileData ? window.myProfileData.gameName : "Racer";
 
-    // Agar DM mode me hai par koi dost select nahi kiya, toh roko
     if (window.currentChatChannel === 'dm' && !window.currentChatTarget) {
         alert("Please select a friend from the list first!");
         return;
@@ -97,11 +107,15 @@ window.sendChatMessage = function() {
             senderUid: window.localUser.uid, 
             message: messageText,
             channel: window.currentChatChannel,
-            targetUid: window.currentChatTarget // Server ko batao kisko bhejna hai
+            targetUid: window.currentChatTarget 
         });
         
-        // Khud ka bheja hua message khud ki screen par turant dikhao (Right Side)
-        if (window.currentChatChannel === 'dm') {
+        if (window.currentChatChannel === 'dm' && window.currentChatTarget) {
+            if (!window.chatHistory[window.currentChatTarget]) {
+                window.chatHistory[window.currentChatTarget] = [];
+            }
+            window.chatHistory[window.currentChatTarget].push({ text: messageText, isSelf: true });
+
             const list = document.getElementById('dm-message-list');
             if(list) {
                 list.innerHTML += `<p style="margin: 0; font-size: 12px; text-align:right;"><span style="background:#3b82f6; color:white; padding:4px 8px; border-radius:8px 0 8px 8px; display:inline-block;">${messageText}</span></p>`;
@@ -113,7 +127,6 @@ window.sendChatMessage = function() {
     input.value = '';
 };
 
-// MASTER INITIALIZER
 window.initChatSystem = function() {
     if (window.socket) {
         window.socket.off('receiveChat'); 
@@ -122,10 +135,14 @@ window.initChatSystem = function() {
             const box = document.getElementById('active-chat-box');
             if(!box) return;
 
-            // 🛑 PRIVATE DM HANDLING (Left Side)
             if (data.channel === 'dm') {
-                // Agar hum usi dost ki chat me baithe hain, tabhi message print karo
-                if (window.currentChatChannel === 'dm' && window.currentChatTarget === data.senderUid) {
+                const targetUid = data.senderUid;
+                if (!window.chatHistory[targetUid]) {
+                    window.chatHistory[targetUid] = [];
+                }
+                window.chatHistory[targetUid].push({ text: data.message, isSelf: false, sender: data.sender });
+
+                if (window.currentChatChannel === 'dm' && window.currentChatTarget === targetUid) {
                     const list = document.getElementById('dm-message-list');
                     if(list) {
                         list.innerHTML += `<p style="margin: 0; font-size: 12px; text-align:left;"><span style="background:#1e293b; color:white; padding:4px 8px; border-radius:0 8px 8px 8px; display:inline-block; border: 1px solid #334155;"><b>${data.sender}:</b> ${data.message}</span></p>`;
@@ -135,7 +152,6 @@ window.initChatSystem = function() {
                 return;
             }
 
-            // World / Team Chat Handling
             if (data.channel === window.currentChatChannel) {
                 const p = document.createElement('p');
                 p.style.margin = "4px 0";
@@ -145,8 +161,7 @@ window.initChatSystem = function() {
                 box.scrollTop = box.scrollHeight;
             }
         });
-        console.log("✅ Private Chat System Successfully Bound to Socket!");
-    } else {
-        console.error("❌ Chat System Failed: Socket not found.");
+        console.log("✅ Chat System Successfully Bound to Socket!");
     }
 };
+
