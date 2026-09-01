@@ -24,9 +24,21 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 app.use(express.static(path.join(__dirname)));
 
-// Route to serve index page at root URL (FIXED: lobby.html se index.html kar diya)
+// 🛠️ EXPLICIT ROUTES FOR ALL PAGES (Fixes "Cannot GET" Error on Render)
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html')); 
+});
+
+app.get('/profile.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'profile.html')); 
+});
+
+app.get('/lobby.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'lobby.html')); 
+});
+
+app.get('/game.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'game.html')); 
 });
 
 const httpServer = createServer(app);
@@ -58,7 +70,21 @@ io.on('connection', (socket) => {
     // 3. 💬 Global & Team Chat System
     handleChatEvents(socket, io, connectedPlayers);
 
-    // 4. 🔍 Matchmaking Search Event
+    // 4. 🔗 Join Game Room Handler (Fixes live game synchronization)
+    socket.on('joinGameRoom', (data) => {
+        const { roomId } = data;
+        if (roomId) {
+            socket.join(roomId);
+            const player = connectedPlayers.get(socket.id);
+            if (player) {
+                player.room = roomId;
+                player.status = 'in-match';
+            }
+            console.log(`🏁 Player ${socket.id} joined room: ${roomId}`);
+        }
+    });
+
+    // 5. 🔍 Matchmaking Search Event
     socket.on('findMatch', (data) => {
         console.log(`🔍 Solo Matchmaking Triggered for: ${socket.id}`);
         const player = connectedPlayers.get(socket.id);
@@ -74,7 +100,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 5. 🚫 In-Code Anti-Cheat & Movement Sync
+    // 6. 🚫 In-Code Anti-Cheat & Movement Sync
     socket.on('playerMove', (data) => {
         const player = connectedPlayers.get(socket.id);
         if (!player || player.status !== 'in-match') return;
@@ -94,7 +120,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 6. 🔴 Disconnect Handler
+    // 7. 🔴 Disconnect Handler
     socket.on('disconnect', () => {
         console.log(`🔴 Player Disconnected: [ID: ${socket.id}]`);
         connectedPlayers.delete(socket.id);
