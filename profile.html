@@ -3,30 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Racing Universe | Login</title>
+    <title>Racing Universe | Setup Profile</title>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; background: #1a1a1a; color: white; padding-top: 50px; }
-        .box { background: #333; padding: 20px; border-radius: 10px; width: 90%; max-width: 400px; margin: auto; }
-        button { width: 90%; padding: 15px; margin: 10px 0; border-radius: 5px; background: #ff4757; color: white; font-weight: bold; cursor: pointer; border: none; font-size: 16px;}
-        #loginStatus { color: #fbbf24; font-size: 14px; margin-top: 10px; }
+        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: #0f172a; color: white; padding-top: 50px; margin: 0; }
+        .box { background: #1e293b; padding: 30px 20px; border-radius: 12px; width: 90%; max-width: 400px; margin: auto; border: 1px solid #334155; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        h3 { color: #3b82f6; border-bottom: 1px solid #334155; padding-bottom: 10px; margin-top: 0; text-transform: uppercase; }
+        .info-text { font-size: 14px; text-align: left; margin: 15px 0 5px 0; color: #94a3b8; font-weight: bold; }
+        .locked-name { color: #10b981; font-size: 18px; font-weight: bold; text-align: left; background: #0f172a; padding: 10px; border-radius: 8px; border: 1px solid #10b981; }
+        input, select { width: 100%; padding: 12px; border-radius: 8px; font-size: 16px; box-sizing: border-box; background: #0f172a; border: 1px solid #334155; color: white; outline: none; }
+        button { width: 100%; padding: 15px; margin-top: 25px; border-radius: 8px; background: #10b981; color: white; font-weight: 900; cursor: pointer; border: none; font-size: 16px; text-transform: uppercase; }
+        button:hover { background: #059669; }
+        button:disabled { background: #64748b; }
     </style>
 </head>
 <body>
 
     <div class="box">
-        <h2>🏎️ Racing Universe</h2>
-        <p>Welcome! Authenticate to enter the game.</p>
-        <button id="googleLoginBtn">🔐 Login with Google</button>
-        <p id="loginStatus">System Ready...</p>
+        <h3>Verify Identity</h3>
+        
+        <p class="info-text">Official Driver Name (Locked):</p>
+        <div class="locked-name" id="displayNameDisplay">Loading...</div>
+        
+        <p class="info-text">Select Gender (Permanent):</p>
+        <select id="genderSelect" required>
+            <option value="">-- Choose Gender --</option>
+            <option value="Boy">Boy</option>
+            <option value="Girl">Girl</option>
+        </select>
+
+        <p class="info-text">Date of Birth:</p>
+        <input type="date" id="dobInput" required>
+        
+        <button id="saveProfileBtn">Lock Profile & Enter Lobby</button>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getAuth, signInWithRedirect, getRedirectResult, onAuthStateChanged, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-        // 🔥 RACING ENGINE ACCOUNT KEYS 🔥
-        const unifiedGameConfig = {
+        const engineConfig = {
             apiKey: "AIzaSyCuYPugV4qIsu9ZT9E5l63bFLgIbte_S8I",
             authDomain: "racing-universe-engine.firebaseapp.com",
             projectId: "racing-universe-engine",
@@ -35,55 +51,67 @@
             appId: "1:572638328716:web:830bd01db1fa5b45d948a9"
         };
 
-        const app = initializeApp(unifiedGameConfig);
+        const app = initializeApp(engineConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const provider = new GoogleAuthProvider();
+        
+        let currentUser = null;
+        const displayNameDisplay = document.getElementById('displayNameDisplay');
+        const saveProfileBtn = document.getElementById('saveProfileBtn');
 
-        const loginBtn = document.getElementById('googleLoginBtn');
-        const loginStatus = document.getElementById('loginStatus');
-
-        // Button Click Event
-        loginBtn.addEventListener('click', (e) => {
-            e.preventDefault(); 
-            loginStatus.innerText = "Connecting to Google...";
-            signInWithRedirect(auth, provider);
-        });
-
-        // Redirect Error Catcher
-        getRedirectResult(auth).then((result) => {
-            if (result) loginStatus.innerText = "Google Authentication Successful!";
-        }).catch((error) => {
-            loginStatus.innerText = "❌ Error: " + error.message;
-        });
-
-        // 🚀 DIRECT LOBBY REDIRECT (No Form)
-        onAuthStateChanged(auth, async (user) => {
+        // Security: Check if user bypassed login page
+        onAuthStateChanged(auth, (user) => {
             if (user) {
-                loginStatus.innerText = "Saving Profile & Loading Lobby...";
-                
-                try {
-                    const userRef = doc(db, "Users", user.uid);
-                    
-                    // Automatically Save Player Data to Firebase
-                    await setDoc(userRef, {
-                        name: user.displayName,
-                        email: user.email,
-                        gameName: user.displayName, // Direct Google name use kiya
-                        wallet_balance: 0,
-                        role: "player",
-                        joined: new Date().toISOString()
-                    }, { merge: true });
-                    
-                    // BOOM! Seedha Lobby me entry
-                    window.location.href = "lobby.html";
+                currentUser = user;
+                displayNameDisplay.innerText = user.displayName;
+            } else {
+                window.location.href = "index.html"; // Kick out to login
+            }
+        });
 
-                } catch (err) {
-                    loginStatus.innerText = "❌ Database Error: " + err.message;
-                }
+        // Calculate Age & Save to Database
+        saveProfileBtn.addEventListener('click', async () => {
+            const gender = document.getElementById('genderSelect').value;
+            const dob = document.getElementById('dobInput').value;
+
+            if (!gender || !dob) {
+                alert("Please select your Gender and Date of Birth.");
+                return;
+            }
+
+            // Age Calculation
+            const birthDate = new Date(dob);
+            const today = new Date();
+            let age = today.getFullYear() - birthDate.getFullYear();
+            const m = today.getMonth() - birthDate.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+                age--;
+            }
+
+            saveProfileBtn.innerText = "Locking Database...";
+            saveProfileBtn.disabled = true;
+
+            try {
+                await setDoc(doc(db, "Users", currentUser.uid), {
+                    name: currentUser.displayName,
+                    email: currentUser.email,
+                    gameName: currentUser.displayName, 
+                    gender: gender,
+                    dob: dob,
+                    age: age,
+                    wallet_balance: 0,
+                    role: "player",
+                    joined: new Date().toISOString()
+                }, { merge: true });
+                
+                // Form submit hote hi seedha Lobby me entry
+                window.location.href = "lobby.html";
+            } catch (error) {
+                alert("❌ Database Error! Try again.");
+                saveProfileBtn.disabled = false;
+                saveProfileBtn.innerText = "Lock Profile & Enter Lobby";
             }
         });
     </script>
 </body>
 </html>
-
