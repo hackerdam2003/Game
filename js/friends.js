@@ -1,44 +1,21 @@
 // js/friends.js
 import { collection, query, limit, doc, getDoc, updateDoc, arrayUnion, arrayRemove, onSnapshot, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-console.log("👥 [Friends] Module Loaded Successfully!");
+console.log("👥 [Friends] True Status Module Loaded!");
 
 let unsubscribeFriends = null;
+window.onlineUserUids = window.onlineUserUids || [];
 
-// 1. UID Search System
-window.searchPlayerByUID = async function() {
-    const tag = document.getElementById('search-uid-input').value.trim();
-    if(!tag) return;
-    
-    const searchBtn = document.querySelector('.search-box-row button');
-    if(searchBtn) searchBtn.innerText = "...";
+// Socket dwara online users ki list update karna
+if (window.socket) {
+    window.socket.on('updateOnlineUsers', (uids) => {
+        window.onlineUserUids = uids;
+        if (window.loadGlobalPlayers) window.loadGlobalPlayers();
+        if (window.loadMyFriendsData) window.loadMyFriendsData(); // Update badges in friends list too
+    });
+}
 
-    try {
-        const q = query(collection(window.db, "Users"), where("playerTag", "==", tag));
-        const querySnapshot = await getDocs(q);
-
-        if(querySnapshot.empty) {
-            alert("Player not found!");
-            if(searchBtn) searchBtn.innerText = "Search";
-            return;
-        }
-
-        querySnapshot.forEach((docSnap) => {
-            const data = docSnap.data();
-            if(docSnap.id === window.localUser.uid) {
-                alert("You cannot add yourself!");
-                return;
-            }
-            window.openUserProfile(data.gameName, data.age, data.location || "India", data.gender, data.playerTag || "00000000", docSnap.id, false);
-        });
-        if(searchBtn) searchBtn.innerText = "Search";
-    } catch (err) {
-        alert("Search error: " + err.message);
-        if(searchBtn) searchBtn.innerText = "Search";
-    }
-};
-
-// 2. Global Live Players System (Anti-Duplicate & Active Online Filter)
+// 1. GLOBAL LIVE PLAYERS
 window.loadGlobalPlayers = function() {
     const container = document.getElementById('global-live-players-container');
     if (!container || !window.db) return;
@@ -51,40 +28,45 @@ window.loadGlobalPlayers = function() {
         onSnapshot(q, (querySnapshot) => {
             container.innerHTML = '';
             let count = 0;
-            const seenUids = new Set(); // Prevent duplicate rendering
+            const seenUids = new Set();
 
             querySnapshot.forEach((docSnap) => {
                 const targetUid = docSnap.id;
-                
-                // Skip self & already processed users in this render cycle
                 if (!window.localUser || targetUid === window.localUser.uid || seenUids.has(targetUid)) return;
                 
                 seenUids.add(targetUid);
                 count++;
                 
                 const data = docSnap.data();
+                const name = data.gameName || data.name || 'Racer';
                 const icon = data.gender === 'Girl' ? '👧' : '👦';
                 const location = data.location || 'India';
-                const tag = data.playerTag || '00000000';
+                const tag = data.playerTag || 'Old-Account'; // Changed from 00000000
+                const age = data.age || 20;
+
+                const isOnline = window.onlineUserUids.includes(targetUid);
+                const badgeHtml = isOnline 
+                    ? '<span class="live-badge" style="background: #10b981;">Online</span>' 
+                    : '<span class="live-badge" style="background: #64748b;">Offline</span>';
                 
                 container.innerHTML += `
-                    <div class="list-card-item" onclick="openUserProfile('${data.gameName}', '${data.age}', '${location}', '${data.gender}', '${tag}', '${targetUid}', false)">
-                        <span style="font-size: 12px; color: #f1f5f9;">${icon} ${data.gameName} <span class="live-badge" style="background: #10b981;">Online</span></span>
-                        <button class="action-btn-small" onclick="event.stopPropagation(); sendFriendReq('${targetUid}', '${data.gameName}')">Add</button>
+                    <div class="list-card-item" onclick="openUserProfile('${name}', '${age}', '${location}', '${data.gender}', '${tag}', '${targetUid}', false)">
+                        <span style="font-size: 12px; color: #f1f5f9;">${icon} ${name} ${badgeHtml}</span>
+                        <button class="action-btn-small" onclick="event.stopPropagation(); sendFriendReq('${targetUid}', '${name}')">Add</button>
                     </div>
                 `;
             });
 
             if (count === 0) {
-                container.innerHTML = '<p style="color: #64748b; font-size: 11px;">No other players online.</p>';
+                container.innerHTML = '<p style="color: #64748b; font-size: 11px;">No players found.</p>';
             }
         });
     } catch(e) {
-        container.innerHTML = '<p style="color: #ef4444; font-size: 11px;">Error loading live players.</p>';
+        container.innerHTML = '<p style="color: #ef4444; font-size: 11px;">Error loading players.</p>';
     }
 };
 
-// 3. Real-Time Personal Friends & Incoming Requests Listener
+// 2. MY FRIENDS & REQUESTS
 window.loadMyFriendsData = function() {
     if (!window.localUser || !window.db) return;
 
@@ -107,20 +89,28 @@ window.loadMyFriendsData = function() {
                 reqContainer.innerHTML = '<p style="color: #64748b; font-size: 11px;">No pending requests.</p>';
             } else {
                 for (let reqUid of requests) {
-                    const reqSnap = await getDoc(doc(window.db, "Users", reqUid));
-                    if (reqSnap.exists()) {
-                        const reqData = reqSnap.data();
-                        const icon = reqData.gender === 'Girl' ? '👧' : '👦';
-                        reqContainer.innerHTML += `
-                            <div class="list-card-item">
-                                <span style="font-size: 12px; color: #f1f5f9;">${icon} ${reqData.gameName}</span>
-                                <div style="display: flex; gap: 5px;">
-                                    <button class="action-btn-small" style="background: #10b981;" onclick="acceptFriend('${reqUid}')">✔</button>
-                                    <button class="action-btn-small" style="background: #ef4444;" onclick="rejectFriend('${reqUid}')">✖</button>
+                    try {
+                        const reqSnap = await getDoc(doc(window.db, "Users", reqUid));
+                        if (reqSnap.exists()) {
+                            const reqData = reqSnap.data();
+                            const icon = reqData.gender === 'Girl' ? '👧' : '👦';
+                            const name = reqData.gameName || reqData.name || 'Racer';
+                            const tag = reqData.playerTag || 'Old-Account';
+                            const loc = reqData.location || 'India';
+                            const age = reqData.age || 20;
+
+                            // 🛑 FIX: Added onclick to open profile from requests!
+                            reqContainer.innerHTML += `
+                                <div class="list-card-item" onclick="openUserProfile('${name}', '${age}', '${loc}', '${reqData.gender || 'Boy'}', '${tag}', '${reqUid}', false)">
+                                    <span style="font-size: 12px; color: #f1f5f9;">${icon} ${name}</span>
+                                    <div style="display: flex; gap: 5px;">
+                                        <button class="action-btn-small" style="background: #10b981;" onclick="event.stopPropagation(); acceptFriend('${reqUid}')">✔</button>
+                                        <button class="action-btn-small" style="background: #ef4444;" onclick="event.stopPropagation(); rejectFriend('${reqUid}')">✖</button>
+                                    </div>
                                 </div>
-                            </div>
-                        `;
-                    }
+                            `;
+                        }
+                    } catch(e) { console.error(e); }
                 }
             }
         }
@@ -132,75 +122,64 @@ window.loadMyFriendsData = function() {
                 friendsContainer.innerHTML = '<p style="color: #64748b; font-size: 11px;">No friends added yet.</p>';
             } else {
                 for (let friendUid of friends) {
-                    const fSnap = await getDoc(doc(window.db, "Users", friendUid));
-                    if (fSnap.exists()) {
-                        const fData = fSnap.data();
-                        const icon = fData.gender === 'Girl' ? '👧' : '👦';
-                        const tag = fData.playerTag || '00000000';
-                        const loc = fData.location || 'India';
-                        
-                        friendsContainer.innerHTML += `
-                            <div class="list-card-item" onclick="openUserProfile('${fData.gameName}', '${fData.age}', '${loc}', '${fData.gender}', '${tag}', '${friendUid}', false)">
-                                <span style="font-size: 12px; color: #f1f5f9;">${icon} ${fData.gameName}</span>
-                                <button class="action-btn-small" style="background: #8b5cf6;" onclick="event.stopPropagation(); inviteToTeam('${friendUid}')">Invite</button>
-                            </div>
-                        `;
-                    }
+                    try {
+                        const fSnap = await getDoc(doc(window.db, "Users", friendUid));
+                        if (fSnap.exists()) {
+                            const fData = fSnap.data();
+                            const icon = fData.gender === 'Girl' ? '👧' : '👦';
+                            const name = fData.gameName || fData.name || 'Racer';
+                            const tag = fData.playerTag || 'Old-Account';
+                            const loc = fData.location || 'India';
+                            const age = fData.age || 20;
+                            
+                            const isOnline = window.onlineUserUids.includes(friendUid);
+                            const badgeHtml = isOnline 
+                                ? '<span class="live-badge" style="background: #10b981;">Online</span>' 
+                                : '<span class="live-badge" style="background: #64748b;">Offline</span>';
+
+                            friendsContainer.innerHTML += `
+                                <div class="list-card-item" onclick="openUserProfile('${name}', '${age}', '${loc}', '${fData.gender}', '${tag}', '${friendUid}', false)">
+                                    <span style="font-size: 12px; color: #f1f5f9;">${icon} ${name} ${badgeHtml}</span>
+                                    <button class="action-btn-small" style="background: #8b5cf6;" onclick="event.stopPropagation(); inviteToTeam('${friendUid}')">Invite</button>
+                                </div>
+                            `;
+                        }
+                    } catch(e) { console.error(e); }
                 }
             }
         }
     });
 };
 
-// 4. Send Friend Request Logic
+// ACTIONS
 window.sendFriendReq = async function(targetUid, targetName) {
     if (!window.localUser) return;
     try {
         const targetRef = doc(window.db, "Users", targetUid);
-        await updateDoc(targetRef, {
-            incomingRequests: arrayUnion(window.localUser.uid)
-        });
+        await updateDoc(targetRef, { incomingRequests: arrayUnion(window.localUser.uid) });
         alert(`✅ Friend request sent to ${targetName}!`);
         if(window.closeProfileModal) window.closeProfileModal();
-    } catch (err) {
-        alert("❌ Failed to send request.");
-    }
+    } catch (err) { alert("❌ Failed to send request."); }
 };
 
-// 5. Accept Friend Request
 window.acceptFriend = async function(targetUid) {
     if (!window.localUser) return;
     try {
         const myRef = doc(window.db, "Users", window.localUser.uid);
         const targetRef = doc(window.db, "Users", targetUid);
-
-        await updateDoc(myRef, {
-            incomingRequests: arrayRemove(targetUid),
-            friendsList: arrayUnion(targetUid)
-        });
-
-        await updateDoc(targetRef, {
-            friendsList: arrayUnion(window.localUser.uid)
-        });
-    } catch (e) {
-        alert("Error accepting request.");
-    }
+        await updateDoc(myRef, { incomingRequests: arrayRemove(targetUid), friendsList: arrayUnion(targetUid) });
+        await updateDoc(targetRef, { friendsList: arrayUnion(window.localUser.uid) });
+    } catch (e) {}
 };
 
-// 6. Reject Friend Request
 window.rejectFriend = async function(targetUid) {
     if (!window.localUser) return;
     try {
         const myRef = doc(window.db, "Users", window.localUser.uid);
-        await updateDoc(myRef, {
-            incomingRequests: arrayRemove(targetUid)
-        });
-    } catch (e) {
-        alert("Error rejecting request.");
-    }
+        await updateDoc(myRef, { incomingRequests: arrayRemove(targetUid) });
+    } catch (e) {}
 };
 
 window.inviteToTeam = function(targetUid) {
     alert("🚀 Party invite sent to friend!");
 };
-
