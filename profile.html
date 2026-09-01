@@ -31,6 +31,9 @@
             <option value="Girl">Girl</option>
         </select>
 
+        <p class="info-text">Location (e.g., India, CG):</p>
+        <input type="text" id="locationInput" placeholder="Enter your location" required>
+
         <p class="info-text">Date of Birth:</p>
         <input type="date" id="dobInput" required>
         
@@ -59,27 +62,25 @@
         const displayNameDisplay = document.getElementById('displayNameDisplay');
         const saveProfileBtn = document.getElementById('saveProfileBtn');
 
-        // Security: Check if user bypassed login page
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 currentUser = user;
                 displayNameDisplay.innerText = user.displayName;
             } else {
-                window.location.href = "index.html"; // Kick out to login
+                window.location.href = "index.html";
             }
         });
 
-        // Calculate Age & Save to Database
         saveProfileBtn.addEventListener('click', async () => {
             const gender = document.getElementById('genderSelect').value;
+            const location = document.getElementById('locationInput').value.trim();
             const dob = document.getElementById('dobInput').value;
 
-            if (!gender || !dob) {
-                alert("Please select your Gender and Date of Birth.");
+            if (!gender || !location || !dob) {
+                alert("Please fill in Gender, Location, and Date of Birth.");
                 return;
             }
 
-            // Age Calculation
             const birthDate = new Date(dob);
             const today = new Date();
             let age = today.getFullYear() - birthDate.getFullYear();
@@ -91,20 +92,24 @@
             saveProfileBtn.innerText = "Locking Database...";
             saveProfileBtn.disabled = true;
 
+            // Generate an 8-digit numeric UID string
+            const numericUID = Math.floor(10000000 + Math.random() * 90000000).toString();
+
             try {
                 await setDoc(doc(db, "Users", currentUser.uid), {
                     name: currentUser.displayName,
                     email: currentUser.email,
                     gameName: currentUser.displayName, 
                     gender: gender,
+                    location: location,
                     dob: dob,
                     age: age,
+                    playerTag: numericUID,
                     wallet_balance: 0,
                     role: "player",
                     joined: new Date().toISOString()
                 }, { merge: true });
                 
-                // Form submit hote hi seedha Lobby me entry
                 window.location.href = "lobby.html";
             } catch (error) {
                 alert("❌ Database Error! Try again.");
@@ -115,3 +120,4 @@
     </script>
 </body>
 </html>
+
