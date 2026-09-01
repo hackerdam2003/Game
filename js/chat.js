@@ -2,12 +2,13 @@
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { ref, onValue, push, update } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-console.log("💬 [Chat] Clean Dot UI Module Loaded!");
+console.log("💬 [Chat] Anti-Duplicate Send Module Loaded!");
 
 window.currentChatChannel = 'world';
 window.currentChatTarget = null; 
 window.currentChatTargetName = "";
 window.unsubscribeDM = null; 
+window.isSendingMessage = false; // 🛑 DOUBLE-SEND LOCK FLAG
 
 window.worldChatHistory = [];
 window.teamChatHistory = [];
@@ -76,7 +77,6 @@ window.switchChatTab = async function(type, el) {
                                 const statusObj = window.userStatuses ? window.userStatuses[friendUid] : null;
                                 const isOnline = statusObj && statusObj.state === 'online';
                                 
-                                // 🛑 CLEAN UI: Online par glowing green dot, Offline par koi dot nahi (sirf clean text)
                                 const dotHtml = isOnline 
                                     ? `<span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#00ff00; margin-left:8px; box-shadow:0 0 8px #00ff00;"></span>` 
                                     : `<span style="font-size:10px; color:#64748b; margin-left:6px;">(Offline)</span>`;
@@ -190,12 +190,18 @@ window.openPrivateChat = function(friendUid, friendName) {
 };
 
 window.sendChatMessage = async function() {
+    // 🛑 ANTI-DOUBLE-SEND LOCK: Agar pehle se request chal rahi hai to roko
+    if (window.isSendingMessage) return;
+
     const input = document.getElementById('chat-input-field');
     if(!input || !input.value.trim()) return;
 
     const messageText = input.value.trim();
     const senderName = window.myProfileData ? window.myProfileData.gameName : "Racer";
     input.value = ''; 
+
+    window.isSendingMessage = true;
+    setTimeout(() => { window.isSendingMessage = false; }, 600); // 600ms ka lock
 
     if (window.currentChatChannel === 'dm') {
         if (!window.currentChatTarget) return;
