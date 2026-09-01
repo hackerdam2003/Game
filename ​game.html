@@ -21,14 +21,12 @@
         #speedometer { font-size: 16px; font-weight: 900; margin-bottom: 5px; color: #3b82f6; }
         
         /* In-Game Chat System */
-        #chat-container { position: absolute; left: 15px; top: 90px; width: 250px; height: 150px; background: rgba(0,0,0,0.5); border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; pointer-events: auto;}
-        #chat-messages { flex-grow: 1; overflow-y: auto; padding: 5px; font-size: 12px; }
-        .chat-msg { margin-bottom: 3px; }
-        .chat-host { color: #fbbf24; font-weight: bold; }
-        .chat-player { color: #60a5fa; font-weight: bold; }
-        #chat-input-area { display: flex; border-top: 1px solid #333; }
-        #chat-input { flex-grow: 1; background: rgba(0,0,0,0.7); border: none; color: white; padding: 5px; font-size: 12px; outline: none; }
-        #chat-send { background: #3b82f6; color: white; border: none; padding: 5px 10px; cursor: pointer; }
+        #chat-container { position: absolute; left: 15px; top: 90px; width: 260px; height: 160px; background: rgba(15, 23, 42, 0.85); border: 1px solid #334155; border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; pointer-events: auto;}
+        #chat-messages { flex-grow: 1; overflow-y: auto; padding: 8px; font-size: 12px; display: flex; flex-direction: column; gap: 4px; }
+        .chat-msg { margin-bottom: 2px; line-height: 1.3; }
+        #chat-input-area { display: flex; border-top: 1px solid #334155; }
+        #chat-input { flex-grow: 1; background: #0f172a; border: none; color: white; padding: 8px; font-size: 12px; outline: none; }
+        #chat-send { background: #3b82f6; color: white; border: none; padding: 0 12px; cursor: pointer; font-weight: bold; }
 
         /* Mobile Driving Controls (Left Side) */
         #steering-controls { position: absolute; bottom: 20px; left: 20px; display: flex; gap: 10px; }
@@ -63,7 +61,7 @@
             
             <div class="hud-box" style="text-align: right; display: flex; flex-direction: column; align-items: center; justify-content: center;">
                 <div style="font-size: 10px; color: #94a3b8; font-weight: bold;">ROOM ID</div>
-                <div id="room-id-display" style="font-size: 14px; font-weight: bold; color: white;">----</div>
+                <div id="room-id-display" style="font-size: 14px; font-weight: bold; color: #fbbf24;">----</div>
                 <button id="start-race-btn" style="display:none; background: #10b981; color: white; border: none; padding: 5px 10px; border-radius: 3px; font-weight: bold; margin-top: 5px; cursor: pointer;">Start Race</button>
             </div>
 
@@ -73,13 +71,13 @@
             </div>
         </div>
 
-        <!-- Chat System -->
+        <!-- In-Game Chat System (Fixed & Connected) -->
         <div id="chat-container" class="hud">
             <div id="chat-messages">
-                <div class="chat-msg"><span style="color:#94a3b8">System: Waiting for players...</span></div>
+                <div class="chat-msg"><span style="color:#94a3b8">[System]: Synchronizing match...</span></div>
             </div>
             <div id="chat-input-area">
-                <input type="text" id="chat-input" placeholder="Type a message..." maxlength="40">
+                <input type="text" id="chat-input" placeholder="Type message..." maxlength="40">
                 <button id="chat-send">Send</button>
             </div>
         </div>
@@ -108,10 +106,94 @@
     <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
 
-    <!-- Game Brain (Modular Scripts) -->
-    <script type="module" src="js/firebase-config.js"></script>
-    
-    <!-- Core Engine: Connects Phaser, Firebase & Socket -->
+    <!-- Game Brain & Bug Fixes Integration -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        const engineConfig = {
+            apiKey: "AIzaSyCuYPugV4qIsu9ZT9E5l63bFLgIbte_S8I",
+            authDomain: "racing-universe-engine.firebaseapp.com",
+            projectId: "racing-universe-engine",
+            storageBucket: "racing-universe-engine.firebasestorage.app",
+            messagingSenderId: "572638328716",
+            appId: "1:572638328716:web:830bd01db1fa5b45d948a9"
+        };
+
+        const app = initializeApp(engineConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // 1. Read Room ID from URL Parameters (Fixes routing bug)
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomId = urlParams.get('roomId') || "GENERAL_ROOM";
+        document.getElementById("room-id-display").innerText = roomId.substring(0, 6).toUpperCase();
+
+        // 2. Initialize Socket.io Connection to Node.js Server
+        const socket = io(); // Connects to current Render host automatically
+
+        socket.on('connect', () => {
+            console.log("Connected to Racing Engine Server ID:", socket.id);
+            socket.emit('joinGameRoom', { roomId });
+        });
+
+        // 3. Authenticated User Data Sync
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                const docSnap = await getDoc(doc(db, "Users", user.uid));
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    document.getElementById("match-coins").innerText = `${data.wallet_balance || 0} 🪙`;
+                    
+                    // If player is on foot (Padal), display push ability button
+                    if(data.vehicle === "Padal") {
+                        document.getElementById("btn-push").style.display = "flex";
+                    }
+                }
+            } else {
+                window.location.href = "index.html";
+            }
+        });
+
+        // 4. In-Game Chat System Fix
+        const chatInput = document.getElementById('chat-input');
+        const chatSend = document.getElementById('chat-send');
+        const chatMessages = document.getElementById('chat-messages');
+
+        function sendInGameMessage() {
+            const text = chatInput.value.trim();
+            if(!text) return;
+
+            socket.emit('chatMessage', {
+                channel: 'race',
+                roomId: roomId,
+                text: text
+            });
+
+            chatInput.value = '';
+        }
+
+        chatSend.addEventListener('click', sendInGameMessage);
+        chatInput.addEventListener('keypress', (e) => {
+            if(e.key === 'Enter') sendInGameMessage();
+        });
+
+        socket.on('receiveChat', (data) => {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'chat-msg';
+            msgDiv.innerHTML = `<span style="color: #60a5fa;">${data.sender}:</span> <span style="color: #f8fafc;">${data.text}</span>`;
+            chatMessages.appendChild(msgDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        });
+
+        // 5. Trap Economy Integration (Kil Button)
+        document.getElementById('btn-kil').addEventListener('click', () => {
+            socket.emit('dropTrap', { roomId });
+        });
+    </script>
+
+    <!-- Core Engine: Connects Phaser Physics -->
     <script type="module" src="js/engine.js"></script>
 </body>
 </html>
