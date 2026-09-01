@@ -41,7 +41,7 @@
         .profile-card-modal h3 { margin: 10px 0 2px 0; color: #3b82f6; font-size: 18px; }
         .btn-close-modal { background: #ef4444; color: white; border: none; padding: 8px 20px; border-radius: 6px; margin-top: 10px; font-weight: bold; cursor: pointer; width: 100%; }
         .list-card-item { display: flex; justify-content: space-between; align-items: center; background: #0f172a; padding: 8px 10px; border-radius: 8px; border: 1px solid #334155; cursor: pointer; }
-        .live-badge { background: #ef4444; color: white; font-size: 9px; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 6px; display: inline-block; }
+        .live-badge { color: white; font-size: 9px; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 6px; display: inline-block; }
         .action-btn-small { background: #3b82f6; border: none; color: white; padding: 5px 10px; border-radius: 5px; font-size: 11px; font-weight: bold; cursor: pointer; }
         .modal-action-btn { background: #10b981; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; width: 100%; font-size: 12px; }
         .modal-team-btn { background: #3b82f6; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; width: 100%; font-size: 12px; margin-top: 6px; }
@@ -50,7 +50,6 @@
     </style>
 </head>
 <body>
-
     <header>
         <div class="logo">🏎️ RACING UNIVERSE</div>
         <div class="user-info">
@@ -63,7 +62,6 @@
         <div class="icon-btn" id="btn-party-create" title="Create Room">🏠</div>
         <div class="icon-btn" id="btn-chat" title="Chat Hub">💬</div>
         <div class="icon-btn" id="btn-friends" title="Friends">👥</div>
-
         <div class="party-stage" id="party-stage-container">
             <div class="character-stage" onclick="showMyProfile()">
                 <div class="avatar-icon-big" id="main-avatar-icon">👦</div>
@@ -93,9 +91,7 @@
                 <div class="chat-tab" onclick="switchChatTab('team', this)">🛡️ Team</div>
                 <div class="chat-tab" onclick="switchChatTab('dm', this)">👥 DMs</div>
             </div>
-            <div class="chat-messages-box" id="active-chat-box">
-                <p style="color: #10b981; font-size:12px;" id="chat-intro-msg">[World Chat]: Connected to Global Server.</p>
-            </div>
+            <div class="chat-messages-box" id="active-chat-box"></div>
             <div class="chat-input-row">
                 <input type="text" id="chat-input-field" placeholder="Type message...">
                 <button onclick="sendChatMessage()">Send</button>
@@ -115,21 +111,12 @@
                 <input type="text" id="search-uid-input" placeholder="Enter Numeric Tag (e.g. 83729104)">
                 <button class="action-btn-small" onclick="searchPlayerByUID()">Search</button>
             </div>
-
             <div style="font-size: 11px; font-weight: bold; color: #fbbf24; text-transform: uppercase; margin-top: 10px;">Friend Requests</div>
-            <div id="incoming-requests-container" style="display:flex; flex-direction:column; gap:6px;">
-                <p style="color: #64748b; font-size: 11px;">No pending requests.</p>
-            </div>
-
+            <div id="incoming-requests-container" style="display:flex; flex-direction:column; gap:6px;"></div>
             <div style="font-size: 11px; font-weight: bold; color: #ef4444; text-transform: uppercase; margin-top: 10px;">Global Live Players</div>
-            <div id="global-live-players-container" style="display:flex; flex-direction:column; gap:6px;">
-                <p style="color: #64748b; font-size: 11px;">Loading live players...</p>
-            </div>
-
+            <div id="global-live-players-container" style="display:flex; flex-direction:column; gap:6px;"></div>
             <div style="font-size: 11px; font-weight: bold; color: #10b981; text-transform: uppercase; margin-top: 10px;">Your Friends List</div>
-            <div id="friends-list-container" style="display:flex; flex-direction:column; gap:6px;">
-                <p style="color: #64748b; font-size: 11px;">No friends added yet.</p>
-            </div>
+            <div id="friends-list-container" style="display:flex; flex-direction:column; gap:6px;"></div>
         </div>
     </div>
 
@@ -140,9 +127,8 @@
             <button class="close-drawer" id="close-party">✕</button>
         </div>
         <div class="drawer-body">
-            <p id="party-status-text" style="color: #64748b; font-size: 12px; text-align: center; margin-top: 20px;">You are currently Solo.</p>
-            <div id="party-list-container" style="display:flex; flex-direction:column; gap:5px; margin-top: 10px;"></div>
-            <button id="btn-create-team" style="background: #4f46e5; border:none; padding:12px; border-radius:8px; color:white; font-weight:bold; margin-top:10px; cursor:pointer; width:100%;">+ Create Private Team</button>
+            <p id="party-status-text" style="color: #64748b; font-size: 12px; text-align: center; margin-top: 20px;">You are Solo.</p>
+            <div id="party-list-container" style="display:flex; flex-direction:column; gap:5px;"></div>
         </div>
     </div>
 
@@ -151,37 +137,36 @@
         <div class="profile-card-modal">
             <div style="font-size: 45px; margin-bottom: 5px;" id="modal-avatar">👦</div>
             <h3 id="modal-gamename">Racer Name</h3>
-            <p style="font-size: 11px; color: #10b981; margin-bottom: 12px;" id="modal-realname">Real Identity Verified</p>
-            
+            <p style="font-size: 11px; color: #10b981; margin-bottom: 12px;" id="modal-realname">Identity Verified</p>
             <div style="text-align: left; background: #0f172a; padding: 12px; border-radius: 8px; border: 1px solid #334155; display: flex; flex-direction: column; gap: 6px; font-size:13px;">
-                <p style="margin:0;">UID: <span id="modal-uid" style="color: #fbbf24; font-weight: bold; cursor: pointer;" onclick="copyUID()">--</span> <small style="color: #3b82f6; float: right; cursor: pointer;" onclick="copyUID()">📋 Copy</small></p>
+                <p style="margin:0;">UID: <span id="modal-uid" style="color: #fbbf24; font-weight: bold;">--</span></p>
                 <p style="margin:0;">Age: <span id="modal-age">--</span></p>
                 <p style="margin:0;">Location: <span id="modal-location">India</span></p>
                 <p style="margin:0;">Gender: <span id="modal-gender">Boy</span></p>
             </div>
-            
             <div id="modal-actions-wrapper" style="display: flex; flex-direction: column; gap: 6px; margin-top: 12px;"></div>
-            
             <button class="btn-close-modal" onclick="closeProfileModal()">Close</button>
         </div>
     </div>
 
-    <!-- Socket.io MUST be loaded first -->
+    <!-- Socket.io -->
     <script src="/socket.io/socket.io.js"></script>
-
-    <!-- Load Modular Scripts BEFORE main initialization -->
     <script type="module" src="js/chat.js"></script>
     <script type="module" src="js/friends.js"></script>
-    <script type="module" src="js/team.js"></script>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { getFirestore, doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        
+        // 🛑 HOTFAKE ENGINE (REALTIME DATABASE IMPORTS)
+        import { getDatabase, ref, onValue, onDisconnect, set, serverTimestamp as rtdbTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
+        // 🛑 Added databaseURL here for RTDB Support!
         const engineConfig = {
             apiKey: "AIzaSyCuYPugV4qIsu9ZT9E5l63bFLgIbte_S8I",
             authDomain: "racing-universe-engine.firebaseapp.com",
+            databaseURL: "https://racing-universe-engine-default-rtdb.firebaseio.com", 
             projectId: "racing-universe-engine",
             storageBucket: "racing-universe-engine.firebasestorage.app",
             messagingSenderId: "572638328716",
@@ -191,144 +176,95 @@
         const app = initializeApp(engineConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+        const rtdb = getDatabase(app); 
 
-        // Make globally available
         window.db = db;
+        window.rtdb = rtdb; 
+        window.socket = io(); 
         window.localUser = null;
         window.myProfileData = null;
-        let activeTargetUid = null;
 
-        // 🛑 BULLETPROOF MASTER BOOT SEQUENCE
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 window.localUser = user;
                 try {
                     const userRef = doc(db, "Users", user.uid);
                     await updateDoc(userRef, { lastActive: serverTimestamp() });
-
                     const docSnap = await getDoc(userRef);
+
                     if (docSnap.exists()) {
                         window.myProfileData = docSnap.data();
-                        
                         document.getElementById("player-name").innerText = `${window.myProfileData.gameName} (${window.myProfileData.playerTag || 'UID'})`;
                         document.getElementById("player-coins").innerText = `${window.myProfileData.wallet_balance || 0} 🪙`;
-                        document.getElementById("main-char-name").innerText = window.myProfileData.gameName;
-                        document.getElementById("main-char-info").innerText = `${window.myProfileData.gender} • Age: ${window.myProfileData.age}`;
-                        document.getElementById("main-avatar-icon").innerText = window.myProfileData.gender === 'Girl' ? '👧' : '👦';
 
-                        // 1. CONNECT SOCKET
-                        window.socket = io(); 
-                        
-                        window.socket.emit('registerPlayer', {
-                            uid: user.uid,
-                            gameName: window.myProfileData.gameName,
-                            gender: window.myProfileData.gender,
-                            age: window.myProfileData.age
+                        // 🛑 HOTFAKE MAGIC: Real-time Presence Engine
+                        const myStatusRef = ref(rtdb, 'status/' + user.uid);
+                        const connectedRef = ref(rtdb, '.info/connected');
+
+                        onValue(connectedRef, (snap) => {
+                            if (snap.val() === true) {
+                                // Agar internet band ho, to RTDB khud ise offline kar dega!
+                                onDisconnect(myStatusRef).set({ state: 'offline' }).then(() => {
+                                    set(myStatusRef, { state: 'online' });
+                                });
+                            }
                         });
 
-                        // 2. AUTO-BOOT POLLING: Wait safely until modules are fully injected
+                        // Boot Up Modules
                         const bootInterval = setInterval(() => {
-                            if (window.initChatSystem && window.loadGlobalPlayers && window.loadMyFriendsData) {
+                            if (window.initChatSystem && window.initFriendsSystem) {
                                 clearInterval(bootInterval);
                                 window.initChatSystem();
+                                window.initFriendsSystem();
                                 window.loadGlobalPlayers();
                                 window.loadMyFriendsData();
-                                console.log("🚀 All Modules Successfully Booted & Synced!");
+                                
+                                window.socket.emit('registerPlayer', {
+                                    uid: user.uid, gameName: window.myProfileData.gameName
+                                });
+                                console.log("🚀 HotFake Engine Booted Successfully!");
                             }
                         }, 200);
 
                     } else {
                         window.location.href = "profile.html";
                     }
-                } catch (err) {
-                    console.error("Profile load error", err);
-                }
+                } catch (err) { console.error("Profile error", err); }
             } else {
                 window.location.href = "index.html";
             }
         });
 
-        // Drawer Controls Setup
+        // Drawer Setup
         const setupDrawer = (btnId, drawerId, closeId) => {
-            const btn = document.getElementById(btnId);
-            const drawer = document.getElementById(drawerId);
-            const closeBtn = document.getElementById(closeId);
-            if(btn && drawer && closeBtn) {
-                btn.addEventListener('click', () => drawer.classList.add('open'));
-                closeBtn.addEventListener('click', () => drawer.classList.remove('open'));
-            }
+            document.getElementById(btnId).addEventListener('click', () => document.getElementById(drawerId).classList.add('open'));
+            document.getElementById(closeId).addEventListener('click', () => document.getElementById(drawerId).classList.remove('open'));
         };
-
         setupDrawer('btn-chat', 'chat-drawer', 'close-chat');
         setupDrawer('btn-friends', 'friends-drawer', 'close-friends');
         setupDrawer('btn-party-create', 'party-drawer', 'close-party');
 
-        // Profile Modal Logic
         window.showMyProfile = function() {
             if (!window.myProfileData || !window.localUser) return;
-            window.openUserProfile(window.myProfileData.gameName, window.myProfileData.age, window.myProfileData.location || "India", window.myProfileData.gender, window.myProfileData.playerTag || "--------", window.localUser.uid, true);
+            window.openUserProfile(window.myProfileData.gameName, window.myProfileData.age, window.myProfileData.location, window.myProfileData.gender, window.myProfileData.playerTag, window.localUser.uid, true);
         };
 
         window.openUserProfile = function(name, age, location, gender, uidTag, targetUid, isSelf = false) {
-            activeTargetUid = targetUid;
             document.getElementById('modal-gamename').innerText = name;
-            document.getElementById('modal-realname').innerText = isSelf ? `UID: ${uidTag} (You)` : `Real Identity Verified`;
-            document.getElementById('modal-uid').innerText = uidTag;
-            document.getElementById('modal-age').innerText = age;
-            document.getElementById('modal-location').innerText = location;
-            document.getElementById('modal-gender').innerText = gender;
+            document.getElementById('modal-uid').innerText = uidTag || "Old-Account";
+            document.getElementById('modal-age').innerText = age || "20";
+            document.getElementById('modal-location').innerText = location || "India";
+            document.getElementById('modal-gender').innerText = gender || "Boy";
             document.getElementById('modal-avatar').innerText = gender === 'Girl' ? '👧' : '👦';
             
             const actionsWrapper = document.getElementById('modal-actions-wrapper');
-            actionsWrapper.innerHTML = '';
-            
             if (!isSelf) {
-                actionsWrapper.innerHTML = `
-                    <button class="modal-action-btn" onclick="window.sendFriendReq('${targetUid}', '${name}')">Send Friend Request</button>
-                    <button class="modal-team-btn" onclick="alert('Team invite feature active!')">Team Join Request</button>
-                `;
-            }
+                actionsWrapper.innerHTML = `<button class="modal-action-btn" onclick="window.sendFriendReq('${targetUid}', '${name}')">Send Friend Request</button>`;
+            } else { actionsWrapper.innerHTML = ''; }
             document.getElementById('profile-modal').style.display = 'flex';
         };
 
-        window.closeProfileModal = function() {
-            document.getElementById('profile-modal').style.display = 'none';
-        };
-
-        window.copyUID = function() {
-            const uidText = document.getElementById('modal-uid').innerText;
-            if (uidText && uidText !== '--') {
-                navigator.clipboard.writeText(uidText).then(() => alert("📋 UID Copied: " + uidText));
-            }
-        };
-
-        // Matchmaking button
-        document.getElementById("start-match-btn").addEventListener('click', () => {
-            if (navigator.geolocation) {
-                document.getElementById("gps-status-text").innerText = "📍 Requesting GPS Location...";
-                document.getElementById("gps-status-text").style.color = "#fbbf24";
-
-                navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        document.getElementById("gps-status-text").innerText = `✅ GPS Locked!`;
-                        document.getElementById("gps-status-text").style.color = "#10b981";
-                        document.getElementById("start-match-btn").innerText = "Finding Match...";
-                        document.getElementById("start-match-btn").disabled = true;
-                        
-                        setTimeout(() => {
-                            const newRoomId = "RU-" + Math.floor(1000 + Math.random() * 9000);
-                            window.location.href = `game.html?roomId=${newRoomId}&isHost=true`;
-                        }, 1200);
-                    },
-                    (error) => {
-                        alert("Please allow Location permission!");
-                    }
-                );
-            } else {
-                alert("GPS not supported.");
-            }
-        });
+        window.closeProfileModal = function() { document.getElementById('profile-modal').style.display = 'none'; };
     </script>
 </body>
 </html>
-
