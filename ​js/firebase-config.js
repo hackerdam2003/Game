@@ -1,17 +1,11 @@
+// js/firebase-config.js
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-const hfcBankConfig = {
-    apiKey: "AIzaSyDuFOfwTplev2IfpCKfiH1ZxCSKuZaftUk",
-    authDomain: "hfc-bank-e2a34.firebaseapp.com",
-    projectId: "hfc-bank-e2a34",
-    storageBucket: "hfc-bank-e2a34.firebasestorage.app",
-    messagingSenderId: "1029449998918",
-    appId: "1:1029449998918:web:73babbd06999dbe2f16047"
-};
-
-const racingEngineConfig = {
+// The Single Source of Truth: Racing Engine Database
+const engineConfig = {
     apiKey: "AIzaSyCuYPugV4qIsu9ZT9E5l63bFLgIbte_S8I",
     authDomain: "racing-universe-engine.firebaseapp.com",
     projectId: "racing-universe-engine",
@@ -21,12 +15,15 @@ const racingEngineConfig = {
     measurementId: "G-4VYPKBPD4K"
 };
 
-const hfcApp = initializeApp(hfcBankConfig, "HFCBankApp");
-const auth = getAuth(hfcApp);
-const bankDB = getFirestore(hfcApp);
+// Initialize the Main Game App
+const app = initializeApp(engineConfig);
+
+// Initialize Firebase Services
+const auth = getAuth(app);
+const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 
-const engineApp = initializeApp(racingEngineConfig, "RacingEngineApp");
-const engineDB = getFirestore(engineApp);
+// Export universally so auth.js, friends.js, and others can use the exact same instance
+export { auth, db, provider };
 
-export { auth, bankDB, engineDB, provider };
+console.log("🔥 Firebase Engine Initialized (Unified Database Connected)");
