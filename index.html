@@ -2,75 +2,217 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Racing Universe | Adult Authentication Gate</title>
-    <link rel="stylesheet" href="css/main.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Racing Universe | Authenticate</title>
     <style>
-        .auth-container { max-width: 440px; margin: 40px auto; padding: 25px; background: #1e293b; border-radius: 12px; border: 1px solid #334155; text-align: center; }
-        .age-gate-banner { background: #ef4444; color: #fff; padding: 12px; border-radius: 8px; font-weight: bold; margin-bottom: 20px; font-size: 14px; }
-        .form-group { margin-bottom: 15px; text-align: left; }
-        .form-group label { display: block; margin-bottom: 5px; font-size: 13px; color: #94a3b8; }
-        .form-group input, .form-group select { width: 100%; padding: 12px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 8px; box-sizing: border-box; }
-        .btn-auth { width: 100%; padding: 14px; background: #3b82f6; border: none; border-radius: 8px; font-weight: bold; color: white; cursor: pointer; font-size: 16px; margin-top: 10px; }
-        .modal-denied { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 100; align-items: center; justify-content: center; }
-        .modal-box { background: #1e293b; border: 2px solid #ef4444; padding: 30px; border-radius: 12px; max-width: 380px; text-align: center; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            text-align: center; 
+            background: #0f172a; 
+            color: #f1f5f9; 
+            padding-top: 50px; 
+            margin: 0;
+        }
+        .box { 
+            background: #1e293b; 
+            padding: 30px 20px; 
+            border-radius: 12px; 
+            width: 90%; 
+            max-width: 400px; 
+            margin: auto; 
+            border: 1px solid #334155;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        h2 { color: #3b82f6; margin-top: 0; letter-spacing: 1px; text-transform: uppercase; }
+        button { 
+            width: 100%; 
+            padding: 15px; 
+            margin: 15px 0; 
+            border-radius: 8px; 
+            background: #ef4444; 
+            color: white; 
+            font-weight: 900; 
+            cursor: pointer; 
+            border: none; 
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: 0.2s;
+        }
+        button:hover { background: #dc2626; transform: translateY(-2px); }
+        button:disabled { background: #64748b; cursor: not-allowed; transform: none; }
+        input, select { 
+            width: 100%; 
+            padding: 12px; 
+            margin: 10px 0; 
+            border-radius: 8px; 
+            font-size: 16px; 
+            box-sizing: border-box; 
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: white;
+            outline: none;
+        }
+        input:focus, select:focus { border-color: #3b82f6; }
+        #loginStatus { color: #fbbf24; font-size: 14px; margin-top: 15px; font-weight: bold; }
+        #profileForm { display: none; }
+        .info-text { font-size: 14px; text-align: left; margin: 10px 0 5px 0; color: #94a3b8; font-weight: bold; }
+        .locked-name { color: #10b981; font-size: 20px; font-weight: 900; text-align: left; background: #0f172a; padding: 10px; border-radius: 8px; border: 1px solid #10b981; }
+        .warning-text { font-size: 11px; color: #ef4444; text-align: left; margin-bottom: 15px; }
     </style>
 </head>
 <body>
 
-    <div class="auth-container">
-        <div class="age-gate-banner">
-            ⚠️ WARNING: RACING UNIVERSE IS AN 18+ GAME<br>
-            <span style="font-size: 11px; font-weight: normal;">Strict identity verification & age calculations enforced.</span>
+    <div class="box">
+        <h2>🏎️ Racing Universe</h2>
+        
+        <!-- LOGIN SECTION -->
+        <div id="loginSection">
+            <p style="color: #cbd5e1; font-size: 14px; margin-bottom: 25px;">Anti-Scam Servers Active.<br>Authenticate with your real identity.</p>
+            <button id="googleLoginBtn">🔐 Login with Google</button>
+            <p id="loginStatus">System Ready...</p>
         </div>
 
-        <h2 style="margin-top: 0;">🏎️ RACING UNIVERSE</h2>
-        <p style="color: #94a3b8; font-size: 13px;">Sign in with Google to establish your real identity.</p>
+        <!-- PROFILE SECTION (Only for New Users) -->
+        <div id="profileForm">
+            <h3 style="border-bottom: 1px solid #334155; padding-bottom: 10px;">Verify Identity</h3>
+            
+            <p class="info-text">Official Driver Name (Locked):</p>
+            <div class="locked-name" id="displayNameDisplay">Loading...</div>
+            <p class="warning-text">* This name is pulled directly from Google and cannot be altered.</p>
+            
+            <p class="info-text">Select Gender:</p>
+            <select id="genderSelect" required>
+                <option value="">-- Select --</option>
+                <option value="Boy">Boy</option>
+                <option value="Girl">Girl</option>
+            </select>
+            <p class="warning-text">* Gender is permanent. Used for 1:1 Matchmaking.</p>
 
-        <div id="login-section">
-            <button id="googleLoginBtn" class="btn-auth" style="background: #ea4335;">🔐 Sign in with Google</button>
-            <p id="loginStatus" style="font-size: 13px; color: #fbbf24; margin-top: 15px;">Awaiting user action...</p>
-        </div>
-
-        <div id="onboarding-section" style="display: none;">
-            <hr style="border: 0; border-top: 1px solid #334155; margin: 20px 0;">
-            <h4 style="margin: 0 0 10px 0; color: #38bdf8;">Complete Adult Identity Setup</h4>
-
-            <div class="form-group">
-                <label>Verified Google Identity</label>
-                <input type="text" id="googleDisplayName" disabled style="opacity: 0.7;">
-            </div>
-
-            <div class="form-group">
-                <label>Custom Game Name</label>
-                <input type="text" id="gameNameInput" placeholder="Enter your racer tag...">
-            </div>
-
-            <div class="form-group">
-                <label>Permanent Gender (Required for 1:1 Matchmaking)</label>
-                <select id="genderSelect">
-                    <option value="Boy">Boy</option>
-                    <option value="Girl">Girl</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>Date of Birth (YYYY-MM-DD)</label>
-                <input type="date" id="dobInput" required>
-            </div>
-
-            <button id="saveProfileBtn" class="btn-auth" style="background: #10b981;">Complete Onboarding & Enter</button>
+            <p class="info-text">Date of Birth:</p>
+            <input type="date" id="dobInput" required>
+            <p class="warning-text">* System will auto-calculate your Age.</p>
+            
+            <button id="saveProfileBtn">Lock Profile & Enter Lobby</button>
         </div>
     </div>
 
-    <div id="minorBlockedModal" class="modal-denied">
-        <div class="modal-box">
-            <h2 style="color: #ef4444; margin-top: 0;">⚠️ ACCESS DENIED</h2>
-            <p>Racing Universe is strictly available to players <strong>18 years of age or older</strong>.</p>
-            <p style="color: #94a3b8; font-size: 12px;">Your registration has been blocked by server policy.</p>
-        </div>
-    </div>
+    <!-- FIREBASE MODULES -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-    <script type="module" src="js/auth.js"></script>
+        // 🔥 RACING ENGINE DATABASE KEYS (Unified Project)
+        const engineConfig = {
+            apiKey: "AIzaSyCuYPugV4qIsu9ZT9E5l63bFLgIbte_S8I",
+            authDomain: "racing-universe-engine.firebaseapp.com",
+            projectId: "racing-universe-engine",
+            storageBucket: "racing-universe-engine.firebasestorage.app",
+            messagingSenderId: "572638328716",
+            appId: "1:572638328716:web:830bd01db1fa5b45d948a9"
+        };
+
+        const app = initializeApp(engineConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
+
+        const loginBtn = document.getElementById('googleLoginBtn');
+        const loginStatus = document.getElementById('loginStatus');
+        const loginSection = document.getElementById('loginSection');
+        const profileForm = document.getElementById('profileForm');
+        const displayNameDisplay = document.getElementById('displayNameDisplay');
+        const saveProfileBtn = document.getElementById('saveProfileBtn');
+        let currentUser = null;
+
+        // 1. INITIATE GOOGLE LOGIN
+        loginBtn.addEventListener('click', (e) => {
+            e.preventDefault(); 
+            loginStatus.innerText = "Connecting to Google Servers...";
+            signInWithRedirect(auth, provider);
+        });
+
+        // 2. HANDLE REDIRECT RESULT (Mobile Safari/Chrome safe flow)
+        getRedirectResult(auth).then(async (result) => {
+            if (result && result.user) {
+                checkUserAndRedirect(result.user);
+            } else if (auth.currentUser) {
+                checkUserAndRedirect(auth.currentUser);
+            }
+        }).catch((error) => {
+            loginStatus.innerText = "❌ Redirect Error: " + error.message;
+        });
+
+        // 3. DATABASE CHECK: Existing User vs New User
+        async function checkUserAndRedirect(user) {
+            currentUser = user;
+            loginStatus.innerText = "Verifying Database Profile...";
+            try {
+                const userRef = doc(db, "Users", user.uid);
+                const docSnap = await getDoc(userRef);
+
+                if (docSnap.exists() && docSnap.data().gender) {
+                    // Profile verified -> Instant Lobby Entry
+                    loginStatus.innerText = "Profile Locked. Entering Lobby...";
+                    window.location.href = "lobby.html";
+                } else {
+                    // New Player -> Show Identity Form
+                    loginSection.style.display = 'none';
+                    profileForm.style.display = 'block';
+                    displayNameDisplay.innerText = user.displayName; 
+                }
+            } catch (err) {
+                loginStatus.innerText = "❌ DB Permission Error: " + err.message;
+            }
+        }
+
+        // 4. PROCESS NEW IDENTITY FORM (Calculate Age & Save to Firestore)
+        saveProfileBtn.addEventListener('click', async () => {
+            const gender = document.getElementById('genderSelect').value;
+            const dob = document.getElementById('dobInput').value;
+
+            if (!gender || !dob) {
+                alert("CRITICAL: You must provide your Gender and Date of Birth.");
+                return;
+            }
+
+            // 🧮 SYSTEM LOGIC: Auto-Calculate Exact Age
+            const birthDate = new Date(dob);
+            const today = new Date();
+            let age = today.getFullYear() - birthDate.getFullYear();
+            const m = today.getMonth() - birthDate.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+                age--;
+            }
+
+            saveProfileBtn.innerText = "Locking Identity...";
+            saveProfileBtn.disabled = true;
+
+            try {
+                const userRef = doc(db, "Users", currentUser.uid);
+                
+                // Write absolute identity to Database
+                await setDoc(userRef, {
+                    name: currentUser.displayName,      // Real Google Name
+                    email: currentUser.email,
+                    gameName: currentUser.displayName,  // Used as base for UI display
+                    gender: gender,                     // Boy/Girl (Permanent)
+                    dob: dob,                           // YYYY-MM-DD
+                    age: age,                           // Used for Matchmaking Filter
+                    wallet_balance: 0,                  // Level 0 (Padal)
+                    role: "player",
+                    joined: new Date().toISOString()
+                }, { merge: true });
+                
+                // Success -> Send to Lobby
+                window.location.href = "lobby.html";
+            } catch (error) {
+                alert("❌ Database Write Error! Check Firebase Rules.");
+                saveProfileBtn.innerText = "Lock Profile & Enter Lobby";
+                saveProfileBtn.disabled = false;
+            }
+        });
+    </script>
 </body>
 </html>
