@@ -1,108 +1,103 @@
-// core/roomManager.js
-
-// Global storage for active custom rooms
-export const activeRooms = new Map(); 
-
+// core/roommanager.js
 export function handleRoomEvents(socket, io, connectedPlayers) {
     
-    // 🛡️ 1. Create Private Team
-    socket.on('createRoom', (data) => {
-        activeRooms.set(data.roomCode, {
-            code: data.roomCode,
-            leaderId: socket.id,
-            allowWorld: data.allowWorld || false,
-            players: [socket.id]
+    // MATCHMAKING QUEUE (Duniya bhar ke log jo match dhoondh rahe hain)
+    const matchmakingQueue = [];
+
+    // 1. HOST NE PARTY BANAYI (Fixed ID Generator)
+    socket.on('createPartyRoom', (data) => {
+        const player = connectedPlayers.get(socket.id);
+        if (!player) return;
+
+        // Custom ID (No external package needed)
+        const roomId = 'PARTY_' + Math.random().toString(36).substr(2, 6).toUpperCase(); 
+        socket.join(roomId);
+        
+        player.partyRoom = roomId;
+        player.isPartyHost = true;
+        
+        const hostData = {
+            uid: data.hostUid,
+            name: data.hostName,
+            gender: player.gender || 'Boy',
+            age: player.age || 20,
+            isHost: true
+        };
+
+        io.to(socket.id).emit('partyCreated', { roomId: roomId, members: [hostData] });
+    });
+
+    socket.on('sendPartyInvite', (data) => {
+        let targetSocketId = null;
+        for (const [sId, pData] of connectedPlayers.entries()) {
+            if (pData.uid === data.targetUid) { targetSocketId = sId; break; }
+        }
+        if (targetSocketId) {
+            io.to(targetSocketId).emit('receivePartyInvite', { hostName: data.hostName, roomId: data.roomId });
+        }
+    });
+
+    socket.on('acceptPartyInvite', (data) => {
+        const player = connectedPlayers.get(socket.id);
+        if (!player) return;
+
+        const room = io.sockets.adapter.rooms.get(data.roomId);
+        if (!room) { socket.emit('partyError', 'Party does not exist.'); return; }
+
+        socket.join(data.roomId);
+        player.partyRoom = data.roomId;
+        player.isPartyHost = false;
+
+        socket.emit('joinedParty', { roomId: data.roomId, maxSize: 4 });
+        updatePartyMembers(data.roomId, io, connectedPlayers);
+    });
+
+    socket.on('leavePartyRoom', (data) => {
+        const player = connectedPlayers.get(socket.id);
+        if (!player) return;
+        socket.leave(data.roomId);
+        player.partyRoom = null;
+        player.isPartyHost = false;
+        updatePartyMembers(data.roomId, io, connectedPlayers);
+    });
+
+    // 🚦 MATCHMAKING LOGIC
+    socket.on('startMatchmaking', (data) => {
+        console.log(`${data.name} is searching for a match!`);
+        
+        // Queue me add karo
+        matchmakingQueue.push({
+            socketId: socket.id,
+            roomId: data.roomId, // Agar party me hai to roomId aayega
+            uid: data.uid,
+            location: data.location
         });
 
-        const player = connectedPlayers.get(socket.id);
-        if (player) {
-            player.status = 'in-party';
-            player.room = data.roomCode;
-        }
+        // Agar queue me 2 log/parties ho gaye, toh dono ko match kar do!
+        if (matchmakingQueue.length >= 2) {
+            const team1 = matchmakingQueue.shift();
+            const team2 = matchmakingQueue.shift();
 
-        socket.join(data.roomCode); // Add to Socket.io room for team chat
-        console.log(`🛡️ Room [${data.roomCode}] Created by Leader: ${socket.id} | Allow World: ${data.allowWorld}`);
-    });
-
-    // 🤝 2. Join Private Team (Naya Event doston ke liye)
-    socket.on('joinRoom', (data) => {
-        const room = activeRooms.get(data.roomCode);
-        if (room) {
-            // Max 4 players limit (Aap isko badha sakte hain)
-            if (room.players.length >= 4) {
-                socket.emit('roomError', { message: "Room is currently full!" });
-                return;
-            }
-
-            room.players.push(socket.id);
-            const player = connectedPlayers.get(socket.id);
-            if (player) {
-                player.status = 'in-party';
-                player.room = data.roomCode;
-            }
-
-            socket.join(data.roomCode);
-            console.log(`🤝 Player ${socket.id} joined Room [${data.roomCode}]`);
+            // Match Found! Dono ko game start ka signal bhejo
+            io.to(team1.socketId).emit('matchFound', { opponent: team2.uid });
+            io.to(team2.socketId).emit('matchFound', { opponent: team1.uid });
             
-            // Sabko batao ki naya dost party me aagaya
-            io.to(data.roomCode).emit('playerJoinedRoom', { 
-                playerId: socket.id, 
-                playerCount: room.players.length 
-            });
-        } else {
-            socket.emit('roomError', { message: "Party not found or closed!" });
+            // Agar party me hain toh puri party ko signal bhejo
+            if(team1.roomId) io.to(team1.roomId).emit('matchFound', { opponent: team2.uid });
+            if(team2.roomId) io.to(team2.roomId).emit('matchFound', { opponent: team1.uid });
         }
     });
+}
 
-    // ⚙️ 3. Update Toggle (Leader changes World Player setting)
-    socket.on('updateRoomSettings', (data) => {
-        const room = activeRooms.get(data.room);
-        if (room && room.leaderId === socket.id) {
-            room.allowWorld = data.allowWorld;
-            console.log(`⚙️ Room [${data.room}] Toggle Updated -> Allow World: ${data.allowWorld}`);
+function updatePartyMembers(roomId, io, connectedPlayers) {
+    const room = io.sockets.adapter.rooms.get(roomId);
+    if (!room) return;
+    const membersList = [];
+    for (const sId of room) {
+        const p = connectedPlayers.get(sId);
+        if (p) {
+            membersList.push({ uid: p.uid, name: p.gameName || 'Racer', gender: p.gender || 'Boy', age: p.age || 20, isHost: p.isPartyHost || false });
         }
-    });
-
-    // 🏁 4. Start Team Race
-    socket.on('startTeamMatch', (data) => {
-        const room = activeRooms.get(data.roomCode);
-        
-        if (room && room.leaderId === socket.id) {
-            console.log(`🏁 Leader started match for Room: ${data.roomCode}`);
-            
-            // Get all players currently in this team
-            const teamPlayers = Array.from(connectedPlayers.values()).filter(p => p.room === data.roomCode);
-            
-            if (room.allowWorld) {
-                // THE AUTO-PULL TRIGGER:
-                // Agar toggle ON hai, toh in doston ko 'searching' me daal do.
-                // Humara matchmaker.js inko uthayega aur bache hue slots duniya se bhar dega!
-                teamPlayers.forEach(p => {
-                    p.status = 'searching';
-                    p.searchStartTime = Date.now(); // Timer start for Phase fallback
-                });
-                console.log(`🌍 Team [${data.roomCode}] sent to Global Matchmaking!`);
-            } else {
-                // STRICTLY PRIVATE RACE:
-                const matchId = "RU-" + Math.floor(1000 + Math.random() * 9000); // Standardize ID formatting
-                
-                teamPlayers.forEach(p => {
-                    p.status = 'in-match';
-                    p.room = matchId;
-                    
-                    // Force join naye game room me
-                    io.in(p.id).socketsJoin(matchId);
-
-                    // 🛠️ THE FIX: Server bata raha hai ki Host kon hai aur Client kon
-                    const isLeader = (p.id === room.leaderId);
-                    io.to(p.id).emit('matchFound', { 
-                        matchId: matchId, 
-                        isHost: isLeader // Leader ko Host power, baaki doston ko sirf wait permission
-                    });
-                });
-                
-                console.log(`🔒 Private Race started for Room [${data.roomCode}]`);
-            }
-        }
-    });
+    }
+    io.to(roomId).emit('partyUpdated', { members: membersList });
 }
