@@ -1,13 +1,26 @@
 // js/team.js
-console.log("🛡️ [Squad/Team] Genshin Co-Op Module Loaded!");
+console.log("🛡️ [Squad/Team] Master Module Loaded!");
 
 window.partySizeLimit = 4;
 window.currentRoomId = null;
 window.partyMembers = [];
 
+// 🛑 NAYA: Party Size Change Logic UI
+window.setPartySize = function(size) {
+    if (window.currentRoomId) {
+        alert("Cannot change size while in an active party!");
+        return;
+    }
+    window.partySizeLimit = size;
+    document.getElementById('btn-size-2').style.background = size === 2 ? '#3b82f6' : '#1e293b';
+    document.getElementById('btn-size-4').style.background = size === 4 ? '#3b82f6' : '#1e293b';
+};
+
 window.createParty = function() {
     if (window.socket && window.localUser) {
-        window.socket.emit('createPartyRoom', { hostUid: window.localUser.uid, hostName: window.myProfileData.gameName });
+        window.socket.emit('createPartyRoom', { 
+            maxSize: window.partySizeLimit 
+        });
     }
 };
 
@@ -17,13 +30,23 @@ window.leaveParty = function() {
         window.currentRoomId = null;
         window.partyMembers = [];
         updatePartyUI();
+        const tabs = document.querySelectorAll('.chat-tab');
+        if (tabs.length > 0) window.switchChatTab('world', tabs[0]);
     }
 };
 
 window.inviteToTeam = function(targetUid) {
     if (!window.currentRoomId) { alert("Please 'Create Party' first!"); return; }
+    if (window.partyMembers.length >= window.partySizeLimit) { 
+        alert(`Squad is full! (${window.partySizeLimit} Limit)`); 
+        return; 
+    }
     if (window.socket) {
-        window.socket.emit('sendPartyInvite', { targetUid: targetUid, hostName: window.myProfileData.gameName, roomId: window.currentRoomId });
+        window.socket.emit('sendPartyInvite', { 
+            targetUid: targetUid, 
+            hostName: window.myProfileData.gameName, 
+            roomId: window.currentRoomId 
+        });
         alert("Invite Sent Successfully!");
     }
 };
@@ -35,29 +58,50 @@ window.initTeamSystem = function() {
     window.socket.off('partyUpdated');
     window.socket.off('joinedParty');
     window.socket.off('receivePartyInvite');
+    window.socket.off('partyError');
     window.socket.off('teleportToGame');
 
     window.socket.on('partyCreated', (data) => {
         window.currentRoomId = data.roomId;
         window.partyMembers = data.members;
+        if (data.maxSize) window.partySizeLimit = data.maxSize;
         updatePartyUI();
+        const tabs = document.querySelectorAll('.chat-tab');
+        if (tabs.length > 1) window.switchChatTab('team', tabs[1]);
     });
 
     window.socket.on('joinedParty', (data) => {
-        window.currentRoomId = data.roomId;
-        // The rest is handled by partyUpdated which fires immediately after
+        if (!window.currentRoomId && data.roomId) {
+            window.currentRoomId = data.roomId;
+        }
     });
 
     window.socket.on('partyUpdated', (data) => {
+        // 🛑 REFRESH FIX: Restore Room ID if page was reloaded
+        if (!window.currentRoomId && data.roomId) {
+            window.currentRoomId = data.roomId;
+        }
         window.partyMembers = data.members;
+        if (data.maxSize) window.partySizeLimit = data.maxSize;
         updatePartyUI(); 
     });
 
     window.socket.on('receivePartyInvite', (data) => {
         if (window.currentRoomId) return;
-        const accept = confirm(`🛡️ ${data.hostName} invited you to join their Squad! Accept?`);
-        if (accept) {
-            window.socket.emit('acceptPartyInvite', { roomId: data.roomId, gender: window.myProfileData.gender, age: window.myProfileData.age });
+        if (confirm(`🛡️ ${data.hostName} invited you to join their Squad! Accept?`)) {
+            window.socket.emit('acceptPartyInvite', { roomId: data.roomId });
+            const tabs = document.querySelectorAll('.chat-tab');
+            if (tabs.length > 1) window.switchChatTab('team', tabs[1]);
+        }
+    });
+
+    window.socket.on('partyError', (msg) => {
+        alert("❌ " + msg);
+        const matchBtn = document.getElementById('start-match-btn');
+        if (matchBtn && matchBtn.disabled && !window.currentRoomId) {
+            matchBtn.style.background = '#10b981';
+            matchBtn.innerHTML = "▶ Find Match (Auto-Join Lobby)";
+            matchBtn.disabled = false;
         }
     });
 
@@ -96,8 +140,9 @@ function updatePartyUI() {
         }
 
         if (centerStage && window.myProfileData) {
+            // 🛑 NAYA: Clickable Profile directly on Solo Avatar
             centerStage.innerHTML = `
-                <div class="character-stage" style="border-color: #3b82f6;">
+                <div class="character-stage" style="border-color: #3b82f6; cursor: pointer;" onclick="window.showMyProfile()">
                     <div class="avatar-icon-big">${window.myProfileData.gender === 'Girl' ? '👧' : '👦'}</div>
                     <div class="char-name" style="color: #3b82f6;">${window.myProfileData.gameName}</div>
                     <div class="char-sub">${window.myProfileData.gender} • Age: ${window.myProfileData.age || 20}</div>
@@ -109,7 +154,7 @@ function updatePartyUI() {
     }
 
     // --- SQUAD MODE (In Lobby) ---
-    if(statusText) statusText.innerText = `Squad Active (${window.partyMembers.length}/4)`;
+    if(statusText) statusText.innerText = `Squad Active (${window.partyMembers.length}/${window.partySizeLimit})`;
     if(createBtn) createBtn.style.display = 'none';
     if(leaveBtn) leaveBtn.style.display = 'block';
 
@@ -122,6 +167,9 @@ function updatePartyUI() {
         const roleText = member.isHost ? "Host" : "Member";
         if (isMe && member.isHost) amIHost = true;
 
+        // 🛑 NAYA: Profile click for all connected users with Real Data
+        const clickEvent = `window.openUserProfile('${member.name}', '${member.age || 20}', '${member.location || 'India'}', '${member.gender}', '${member.playerTag || '000000'}', '${member.uid}', ${isMe})`;
+
         if (listContainer) {
             listContainer.innerHTML += `
                 <div style="background: #0f172a; padding: 8px 12px; border-radius: 6px; border: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
@@ -133,7 +181,7 @@ function updatePartyUI() {
 
         if (centerStage) {
             centerStage.innerHTML += `
-                <div class="character-stage" style="border-color: ${isMe ? '#3b82f6' : '#10b981'}; width: 140px; height: 190px; margin: 10px;">
+                <div class="character-stage" style="border-color: ${isMe ? '#3b82f6' : '#10b981'}; width: 140px; height: 190px; margin: 10px; cursor: pointer;" onclick="${clickEvent}">
                     <div class="avatar-icon-big" style="font-size: 55px;">${member.gender === 'Girl' ? '👧' : '👦'}</div>
                     <div class="char-name" style="color: ${isMe ? '#3b82f6' : '#10b981'};">${member.name}</div>
                     <div class="char-sub">${member.gender} • Age: ${member.age || 20}</div>
@@ -145,7 +193,7 @@ function updatePartyUI() {
 
     if (matchBtn) {
         if (amIHost) {
-            matchBtn.innerHTML = `▶ START MATCH (${window.partyMembers.length}/4)`;
+            matchBtn.innerHTML = `▶ START MATCH (${window.partyMembers.length}/${window.partySizeLimit})`;
             matchBtn.style.background = '#ef4444';
             matchBtn.disabled = false;
         } else {
