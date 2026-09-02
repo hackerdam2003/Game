@@ -1,16 +1,12 @@
 // js/team.js
-console.log("🛡️ [Squad/Team] Management Module Loaded!");
+console.log("🛡️ [Squad] Module Loaded!");
 
-window.partySizeLimit = 4; 
 window.currentRoomId = null;
 window.partyMembers = []; 
 
 window.createParty = function() {
     if (window.socket && window.localUser) {
-        window.socket.emit('createPartyRoom', {
-            hostUid: window.localUser.uid,
-            hostName: window.myProfileData.gameName
-        });
+        window.socket.emit('createPartyRoom', { hostUid: window.localUser.uid, hostName: window.myProfileData.gameName });
     }
 };
 
@@ -19,75 +15,65 @@ window.leaveParty = function() {
         window.socket.emit('leavePartyRoom', { roomId: window.currentRoomId });
         window.currentRoomId = null;
         window.partyMembers = [];
-        updatePartyUI(false);
+        updatePartyUI();
         const tabs = document.querySelectorAll('.chat-tab');
         if (tabs.length > 0) window.switchChatTab('world', tabs[0]); 
     }
 };
 
 window.sendTeamInvite = function(targetUid) {
-    if (!window.currentRoomId) {
-        alert("Please 'Create Party' first before inviting friends!");
-        return;
-    }
-    if (window.partyMembers.length >= window.partySizeLimit) {
-        alert("Your Squad is already full!");
-        return;
-    }
+    if (!window.currentRoomId) { alert("Please 'Create Party' first!"); return; }
+    if (window.partyMembers.length >= 4) { alert("Squad is full!"); return; }
     if (window.socket) {
-        window.socket.emit('sendPartyInvite', {
-            targetUid: targetUid,
-            hostName: window.myProfileData.gameName,
-            roomId: window.currentRoomId
-        });
+        window.socket.emit('sendPartyInvite', { targetUid: targetUid, hostName: window.myProfileData.gameName, roomId: window.currentRoomId });
         alert("Invite Sent!");
     }
 };
 
 window.initTeamSystem = function() {
-    if (window.socket) {
-        window.socket.off('partyCreated');
-        window.socket.off('partyUpdated');
-        window.socket.off('receivePartyInvite');
-        window.socket.off('teleportToGame');
+    if (!window.socket) return;
+    
+    window.socket.off('partyCreated');
+    window.socket.off('partyUpdated');
+    window.socket.off('receivePartyInvite');
+    window.socket.off('teleportToGame');
 
-        window.socket.on('partyCreated', (data) => {
-            window.currentRoomId = data.roomId;
-            window.partyMembers = data.members;
-            updatePartyUI(true);
+    window.socket.on('partyCreated', (data) => {
+        window.currentRoomId = data.roomId;
+        window.partyMembers = data.members;
+        updatePartyUI();
+        const tabs = document.querySelectorAll('.chat-tab');
+        if (tabs.length > 1) window.switchChatTab('team', tabs[1]); 
+    });
+
+    window.socket.on('partyUpdated', (data) => {
+        window.partyMembers = data.members;
+        updatePartyUI();
+    });
+
+    // ✉️ POPUP JAB INVITE AAYE
+    window.socket.on('receivePartyInvite', (data) => {
+        if (window.currentRoomId) return; 
+        const accept = confirm(`🛡️ ${data.hostName} invited you to join their Squad! Accept?`);
+        if (accept) {
+            window.socket.emit('acceptPartyInvite', { roomId: data.roomId });
             const tabs = document.querySelectorAll('.chat-tab');
-            if (tabs.length > 1) window.switchChatTab('team', tabs[1]); // Auto Team Chat
-        });
+            if (tabs.length > 1) window.switchChatTab('team', tabs[1]);
+        }
+    });
 
-        window.socket.on('partyUpdated', (data) => {
-            window.partyMembers = data.members;
-            updatePartyUI(false);
-        });
-
-        // ✉️ POPUP JAB INVITE AAYE
-        window.socket.on('receivePartyInvite', (data) => {
-            if (window.currentRoomId) return; 
-            const accept = confirm(`🛡️ ${data.hostName} invited you to join their Squad! Accept?`);
-            if (accept) {
-                window.socket.emit('acceptPartyInvite', { roomId: data.roomId });
-                const tabs = document.querySelectorAll('.chat-tab');
-                if (tabs.length > 1) window.switchChatTab('team', tabs[1]);
-            }
-        });
-
-        // 🚀 GAME TELEPORT
-        window.socket.on('teleportToGame', (data) => {
-            const matchBtn = document.getElementById('start-match-btn');
-            if (matchBtn) {
-                matchBtn.style.background = '#10b981';
-                matchBtn.innerHTML = "🔥 LAUNCHING GAME... 🔥";
-            }
-            setTimeout(() => {
-                const amIHost = (window.localUser && data.hostUid === window.localUser.uid);
-                window.location.href = `game.html?roomId=${data.gameRoomId}&isHost=${amIHost}`;
-            }, 1000);
-        });
-    }
+    // 🚀 TELEPORT TO GAME
+    window.socket.on('teleportToGame', (data) => {
+        const matchBtn = document.getElementById('start-match-btn');
+        if (matchBtn) {
+            matchBtn.style.background = '#10b981';
+            matchBtn.innerHTML = "🔥 TELEPORTING... 🔥";
+        }
+        setTimeout(() => {
+            const amIHost = (window.localUser && data.hostUid === window.localUser.uid);
+            window.location.href = `game.html?roomId=${data.gameRoomId}&isHost=${amIHost}`;
+        }, 1000);
+    });
 };
 
 function updatePartyUI() {
@@ -98,7 +84,7 @@ function updatePartyUI() {
     const centerStage = document.getElementById('party-stage-container');
     const matchBtn = document.getElementById('start-match-btn');
 
-    // 🚶‍♂️ SOLO MODE
+    // SOLO MODE
     if (!window.currentRoomId) {
         if(statusText) statusText.innerText = "You are Solo.";
         if(createBtn) createBtn.style.display = 'block';
@@ -109,7 +95,6 @@ function updatePartyUI() {
             matchBtn.style.background = '#10b981';
             matchBtn.disabled = false;
         }
-        
         if (centerStage && window.myProfileData) {
             centerStage.innerHTML = `
                 <div class="character-stage" style="border-color: #3b82f6;">
@@ -123,7 +108,7 @@ function updatePartyUI() {
         return;
     }
 
-    // 👨‍👩‍👦‍👦 SQUAD MODE (TEAM)
+    // SQUAD MODE
     if(statusText) statusText.innerText = `Squad Active (${window.partyMembers.length}/4)`;
     if(createBtn) createBtn.style.display = 'none';
     if(leaveBtn) leaveBtn.style.display = 'block';
@@ -137,7 +122,7 @@ function updatePartyUI() {
         const roleText = member.isHost ? "Host" : "Member";
         if (isMe && member.isHost) amIHost = true;
         
-        // Drawer List Update
+        // Drawer List
         if (listContainer) {
             listContainer.innerHTML += `
                 <div style="background: #0f172a; padding: 8px 12px; border-radius: 6px; border: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
@@ -147,7 +132,7 @@ function updatePartyUI() {
             `;
         }
 
-        // Center Stage Avatar Cards (Aapka Screenshot Jaisa)
+        // Center Stage Avatars (Jaisa Pic me tha)
         if (centerStage) {
             centerStage.innerHTML += `
                 <div class="character-stage" style="border-color: ${isMe ? '#3b82f6' : '#10b981'}; width: 140px; height: 190px; margin: 10px;">
@@ -160,7 +145,6 @@ function updatePartyUI() {
         }
     });
 
-    // Start Button Logic (Sirf Host start kar sakta hai)
     if (matchBtn) {
         if (amIHost) {
             matchBtn.innerHTML = "▶ START SQUAD MATCH";
@@ -173,3 +157,4 @@ function updatePartyUI() {
         }
     }
 }
+
