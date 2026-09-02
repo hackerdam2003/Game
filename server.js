@@ -1,4 +1,4 @@
-// server.js
+// server.js (Production-Ready Master Brain)
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -27,20 +27,22 @@ const io = new Server(httpServer, { cors: { origin: "*", methods: ["GET", "POST"
 const connectedPlayers = new Map();
 
 io.on('connection', (socket) => {
-    console.log(`🟢 Connection Created: ${socket.id}`);
+    console.log(`🟢 Socket Connected: ${socket.id}`);
     
+    // Default dummy data assign kiya
     connectedPlayers.set(socket.id, { 
-        id: socket.id, uid: null, gameName: 'Racer', partyRoom: null, isPartyHost: false, status: 'idle'
+        id: socket.id, uid: null, gameName: 'Loading...', partyRoom: null, isPartyHost: false
     });
 
+    // 🛑 DUAL-LOCK: Jab client apni asli identity bheje
     socket.on('registerPlayer', (data) => {
         const player = connectedPlayers.get(socket.id);
-        if (player && data) {
+        if (player && data && data.uid) {
             player.uid = data.uid;
             player.gameName = data.gameName || 'Racer';
             if(data.gender) player.gender = data.gender;
             if(data.age) player.age = data.age;
-            console.log(`✅ Server Registered: ${player.gameName} (${data.uid})`);
+            console.log(`✅ Player Identity Confirmed: ${player.gameName} (UID: ${player.uid})`);
         }
     });
 
@@ -50,12 +52,11 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         const player = connectedPlayers.get(socket.id);
         if (player) {
-            console.log(`🔴 Disconnected: ${player.gameName || socket.id}`);
+            console.log(`🔴 Player Disconnected: ${player.gameName || socket.id}`);
             connectedPlayers.delete(socket.id);
         }
     });
 });
 
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => console.log(`✅ SERVER LIVE ON: ${PORT}`));
-
+httpServer.listen(PORT, () => console.log(`✅ SERVER LIVE ON PORT: ${PORT}`));
