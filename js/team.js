@@ -1,63 +1,39 @@
 // js/team.js
-console.log("🛡️ [Team] Party Management Module Loaded!");
+console.log("🛡️ [Squad/Team] Management Module Loaded!");
 
-window.partySizeLimit = 2; // Default 2 players
+window.partySizeLimit = 4; 
 window.currentRoomId = null;
 window.partyMembers = []; 
 
-// 1. Party Size Select UI Update
-window.setPartySize = function(size) {
-    if (window.currentRoomId) {
-        alert("You cannot change size while in an active party!");
-        return;
-    }
-    window.partySizeLimit = size;
-    document.getElementById('btn-size-2').style.background = size === 2 ? '#3b82f6' : '#1e293b';
-    document.getElementById('btn-size-4').style.background = size === 4 ? '#3b82f6' : '#1e293b';
-};
-
-// 2. Host Creates the Party
 window.createParty = function() {
-    if (!window.socket || !window.localUser) return;
-    window.socket.emit('createPartyRoom', {
-        hostUid: window.localUser.uid,
-        hostName: window.myProfileData.gameName,
-        maxSize: window.partySizeLimit
-    });
-};
-
-// 3. Leave the Party
-window.leaveParty = function() {
-    if (!window.socket || !window.currentRoomId) return;
-    
-    window.socket.emit('leavePartyRoom', { roomId: window.currentRoomId });
-    
-    window.currentRoomId = null;
-    window.partyMembers = [];
-    updatePartyUI(false);
-    
-    // Team Chat history clear karke World Chat par wapas bhej do
-    if(window.clearTeamChat) window.clearTeamChat();
-    const chatTabs = document.querySelectorAll('.chat-tab');
-    if (chatTabs.length > 0) {
-        window.switchChatTab('world', chatTabs[0]); 
+    if (window.socket && window.localUser) {
+        window.socket.emit('createPartyRoom', {
+            hostUid: window.localUser.uid,
+            hostName: window.myProfileData.gameName
+        });
     }
 };
 
-// 4. Send Invite to Friend (Called from Friends List)
+window.leaveParty = function() {
+    if (window.socket && window.currentRoomId) {
+        window.socket.emit('leavePartyRoom', { roomId: window.currentRoomId });
+        window.currentRoomId = null;
+        window.partyMembers = [];
+        updatePartyUI(false);
+        const tabs = document.querySelectorAll('.chat-tab');
+        if (tabs.length > 0) window.switchChatTab('world', tabs[0]); 
+    }
+};
+
 window.sendTeamInvite = function(targetUid) {
     if (!window.currentRoomId) {
         alert("Please 'Create Party' first before inviting friends!");
-        const drawer = document.getElementById('party-drawer');
-        if(drawer) drawer.classList.add('open');
         return;
     }
-    
     if (window.partyMembers.length >= window.partySizeLimit) {
-        alert("Your party is already full!");
+        alert("Your Squad is already full!");
         return;
     }
-
     if (window.socket) {
         window.socket.emit('sendPartyInvite', {
             targetUid: targetUid,
@@ -68,86 +44,19 @@ window.sendTeamInvite = function(targetUid) {
     }
 };
 
-// 5. Update Center Stage & Drawer UI
-function updatePartyUI(isHost) {
-    const statusText = document.getElementById('party-status-text');
-    const createBtn = document.getElementById('btn-create-party');
-    const leaveBtn = document.getElementById('btn-leave-party');
-    const listContainer = document.getElementById('party-list-container');
-    const centerStage = document.getElementById('party-stage-container');
-
-    // Agar Solo hai
-    if (!window.currentRoomId) {
-        if(statusText) statusText.innerText = "You are Solo.";
-        if(createBtn) createBtn.style.display = 'block';
-        if(leaveBtn) leaveBtn.style.display = 'none';
-        if(listContainer) listContainer.innerHTML = '';
-        
-        if(centerStage && window.myProfileData) {
-            centerStage.innerHTML = `
-                <div class="character-stage" onclick="showMyProfile()">
-                    <div class="avatar-icon-big" id="main-avatar-icon">${window.myProfileData.gender === 'Girl' ? '👧' : '👦'}</div>
-                    <div class="char-name" id="main-char-name">${window.myProfileData.gameName}</div>
-                    <div class="char-sub" id="main-char-info">Host (You)</div>
-                </div>
-            `;
-        }
-        return;
-    }
-
-    // Agar Party me hai
-    if(statusText) statusText.innerText = `Party Active (${window.partyMembers.length}/${window.partySizeLimit})`;
-    if(createBtn) createBtn.style.display = 'none';
-    if(leaveBtn) leaveBtn.style.display = 'block';
-    
-    if(listContainer) listContainer.innerHTML = '';
-    if(centerStage) centerStage.innerHTML = '';
-
-    window.partyMembers.forEach(member => {
-        const isMe = member.uid === window.localUser.uid;
-        const roleText = member.isHost ? "Host" : "Member";
-        
-        // Drawer List UI
-        if(listContainer) {
-            listContainer.innerHTML += `
-                <div style="background: #0f172a; padding: 8px 12px; border-radius: 6px; border: 1px solid #334155; display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-size: 12px; font-weight:bold; color: ${isMe ? '#38bdf8' : '#f1f5f9'};">👤 ${member.name} ${isMe ? '(You)' : ''}</span>
-                    <span style="font-size: 10px; color: ${member.isHost ? '#fbbf24' : '#94a3b8'};">${roleText}</span>
-                </div>
-            `;
-        }
-
-        // Center Stage UI (Avatar Boxes)
-        if(centerStage) {
-            centerStage.innerHTML += `
-                <div class="character-stage" style="border-color: ${isMe ? '#3b82f6' : '#10b981'};">
-                    <div class="avatar-icon-big">${member.gender === 'Girl' ? '👧' : '👦'}</div>
-                    <div class="char-name" style="color: ${isMe ? '#3b82f6' : '#10b981'};">${member.name}</div>
-                    <div class="char-sub">${member.gender} • Age: ${member.age || '20'}</div>
-                    <div class="char-sub" style="font-weight:bold; margin-top:5px; color:${member.isHost ? '#fbbf24' : '#94a3b8'};">${roleText}</div>
-                </div>
-            `;
-        }
-    });
-}
-
-// 6. Socket Listeners for Team Events
 window.initTeamSystem = function() {
     if (window.socket) {
-        // Purane listeners hatao (Memory leak prevent karne ke liye)
         window.socket.off('partyCreated');
         window.socket.off('partyUpdated');
         window.socket.off('receivePartyInvite');
-        window.socket.off('joinedParty');
-        window.socket.off('partyError');
+        window.socket.off('teleportToGame');
 
         window.socket.on('partyCreated', (data) => {
             window.currentRoomId = data.roomId;
             window.partyMembers = data.members;
             updatePartyUI(true);
-            
-            const chatTabs = document.querySelectorAll('.chat-tab');
-            if(chatTabs.length > 1) window.switchChatTab('team', chatTabs[1]); // Auto switch to Team Chat
+            const tabs = document.querySelectorAll('.chat-tab');
+            if (tabs.length > 1) window.switchChatTab('team', tabs[1]); // Auto Team Chat
         });
 
         window.socket.on('partyUpdated', (data) => {
@@ -155,33 +64,112 @@ window.initTeamSystem = function() {
             updatePartyUI(false);
         });
 
+        // ✉️ POPUP JAB INVITE AAYE
         window.socket.on('receivePartyInvite', (data) => {
             if (window.currentRoomId) return; 
-            
-            const accept = confirm(`🛡️ ${data.hostName} invited you to join their party! Accept?`);
+            const accept = confirm(`🛡️ ${data.hostName} invited you to join their Squad! Accept?`);
             if (accept) {
-                window.socket.emit('acceptPartyInvite', { 
-                    roomId: data.roomId,
-                    userUid: window.localUser.uid,
-                    userName: window.myProfileData.gameName,
-                    gender: window.myProfileData.gender,
-                    age: window.myProfileData.age
-                });
+                window.socket.emit('acceptPartyInvite', { roomId: data.roomId });
+                const tabs = document.querySelectorAll('.chat-tab');
+                if (tabs.length > 1) window.switchChatTab('team', tabs[1]);
             }
         });
 
-        window.socket.on('joinedParty', (data) => {
-            window.currentRoomId = data.roomId;
-            window.partySizeLimit = data.maxSize;
-            
-            const chatTabs = document.querySelectorAll('.chat-tab');
-            if(chatTabs.length > 1) window.switchChatTab('team', chatTabs[1]);
-            
-            alert("Joined Party Successfully!");
-        });
-
-        window.socket.on('partyError', (msg) => {
-            alert("❌ " + msg);
+        // 🚀 GAME TELEPORT
+        window.socket.on('teleportToGame', (data) => {
+            const matchBtn = document.getElementById('start-match-btn');
+            if (matchBtn) {
+                matchBtn.style.background = '#10b981';
+                matchBtn.innerHTML = "🔥 LAUNCHING GAME... 🔥";
+            }
+            setTimeout(() => {
+                const amIHost = (window.localUser && data.hostUid === window.localUser.uid);
+                window.location.href = `game.html?roomId=${data.gameRoomId}&isHost=${amIHost}`;
+            }, 1000);
         });
     }
 };
+
+function updatePartyUI() {
+    const statusText = document.getElementById('party-status-text');
+    const createBtn = document.getElementById('btn-create-party');
+    const leaveBtn = document.getElementById('btn-leave-party');
+    const listContainer = document.getElementById('party-list-container');
+    const centerStage = document.getElementById('party-stage-container');
+    const matchBtn = document.getElementById('start-match-btn');
+
+    // 🚶‍♂️ SOLO MODE
+    if (!window.currentRoomId) {
+        if(statusText) statusText.innerText = "You are Solo.";
+        if(createBtn) createBtn.style.display = 'block';
+        if(leaveBtn) leaveBtn.style.display = 'none';
+        if(listContainer) listContainer.innerHTML = '';
+        if(matchBtn) {
+            matchBtn.innerHTML = "▶ Find Match (Solo)";
+            matchBtn.style.background = '#10b981';
+            matchBtn.disabled = false;
+        }
+        
+        if (centerStage && window.myProfileData) {
+            centerStage.innerHTML = `
+                <div class="character-stage" style="border-color: #3b82f6;">
+                    <div class="avatar-icon-big">${window.myProfileData.gender === 'Girl' ? '👧' : '👦'}</div>
+                    <div class="char-name" style="color: #3b82f6;">${window.myProfileData.gameName}</div>
+                    <div class="char-sub">${window.myProfileData.gender} • Age: ${window.myProfileData.age || 20}</div>
+                    <div class="char-sub" style="font-weight:bold; color: #fbbf24; margin-top:5px;">Solo</div>
+                </div>
+            `;
+        }
+        return;
+    }
+
+    // 👨‍👩‍👦‍👦 SQUAD MODE (TEAM)
+    if(statusText) statusText.innerText = `Squad Active (${window.partyMembers.length}/4)`;
+    if(createBtn) createBtn.style.display = 'none';
+    if(leaveBtn) leaveBtn.style.display = 'block';
+    
+    let amIHost = false;
+    if(listContainer) listContainer.innerHTML = '';
+    if(centerStage) centerStage.innerHTML = '';
+
+    window.partyMembers.forEach(member => {
+        const isMe = member.uid === window.localUser.uid;
+        const roleText = member.isHost ? "Host" : "Member";
+        if (isMe && member.isHost) amIHost = true;
+        
+        // Drawer List Update
+        if (listContainer) {
+            listContainer.innerHTML += `
+                <div style="background: #0f172a; padding: 8px 12px; border-radius: 6px; border: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                    <span style="font-size: 12px; font-weight:bold; color: ${isMe ? '#38bdf8' : '#f1f5f9'};">👤 ${member.name} ${isMe ? '(You)' : ''}</span>
+                    <span style="font-size: 10px; color: ${member.isHost ? '#fbbf24' : '#94a3b8'};">${roleText}</span>
+                </div>
+            `;
+        }
+
+        // Center Stage Avatar Cards (Aapka Screenshot Jaisa)
+        if (centerStage) {
+            centerStage.innerHTML += `
+                <div class="character-stage" style="border-color: ${isMe ? '#3b82f6' : '#10b981'}; width: 140px; height: 190px; margin: 10px;">
+                    <div class="avatar-icon-big" style="font-size: 55px;">${member.gender === 'Girl' ? '👧' : '👦'}</div>
+                    <div class="char-name" style="color: ${isMe ? '#3b82f6' : '#10b981'};">${member.name}</div>
+                    <div class="char-sub">${member.gender} • Age: ${member.age || 20}</div>
+                    <div class="char-sub" style="font-weight:bold; color:${member.isHost ? '#fbbf24' : '#94a3b8'}; margin-top:5px;">${roleText}</div>
+                </div>
+            `;
+        }
+    });
+
+    // Start Button Logic (Sirf Host start kar sakta hai)
+    if (matchBtn) {
+        if (amIHost) {
+            matchBtn.innerHTML = "▶ START SQUAD MATCH";
+            matchBtn.style.background = '#ef4444';
+            matchBtn.disabled = false;
+        } else {
+            matchBtn.innerHTML = "⏳ WAITING FOR HOST...";
+            matchBtn.style.background = '#64748b';
+            matchBtn.disabled = true;
+        }
+    }
+}
