@@ -6,7 +6,7 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import { runMatchmaking } from './core/matchmaker.js';
+// 🛑 Purana matchmaker.js hata diya kyunki ab roommanager.js Party Matchmaking handle karta hai
 import { handleRoomEvents } from './core/roommanager.js';
 import { handleChatEvents } from './core/chatmanager.js'; 
 
@@ -32,36 +32,36 @@ const io = new Server(httpServer, {
 
 const connectedPlayers = new Map();
 
-// 🛑 Broadcast active online UIDs to all clients
-function broadcastOnlineUsers() {
-    const onlineUids = Array.from(connectedPlayers.values()).map(p => p.uid).filter(Boolean);
-    io.emit('updateOnlineUsers', onlineUids);
-}
-
 io.on('connection', (socket) => {
     console.log(`🟢 New Player Connected: [ID: ${socket.id}]`);
     
+    // 🛑 FIXED: Naye player ko start se hi Party ki details de do
     connectedPlayers.set(socket.id, { 
         id: socket.id, 
         status: 'idle', 
         room: null,
-        uid: null
+        uid: null,
+        gameName: 'Racer',
+        partyRoom: null, 
+        isPartyHost: false
     });
 
+    // Jab frontend se registerPlayer trigger ho
     socket.on('registerPlayer', (data) => {
         const player = connectedPlayers.get(socket.id);
         if (player && data) {
             player.uid = data.uid;
             player.gameName = data.gameName || 'Racer';
             console.log(`👤 Profile Registered: ${player.gameName} (${data.uid})`);
-            broadcastOnlineUsers(); // Update online status instantly
         }
     });
 
-    handleRoomEvents(socket, io, connectedPlayers);
+    // 🛡️ LOAD CORE MODULES (Party, Matchmaking & Chat ab yahan se chalenge)
+    handleRoomEvents(socket, io, connectedPlayers); 
     handleEconomyAndTraps(socket, io, connectedPlayers);
     handleChatEvents(socket, io, connectedPlayers);
 
+    // 🏎️ IN-MATCH RACING LOGIC (Next Phase ke liye)
     socket.on('joinGameRoom', (data) => {
         const { roomId } = data;
         if (roomId) {
@@ -73,17 +73,6 @@ io.on('connection', (socket) => {
             }
         }
     });
-
-    const handleMatchSearch = (data = {}) => {
-        const player = connectedPlayers.get(socket.id);
-        if (player) {
-            player.status = 'searching';
-            player.searchStartTime = Date.now();
-        }
-    };
-
-    socket.on('findMatch', handleMatchSearch);
-    socket.on('startMatchmaking', handleMatchSearch);
 
     socket.on('playerMove', (data) => {
         const player = connectedPlayers.get(socket.id);
@@ -103,17 +92,11 @@ io.on('connection', (socket) => {
         if (player) {
             console.log(`🔴 Player Disconnected: [ID: ${player.gameName || socket.id}]`);
             connectedPlayers.delete(socket.id);
-            broadcastOnlineUsers(); // Update online status instantly
         }
     });
 });
-
-setInterval(() => {
-    runMatchmaking(connectedPlayers, io);
-}, 2000);
 
 const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => {
     console.log(`✅ GAME SERVER LIVE ON PORT: ${PORT}`);
 });
-
