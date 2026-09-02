@@ -127,8 +127,19 @@
             <button class="close-drawer" id="close-party">✕</button>
         </div>
         <div class="drawer-body">
-            <p id="party-status-text" style="color: #64748b; font-size: 12px; text-align: center; margin-top: 20px;">You are Solo.</p>
-            <div id="party-list-container" style="display:flex; flex-direction:column; gap:5px;"></div>
+            <!-- 🛑 PARTY CONTROLS FOR HOST -->
+            <div id="party-controls" style="background:#0f172a; padding:12px; border-radius:8px; border:1px solid #334155; margin-bottom:15px; text-align:center;">
+                <p style="margin:0 0 10px 0; font-size:12px; font-weight:bold; color:#f1f5f9;">Party Size Limit</p>
+                <div style="display:flex; justify-content:center; gap:10px; margin-bottom:12px;">
+                    <button id="btn-size-2" onclick="setPartySize(2)" style="background:#3b82f6; border:none; color:white; padding:6px 15px; border-radius:4px; cursor:pointer; font-weight:bold; flex:1;">2 Players (1v1)</button>
+                    <button id="btn-size-4" onclick="setPartySize(4)" style="background:#1e293b; border:1px solid #334155; color:white; padding:6px 15px; border-radius:4px; cursor:pointer; font-weight:bold; flex:1;">4 Players (2v2)</button>
+                </div>
+                <button id="btn-create-party" onclick="createParty()" style="background:#10b981; border:none; color:white; padding:10px; border-radius:6px; cursor:pointer; font-weight:bold; width:100%;">Create Party</button>
+                <button id="btn-leave-party" onclick="leaveParty()" style="background:#ef4444; border:none; color:white; padding:10px; border-radius:6px; cursor:pointer; font-weight:bold; width:100%; display:none;">Leave Party</button>
+            </div>
+
+            <p id="party-status-text" style="color: #fbbf24; font-size: 13px; font-weight:bold; text-align: center; margin-top: 5px;">You are Solo.</p>
+            <div id="party-list-container" style="display:flex; flex-direction:column; gap:5px; margin-top:10px;"></div>
         </div>
     </div>
 
@@ -153,6 +164,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script type="module" src="js/chat.js"></script>
     <script type="module" src="js/friends.js"></script>
+    <script type="module" src="js/team.js"></script> <!-- 🛑 TEAM MODULE LINKED HERE -->
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -192,16 +204,13 @@
                     if (docSnap.exists()) {
                         window.myProfileData = docSnap.data();
                         
-                        // Top Header Updates
                         document.getElementById("player-name").innerText = `${window.myProfileData.gameName} (${window.myProfileData.playerTag || 'UID'})`;
                         document.getElementById("player-coins").innerText = `${window.myProfileData.wallet_balance || 0} 🪙`;
 
-                        // 🛑 MISSING CODE FIX: Center Stage Character Update 
                         document.getElementById("main-char-name").innerText = window.myProfileData.gameName || "Racer";
                         document.getElementById("main-char-info").innerText = `${window.myProfileData.gender || 'Boy'} • Age: ${window.myProfileData.age || '--'}`;
                         document.getElementById("main-avatar-icon").innerText = window.myProfileData.gender === 'Girl' ? '👧' : '👦';
 
-                        // Real-time Presence Engine
                         const myStatusRef = ref(rtdb, 'status/' + user.uid);
                         const connectedRef = ref(rtdb, '.info/connected');
 
@@ -213,12 +222,13 @@
                             }
                         });
 
-                        // Boot Up Modules
                         const bootInterval = setInterval(() => {
-                            if (window.initChatSystem && window.initFriendsSystem) {
+                            // 🛑 BOOT SEQUENCE: Waiting for team system to initialize
+                            if (window.initChatSystem && window.initFriendsSystem && window.initTeamSystem) {
                                 clearInterval(bootInterval);
                                 window.initChatSystem();
                                 window.initFriendsSystem();
+                                window.initTeamSystem(); // 🛑 BOOTS TEAM MODULE
                                 window.loadGlobalPlayers();
                                 window.loadMyFriendsData();
                                 
@@ -238,7 +248,6 @@
             }
         });
 
-        // Drawer Setup
         const setupDrawer = (btnId, drawerId, closeId) => {
             document.getElementById(btnId).addEventListener('click', () => document.getElementById(drawerId).classList.add('open'));
             document.getElementById(closeId).addEventListener('click', () => document.getElementById(drawerId).classList.remove('open'));
