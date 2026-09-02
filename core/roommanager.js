@@ -1,36 +1,52 @@
 // core/roommanager.js
 
+let globalLobbyPlayers = []; // Shared Lobby jahan sabhi live players aayenge
+let matchHostUid = null;     // Jo pehle aayega wo Host banega
+
 export function handleRoomEvents(socket, io, connectedPlayers) {
     
-    // 🚨 NEW: ONE-CLICK GLOBAL MATCH (Koi ek click karega, sab join honge!)
-    socket.on('startMatchmaking', (data) => {
-        console.log(`🚨 GLOBAL MATCH INITIATED BY: ${data.uid || socket.id}`);
-
-        // Ek naya aur common Room ID banega sabke liye
-        const gameRoomId = 'GLOBAL_RACE_' + Math.floor(Math.random() * 999999);
-        const hostUid = data.uid || socket.id; // Jisne click kiya wo Host banega
-        
-        let playerCount = 0;
-
-        // Server par jitne bhi log zinda (connected) hain, sabko pakdo
-        for (const [sId, playerObj] of connectedPlayers.entries()) {
-            
-            playerCount++;
-            
-            // Sabke phone (socket) par force-join ka signal bhejo
-            io.to(sId).emit('matchFound', { 
-                gameRoomId: gameRoomId, 
-                hostUid: hostUid 
+    // 🚦 1. JOIN SHARED LOBBY (Jaise hi koi Find Match dabayega)
+    socket.on('joinGlobalLobby', (data) => {
+        // Agar player already lobby me nahi hai to add karo
+        const exists = globalLobbyPlayers.find(p => p.uid === data.uid);
+        if (!exists) {
+            if (globalLobbyPlayers.length === 0) {
+                matchHostUid = data.uid; // First player becomes Host
+            }
+            globalLobbyPlayers.push({
+                socketId: socket.id,
+                uid: data.uid,
+                name: data.name,
+                gender: data.gender || 'Boy',
+                age: data.age || 20,
+                isHost: data.uid === matchHostUid
             });
-            
-            console.log(`➡️ Pushed ${playerObj.gameName || sId} into the Global Match!`);
         }
+        
+        console.log(`[SHARED LOBBY] ${data.name} joined. Total: ${globalLobbyPlayers.length}`);
+        
+        // Sabhi logon ko updated list bhejo taaki avatars pop ho sakein
+        io.emit('globalLobbyUpdate', { players: globalLobbyPlayers, hostUid: matchHostUid });
+    });
 
-        console.log(`🔥 TOTAL ${playerCount} PLAYERS TELEPORTED TO MATCH: ${gameRoomId}`);
+    // 🚀 2. START RACE (Jab Host Start button dabayega)
+    socket.on('launchGlobalMatch', () => {
+        console.log(`🚨 HOST LAUNCHED THE RACE! Teleporting ${globalLobbyPlayers.length} players...`);
+        
+        const gameRoomId = 'RACE_' + Math.floor(Math.random() * 999999);
+        
+        // Lobby me khade sabhi players ko Game Screen par bhejo
+        globalLobbyPlayers.forEach(p => {
+            io.to(p.socketId).emit('teleportToGame', { gameRoomId: gameRoomId, hostUid: matchHostUid });
+        });
+
+        // Lobby khali kar do next match ke liye
+        globalLobbyPlayers = [];
+        matchHostUid = null;
     });
 
     // ==========================================
-    // (Aapka purana Party / Invite ka code neeche safe hai)
+    // (Aapka Party/Invite wala code yahan same rahega)
     socket.on('createPartyRoom', (data) => { /* ... */ });
     socket.on('sendPartyInvite', (data) => { /* ... */ });
     socket.on('acceptPartyInvite', (data) => { /* ... */ });
