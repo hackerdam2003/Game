@@ -22,6 +22,10 @@
         #btn-chat { bottom: 25px; left: 25px; }
         #btn-friends { bottom: 25px; right: 25px; }
         #btn-party-create { top: 20px; left: 20px; font-size: 18px; }
+        
+        /* 🛑 NEW MIC BUTTON */
+        #btn-mic-toggle { bottom: 95px; left: 25px; z-index: 20; }
+        
         .match-bar { padding: 15px 20px; background: #1e293b; border-top: 1px solid #334155; display: flex; flex-direction: column; gap: 10px; z-index: 10; }
         .btn-play { background: #10b981; color: white; border: none; padding: 14px; border-radius: 10px; font-size: 16px; font-weight: 900; text-transform: uppercase; width: 100%; cursor: pointer; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4); }
         .drawer { position: fixed; top: 0; left: -100%; width: 85%; max-width: 340px; height: 100%; background: #1e293b; border-right: 1px solid #334155; z-index: 100; transition: 0.3s ease-in-out; display: flex; flex-direction: column; padding: 20px; box-shadow: 5px 0 25px rgba(0,0,0,0.6); }
@@ -62,8 +66,10 @@
         <div class="icon-btn" id="btn-party-create" title="Create Room">🏠</div>
         <div class="icon-btn" id="btn-chat" title="Chat Hub">💬</div>
         <div class="icon-btn" id="btn-friends" title="Friends">👥</div>
+        <div class="icon-btn" id="btn-mic-toggle" title="Voice Chat" onclick="window.toggleVoiceChat()">🔇</div>
+        
         <div class="party-stage" id="party-stage-container">
-            <div class="character-stage" onclick="showMyProfile()">
+            <div class="character-stage" onclick="window.showMyProfile()">
                 <div class="avatar-icon-big" id="main-avatar-icon">👦</div>
                 <div class="char-name" id="main-char-name">Loading...</div>
                 <div class="char-sub" id="main-char-info">Host (You)</div>
@@ -76,8 +82,7 @@
             <span>Matchmaking: <b style="color: #10b981;">1:1 Balanced</b></span>
             <span id="gps-status-text">📍 GPS Ready</span>
         </div>
-        <!-- 🛑 FIXED: onClick function added here for matchmaking -->
-        <button id="start-match-btn" class="btn-play" onclick="window.startMatchmakingProcess()">▶ Find Match (Host)</button>
+        <button id="start-match-btn" class="btn-play" onclick="window.startMatchmakingProcess()">▶ Find Match (Auto-Join Lobby)</button>
     </div>
 
     <!-- CHAT DRAWER -->
@@ -131,11 +136,11 @@
             <div id="party-controls" style="background:#0f172a; padding:12px; border-radius:8px; border:1px solid #334155; margin-bottom:15px; text-align:center;">
                 <p style="margin:0 0 10px 0; font-size:12px; font-weight:bold; color:#f1f5f9;">Party Size Limit</p>
                 <div style="display:flex; justify-content:center; gap:10px; margin-bottom:12px;">
-                    <button id="btn-size-2" onclick="setPartySize(2)" style="background:#3b82f6; border:none; color:white; padding:6px 15px; border-radius:4px; cursor:pointer; font-weight:bold; flex:1;">2 Players (1v1)</button>
-                    <button id="btn-size-4" onclick="setPartySize(4)" style="background:#1e293b; border:1px solid #334155; color:white; padding:6px 15px; border-radius:4px; cursor:pointer; font-weight:bold; flex:1;">4 Players (2v2)</button>
+                    <button id="btn-size-2" onclick="window.setPartySize(2)" style="background:#3b82f6; border:none; color:white; padding:6px 15px; border-radius:4px; cursor:pointer; font-weight:bold; flex:1;">2 Players (1v1)</button>
+                    <button id="btn-size-4" onclick="window.setPartySize(4)" style="background:#1e293b; border:1px solid #334155; color:white; padding:6px 15px; border-radius:4px; cursor:pointer; font-weight:bold; flex:1;">4 Players (2v2)</button>
                 </div>
-                <button id="btn-create-party" onclick="createParty()" style="background:#10b981; border:none; color:white; padding:10px; border-radius:6px; cursor:pointer; font-weight:bold; width:100%;">Create Party</button>
-                <button id="btn-leave-party" onclick="leaveParty()" style="background:#ef4444; border:none; color:white; padding:10px; border-radius:6px; cursor:pointer; font-weight:bold; width:100%; display:none;">Leave Party</button>
+                <button id="btn-create-party" onclick="window.createParty()" style="background:#10b981; border:none; color:white; padding:10px; border-radius:6px; cursor:pointer; font-weight:bold; width:100%;">Create Party</button>
+                <button id="btn-leave-party" onclick="window.leaveParty()" style="background:#ef4444; border:none; color:white; padding:10px; border-radius:6px; cursor:pointer; font-weight:bold; width:100%; display:none;">Leave Party</button>
             </div>
 
             <p id="party-status-text" style="color: #fbbf24; font-size: 13px; font-weight:bold; text-align: center; margin-top: 5px;">You are Solo.</p>
@@ -156,23 +161,22 @@
                 <p style="margin:0;">Gender: <span id="modal-gender">Boy</span></p>
             </div>
             <div id="modal-actions-wrapper" style="display: flex; flex-direction: column; gap: 6px; margin-top: 12px;"></div>
-            <button class="btn-close-modal" onclick="closeProfileModal()">Close</button>
+            <button class="btn-close-modal" onclick="window.closeProfileModal()">Close</button>
         </div>
     </div>
 
-    <!-- Socket.io -->
     <script src="/socket.io/socket.io.js"></script>
     <script type="module" src="js/chat.js"></script>
     <script type="module" src="js/friends.js"></script>
     <script type="module" src="js/team.js"></script> 
-    <!-- 🛑 FIXED: Matchmaking JS added here -->
     <script type="module" src="js/matchmaking.js"></script> 
+    <script type="module" src="js/voice.js"></script> 
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { getFirestore, doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-        import { getDatabase, ref, onValue, onDisconnect, set, serverTimestamp as rtdbTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+        import { getDatabase, ref, onValue, onDisconnect, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
         const engineConfig = {
             apiKey: "AIzaSyCuYPugV4qIsu9ZT9E5l63bFLgIbte_S8I",
@@ -225,18 +229,24 @@
                         });
 
                         const bootInterval = setInterval(() => {
-                            // 🛑 FIXED: Waiting for matchmaking to initialize as well
-                            if (window.initChatSystem && window.initFriendsSystem && window.initTeamSystem && window.initMatchmaking) {
+                            if (window.initChatSystem && window.initFriendsSystem && window.initTeamSystem && window.initMatchmaking && window.initVoiceSystem) {
                                 clearInterval(bootInterval);
                                 window.initChatSystem();
                                 window.initFriendsSystem();
                                 window.initTeamSystem(); 
-                                window.initMatchmaking(); // 🛑 BOOT MATCHMAKING
+                                window.initMatchmaking(); 
+                                window.initVoiceSystem(); 
                                 window.loadGlobalPlayers();
                                 window.loadMyFriendsData();
                                 
+                                // Send full payload for Profile clicking
                                 window.socket.emit('registerPlayer', {
-                                    uid: user.uid, gameName: window.myProfileData.gameName
+                                    uid: user.uid, 
+                                    gameName: window.myProfileData.gameName,
+                                    gender: window.myProfileData.gender,
+                                    age: window.myProfileData.age,
+                                    playerTag: window.myProfileData.playerTag,
+                                    location: window.myProfileData.location
                                 });
                                 console.log("🚀 HotFake Engine Booted Successfully!");
                             }
