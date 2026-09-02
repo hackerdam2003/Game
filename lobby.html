@@ -76,7 +76,8 @@
             <span>Matchmaking: <b style="color: #10b981;">1:1 Balanced</b></span>
             <span id="gps-status-text">📍 GPS Ready</span>
         </div>
-        <button id="start-match-btn" class="btn-play">▶ Find Match (Host)</button>
+        <!-- 🛑 FIXED: onClick function added here for matchmaking -->
+        <button id="start-match-btn" class="btn-play" onclick="window.startMatchmakingProcess()">▶ Find Match (Host)</button>
     </div>
 
     <!-- CHAT DRAWER -->
@@ -127,7 +128,6 @@
             <button class="close-drawer" id="close-party">✕</button>
         </div>
         <div class="drawer-body">
-            <!-- 🛑 PARTY CONTROLS FOR HOST -->
             <div id="party-controls" style="background:#0f172a; padding:12px; border-radius:8px; border:1px solid #334155; margin-bottom:15px; text-align:center;">
                 <p style="margin:0 0 10px 0; font-size:12px; font-weight:bold; color:#f1f5f9;">Party Size Limit</p>
                 <div style="display:flex; justify-content:center; gap:10px; margin-bottom:12px;">
@@ -164,7 +164,9 @@
     <script src="/socket.io/socket.io.js"></script>
     <script type="module" src="js/chat.js"></script>
     <script type="module" src="js/friends.js"></script>
-    <script type="module" src="js/team.js"></script> <!-- 🛑 TEAM MODULE LINKED HERE -->
+    <script type="module" src="js/team.js"></script> 
+    <!-- 🛑 FIXED: Matchmaking JS added here -->
+    <script type="module" src="js/matchmaking.js"></script> 
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -223,12 +225,13 @@
                         });
 
                         const bootInterval = setInterval(() => {
-                            // 🛑 BOOT SEQUENCE: Waiting for team system to initialize
-                            if (window.initChatSystem && window.initFriendsSystem && window.initTeamSystem) {
+                            // 🛑 FIXED: Waiting for matchmaking to initialize as well
+                            if (window.initChatSystem && window.initFriendsSystem && window.initTeamSystem && window.initMatchmaking) {
                                 clearInterval(bootInterval);
                                 window.initChatSystem();
                                 window.initFriendsSystem();
-                                window.initTeamSystem(); // 🛑 BOOTS TEAM MODULE
+                                window.initTeamSystem(); 
+                                window.initMatchmaking(); // 🛑 BOOT MATCHMAKING
                                 window.loadGlobalPlayers();
                                 window.loadMyFriendsData();
                                 
