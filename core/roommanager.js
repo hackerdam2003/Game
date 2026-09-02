@@ -1,23 +1,34 @@
 // core/roommanager.js
 
-// 🛑 Track Lobbies that are open for Auto-Join
-const publicLobbies = new Map(); 
+const userPartyCache = new Map(); // Refresh hone par party restore karne ke liye
+const publicLobbies = new Map();  // 🛑 RANDOM AUTO-JOIN LOBBIES TRACKER
 
 export function handleRoomEvents(socket, io, connectedPlayers) {
     
-    // --- 1. PRIVATE PARTY (Invite Only) ---
+    // --- 1. CREATE PRIVATE PARTY (For Friends) ---
     socket.on('createPartyRoom', (data) => {
         const player = connectedPlayers.get(socket.id);
         if (!player) return;
+
         const roomId = 'PARTY_' + Math.random().toString(36).substr(2, 6).toUpperCase(); 
         socket.join(roomId);
+        
         player.partyRoom = roomId;
         player.isPartyHost = true;
-        const hostData = { uid: data.hostUid, name: data.hostName, gender: player.gender || 'Boy', age: player.age || 20, isHost: true };
-        io.to(socket.id).emit('partyCreated', { roomId: roomId, members: [hostData] });
+        player.partyMaxSize = data.maxSize || 4; 
+
+        userPartyCache.set(player.uid, { roomId: roomId, isHost: true }); 
+        updatePartyMembers(roomId, io, connectedPlayers);
     });
 
+    // --- 2. SEND & ACCEPT INVITE ---
     socket.on('sendPartyInvite', (data) => {
+        const hostPlayer = connectedPlayers.get(socket.id);
+        const room = io.sockets.adapter.rooms.get(data.roomId);
+        if (room && hostPlayer && room.size >= hostPlayer.partyMaxSize) {
+            socket.emit('partyError', `Lobby is Full! (Limit: ${hostPlayer.partyMaxSize})`);
+            return;
+        }
         let targetSocketId = null;
         for (const [sId, pData] of connectedPlayers.entries()) {
             if (pData.uid === data.targetUid) { targetSocketId = sId; break; }
@@ -28,45 +39,52 @@ export function handleRoomEvents(socket, io, connectedPlayers) {
     socket.on('acceptPartyInvite', (data) => {
         const player = connectedPlayers.get(socket.id);
         if (!player) return;
+        const room = io.sockets.adapter.rooms.get(data.roomId);
+        if (room && room.size >= 4) {
+            socket.emit('partyError', 'Lobby is already full!');
+            return;
+        }
         socket.join(data.roomId);
         player.partyRoom = data.roomId;
         player.isPartyHost = false;
-        if (data.gender) player.gender = data.gender;
-        if (data.age) player.age = data.age;
-        socket.emit('joinedParty', { roomId: data.roomId });
+        userPartyCache.set(player.uid, { roomId: data.roomId, isHost: false }); 
         updatePartyMembers(data.roomId, io, connectedPlayers);
     });
 
+    // --- 3. LEAVE LOBBY ---
     socket.on('leavePartyRoom', (data) => {
         const player = connectedPlayers.get(socket.id);
         if (player) {
             socket.leave(data.roomId);
             player.partyRoom = null;
             player.isPartyHost = false;
+
+            userPartyCache.delete(player.uid); 
+            handleHostMigration(data.roomId, player.uid, io, connectedPlayers, socket.id);
             updatePartyMembers(data.roomId, io, connectedPlayers);
         }
     });
 
-    // --- 2. GENSHIN STYLE MATCHMAKING (AUTO-JOIN LOBBY) ---
+    // 🚀 4. RANDOM AUTO-JOIN & START MATCH (GENSHIN STYLE)
     socket.on('startMatchmaking', () => {
         const player = connectedPlayers.get(socket.id);
         if (!player) return;
 
-        // SCENARIO A: Player is already a Host -> START THE RACE FOR EVERYONE
+        // SCENARIO A: Agar Player already Host hai -> PURI LOBBY KO GAME ME BHEJO
         if (player.partyRoom && player.isPartyHost) {
             const gameRoomId = 'GAME_' + Math.floor(Math.random() * 999999);
             io.to(player.partyRoom).emit('teleportToGame', { gameRoomId: gameRoomId, hostUid: player.uid });
-            publicLobbies.delete(player.partyRoom); // Remove from public search
+            publicLobbies.delete(player.partyRoom); // Game start hote hi public search se hata do
             return;
         }
 
-        // SCENARIO B: Player is in lobby but NOT Host -> Ignore button (Wait for host)
+        // SCENARIO B: Agar Player Lobby me hai par Host nahi hai -> WAIT KAREGA (Ignore)
         if (player.partyRoom && !player.isPartyHost) return;
 
-        // SCENARIO C: Solo Player clicking "Find Match" -> AUTO JOIN A LOBBY
+        // SCENARIO C: Player Solo hai aur Find Match dabaya -> RANDOM AUTO-JOIN
         let joinedExisting = false;
 
-        // Find an open room
+        // Open (khali) lobbies dhundo
         for (const [roomId, roomInfo] of publicLobbies.entries()) {
             const room = io.sockets.adapter.rooms.get(roomId);
             if (room && room.size < 4) { 
@@ -75,34 +93,108 @@ export function handleRoomEvents(socket, io, connectedPlayers) {
                 player.isPartyHost = false;
                 joinedExisting = true;
                 
+                userPartyCache.set(player.uid, { roomId: roomId, isHost: false });
                 socket.emit('joinedParty', { roomId: roomId });
                 updatePartyMembers(roomId, io, connectedPlayers);
-                break; // Stop searching, joined successfully
+                break; // Room mil gaya, search stop karo
             }
         }
 
-        // If no rooms available, create a new Public Lobby and become Host
+        // Agar koi open lobby nahi mili -> NAYI LOBBY BANAO AUR HOST BAN JAO
         if (!joinedExisting) {
             const newRoomId = 'PUBLIC_' + Math.random().toString(36).substr(2, 6).toUpperCase();
             socket.join(newRoomId);
             player.partyRoom = newRoomId;
             player.isPartyHost = true;
+            player.partyMaxSize = 4;
             
             publicLobbies.set(newRoomId, { hostId: socket.id });
+            userPartyCache.set(player.uid, { roomId: newRoomId, isHost: true });
 
-            const hostData = { uid: player.uid, name: player.gameName, gender: player.gender || 'Boy', age: player.age || 20, isHost: true };
-            socket.emit('partyCreated', { roomId: newRoomId, members: [hostData] });
+            const hostData = { 
+                uid: player.uid, name: player.gameName, gender: player.gender || 'Boy', 
+                age: player.age || 20, playerTag: player.playerTag, location: player.location, isHost: true 
+            };
+            socket.emit('partyCreated', { roomId: newRoomId, members: [hostData], maxSize: 4 });
         }
     });
+
+    // 🎙️ 5. LIVE VOICE CHAT
+    socket.on('voiceStream', (data) => {
+        const player = connectedPlayers.get(socket.id);
+        if (player && player.partyRoom) {
+            socket.to(player.partyRoom).emit('receiveVoiceStream', { audioData: data.audioData, uid: player.uid });
+        }
+    });
+}
+
+// 🛑 REFRESH FIX LOGIC (Auto Rejoin)
+export function checkAutoRejoin(socket, io, connectedPlayers) {
+    const player = connectedPlayers.get(socket.id);
+    if (!player || !player.uid) return;
+
+    const cached = userPartyCache.get(player.uid);
+    if (cached) {
+        socket.join(cached.roomId);
+        player.partyRoom = cached.roomId;
+        player.isPartyHost = cached.isHost;
+        updatePartyMembers(cached.roomId, io, connectedPlayers);
+    }
+}
+
+// 🛑 DISCONNECT & HOST MIGRATION
+export function handlePlayerDisconnect(socket, io, connectedPlayers) {
+    const player = connectedPlayers.get(socket.id);
+    if (player) {
+        if (player.partyRoom) {
+            handleHostMigration(player.partyRoom, player.uid, io, connectedPlayers, socket.id);
+            socket.leave(player.partyRoom);
+            updatePartyMembers(player.partyRoom, io, connectedPlayers);
+        }
+        connectedPlayers.delete(socket.id);
+    }
+}
+
+function handleHostMigration(roomId, oldHostUid, io, connectedPlayers, disconnectedSocketId) {
+    const cachedOld = userPartyCache.get(oldHostUid);
+    if (cachedOld && cachedOld.isHost) {
+        cachedOld.isHost = false; 
+        const room = io.sockets.adapter.rooms.get(roomId);
+        
+        // Agar room khali ho gaya toh public lobbies se hata do
+        if (!room || room.size === 0) {
+            publicLobbies.delete(roomId);
+            return;
+        }
+
+        if (room) {
+            for (const sId of room) {
+                if (sId === disconnectedSocketId) continue;
+                const nextPlayer = connectedPlayers.get(sId);
+                if (nextPlayer) {
+                    nextPlayer.isPartyHost = true;
+                    const cachedNext = userPartyCache.get(nextPlayer.uid);
+                    if (cachedNext) cachedNext.isHost = true;
+                    // Agar public lobby thi, toh naya host record kar lo
+                    if (publicLobbies.has(roomId)) publicLobbies.set(roomId, { hostId: sId });
+                    break;
+                }
+            }
+        }
+    }
 }
 
 function updatePartyMembers(roomId, io, connectedPlayers) {
     const room = io.sockets.adapter.rooms.get(roomId);
     if (!room) return;
     const membersList = [];
+    let max = 4;
     for (const sId of room) {
         const p = connectedPlayers.get(sId);
-        if (p) membersList.push({ uid: p.uid, name: p.gameName, gender: p.gender || 'Boy', age: p.age || 20, isHost: p.isPartyHost });
+        if (p) {
+            if(p.isPartyHost && p.partyMaxSize) max = p.partyMaxSize;
+            membersList.push({ uid: p.uid, name: p.gameName, gender: p.gender, age: p.age, playerTag: p.playerTag, location: p.location, isHost: p.isPartyHost });
+        }
     }
-    io.to(roomId).emit('partyUpdated', { members: membersList });
+    io.to(roomId).emit('partyUpdated', { roomId: roomId, members: membersList, maxSize: max });
 }
