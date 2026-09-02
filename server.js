@@ -1,4 +1,3 @@
-// server.js (Production-Ready Master Brain)
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -6,7 +5,7 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import { handleRoomEvents } from './core/roommanager.js';
+import { handleRoomEvents, handlePlayerDisconnect, checkAutoRejoin } from './core/roommanager.js';
 import { handleChatEvents } from './core/chatmanager.js'; 
 
 const app = express();
@@ -29,12 +28,10 @@ const connectedPlayers = new Map();
 io.on('connection', (socket) => {
     console.log(`🟢 Socket Connected: ${socket.id}`);
     
-    // Default dummy data assign kiya
     connectedPlayers.set(socket.id, { 
-        id: socket.id, uid: null, gameName: 'Loading...', partyRoom: null, isPartyHost: false
+        id: socket.id, uid: null, gameName: 'Loading...', partyRoom: null, isPartyHost: false 
     });
 
-    // 🛑 DUAL-LOCK: Jab client apni asli identity bheje
     socket.on('registerPlayer', (data) => {
         const player = connectedPlayers.get(socket.id);
         if (player && data && data.uid) {
@@ -42,7 +39,13 @@ io.on('connection', (socket) => {
             player.gameName = data.gameName || 'Racer';
             if(data.gender) player.gender = data.gender;
             if(data.age) player.age = data.age;
+            if(data.playerTag) player.playerTag = data.playerTag;
+            if(data.location) player.location = data.location;
+            
             console.log(`✅ Player Identity Confirmed: ${player.gameName} (UID: ${player.uid})`);
+            
+            // Restore party if the user just refreshed the page
+            checkAutoRejoin(socket, io, connectedPlayers);
         }
     });
 
@@ -53,7 +56,7 @@ io.on('connection', (socket) => {
         const player = connectedPlayers.get(socket.id);
         if (player) {
             console.log(`🔴 Player Disconnected: ${player.gameName || socket.id}`);
-            connectedPlayers.delete(socket.id);
+            handlePlayerDisconnect(socket, io, connectedPlayers);
         }
     });
 });
