@@ -3,157 +3,133 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 
-let scene, camera, renderer, controls;
-let characterModel, mixer;
+// 1. Core 3D Engine Setup
+const container = document.getElementById('render-container');
+const scene = new THREE.Scene();
+
+const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+camera.position.set(0, 1.2, 3); // Position camera looking at character
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(container.clientWidth, container.clientHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Ultra-realistic soft shadows
+container.appendChild(renderer.domElement);
+
+// 2. AAA Studio Lighting (For Subsurface Skin Glow)
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+scene.add(ambientLight);
+
+const keyLight = new THREE.DirectionalLight(0xffedd5, 1.5); // Warm sun light
+keyLight.position.set(2, 3, 2);
+keyLight.castShadow = true;
+scene.add(keyLight);
+
+const rimLight = new THREE.DirectionalLight(0x3b82f6, 1.2); // Blue rim light for 3D pop
+rimLight.position.set(-2, 2, -3);
+scene.add(rimLight);
+
+// 3. Mouse Camera Controls
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.target.set(0, 0.9, 0); // Look at chest/face level
+controls.minDistance = 1;
+controls.maxDistance = 5;
+
+// Animation & Character Variables
+let characterModel = null;
+let bodyMesh = null; 
+let mixer = null;
 const clock = new THREE.Clock();
 
-// Initialize Scene
-function init() {
-    const container = document.getElementById('render-container');
-    const loadingText = document.getElementById('loading-text');
+// 4. Load Custom 3D Model (.glb) and Default Animation (.fbx)
+const gltfLoader = new GLTFLoader();
+const fbxLoader = new FBXLoader();
 
-    // 1. Scene & Camera Setup
-    scene = new THREE.Scene();
-    camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
-    camera.position.set(0, 1.5, 3.5);
+const modelURL = 'assets/ee654438-4e51-4637-a703-1e2188cea38e.glb';
+const idleAnimURL = 'assets/ee654438-4e51-4637-a703-1e2188cea38e_Idle_bouncing_fight.fbx';
 
-    // 2. WebGL Renderer
-    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(container.clientWidth, container.clientHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.shadowMap.enabled = true;
-    container.appendChild(renderer.domElement);
-
-    // 3. Orbit Controls
-    controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.target.set(0, 1, 0);
-
-    // 4. Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
-    scene.add(ambientLight);
-
-    const dirLight = new THREE.DirectionalLight(0xffffff, 2.0);
-    dirLight.position.set(2, 4, 2);
-    dirLight.castShadow = true;
-    scene.add(dirLight);
-
-    // 5. Load 3D Character GLB Model[span_2](start_span)[span_2](end_span)
-    const gltfLoader = new GLTFLoader();
-    gltfLoader.load('assets/ee654438-4e51-4637-a703-1e2188cea38e.glb', (gltf) => {
+gltfLoader.load(
+    modelURL,
+    (gltf) => {
         characterModel = gltf.scene;
         
-        // Scale and Position Adjustments
-        characterModel.position.set(0, 0, 0);
-        scene.add(characterModel);
-
-        // Hide loading text once loaded
-        loadingText.style.display = 'none';
-
-        // 6. Load Initial Idle Animation (FBX)[span_3](start_span)[span_3](end_span)
-        loadAnimation('assets/ee654438-4e51-4637-a703-1e2188cea38e_Idle_bouncing_fight.fbx');
-
-        // Setup UI Controls Listeners
-        setupUIControls();
-
-    }, (xhr) => {
-        // Loading Progress
-        const percent = Math.floor((xhr.loaded / xhr.total) * 100);
-        if (percent) loadingText.innerText = `Loading 3D Core... ${percent}%`;
-    }, (error) => {
-        console.error('Error loading model:', error);
-        loadingText.innerText = 'Failed to load 3D model!';
-        loadingText.style.color = '#ef4444';
-    });
-
-    // Window Resize Handler
-    window.addEventListener('resize', onWindowResize);
-    
-    // Start Animation Loop
-    animate();
-}
-
-// Load FBX Animation and bind to Character Mixer
-function animation(animPath) {
-    const fbxLoader = new FBXLoader();
-    fbxLoader.load(animPath, (object) => {
-        if (!mixer) {
-            mixer = new THREE.AnimationMixer(characterModel);
-        }
-        const action = mixer.clipAction(object.animations[0]);
-        action.reset().play();
-    });
-}
-
-function loadAnimation(path) {
-    animation(path);
-}
-
-// Handle UI Sliders & Color Pickers for Morphing/Scaling
-function setupUIControls() {
-    const chestSlider = document.getElementById('morph-chest');
-    const waistSlider = document.getElementById('morph-waist');
-    const hipsSlider = document.getElementById('morph-hips');
-    const skinColorPicker = document.getElementById('color-skin');
-
-    // Bone/Mesh scaling fallback for morphing if blendshapes aren't embedded
-    chestSlider.addEventListener('input', (e) => {
-        const val = e.target.value;
-        // Find skeleton bone or scale mesh parts if needed, e.g., spine/chest bones
-        const spine = characterModel.getObjectByName('spine_02.x'); //
-        if (spine) {
-            const scaleFactor = 0.8 + (val * 0.4);
-            spine.scale.set(scaleFactor, scaleFactor, scaleFactor);
-        }
-    });
-
-    waistSlider.addEventListener('input', (e) => {
-        const val = e.target.value;
-        const spine1 = characterModel.getObjectByName('spine_01.x');
-        if (spine1) {
-            const scaleFactor = 1.2 - (val * 0.4);
-            spine1.scale.x = scaleFactor;
-            spine1.scale.z = scaleFactor;
-        }
-    });
-
-    hipsSlider.addEventListener('input', (e) => {
-        const val = e.target.value;
-        const hips = characterModel.getObjectByName('root.x') || characterModel.getObjectByName('hips');
-        if (hips) {
-            const scaleFactor = 0.8 + (val * 0.4);
-            hips.scale.set(scaleFactor, scaleFactor, scaleFactor);
-        }
-    });
-
-    // Skin Color Texturing Change
-    skinColorPicker.addEventListener('input', (e) => {
-        const hexColor = e.target.value;
-        characterModel.traverse((child) => {
-            if (child.isMesh && child.material) {
-                child.material.color.set(hexColor);
+        // Setup shadows and find the body mesh
+        characterModel.traverse((node) => {
+            if (node.isMesh) {
+                node.castShadow = true;
+                node.receiveShadow = true;
+                
+                // Improve skin material realism
+                if (node.material) {
+                    node.material.roughness = 0.4;
+                    node.material.metalness = 0.1;
+                }
+                
+                if (node.morphTargetDictionary) {
+                    bodyMesh = node; 
+                }
             }
         });
-    });
+
+        scene.add(characterModel);
+        document.getElementById('loading-text').style.display = 'none';
+
+        // Load and play Idle Animation once the character is ready
+        fbxLoader.load(idleAnimURL, (object) => {
+            mixer = new THREE.AnimationMixer(characterModel);
+            const action = mixer.clipAction(object.animations[0]);
+            action.play();
+        }, undefined, (error) => {
+            console.error("Error loading animation file:", error);
+        });
+
+    },
+    (xhr) => {
+        if (xhr.lengthComputable) {
+            const percent = Math.floor((xhr.loaded / xhr.total) * 100);
+            document.getElementById('loading-text').innerText = `Loading Core... ${percent}%`;
+        }
+    },
+    (error) => { console.error("Error loading 3D model:", error); }
+);
+
+// 5. Connect UI Sliders to 3D Morphs / Material Colors
+function updateMorphs() {
+    if (!bodyMesh || !bodyMesh.morphTargetDictionary) return;
+    
+    const chestVal = parseFloat(document.getElementById('morph-chest').value);
+    const waistVal = parseFloat(document.getElementById('morph-waist').value);
+    
+    if (bodyMesh.morphTargetDictionary['BustSize'] !== undefined) {
+        bodyMesh.morphTargetInfluences[bodyMesh.morphTargetDictionary['BustSize']] = chestVal;
+    }
 }
 
-// Save / Enter World Action
+document.getElementById('morph-chest').addEventListener('input', updateMorphs);
+document.getElementById('morph-waist').addEventListener('input', updateMorphs);
+
+document.getElementById('color-skin').addEventListener('input', (e) => {
+    if (characterModel) {
+        characterModel.traverse((child) => {
+            if (child.isMesh && child.material) {
+                child.material.color.set(e.target.value);
+            }
+        });
+    }
+});
+
+// Save 3D DNA Action
 window.save3DDNA = function() {
     alert('3D Character DNA Saved Successfully! Entering Game World...');
-    // Redirect or transition to gameplay state here
 };
 
-function onWindowResize() {
-    const container = document.getElementById('render-container');
-    camera.aspect = container.clientWidth / container.clientHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(container.clientWidth, container.clientHeight);
-}
-
+// 6. Rendering Loop with Animation Mixer Update
 function animate() {
     requestAnimationFrame(animate);
-    const delta = clock.getDelta();
     
+    const delta = clock.getDelta();
     if (mixer) {
         mixer.update(delta);
     }
@@ -161,5 +137,11 @@ function animate() {
     controls.update();
     renderer.render(scene, camera);
 }
+animate();
 
-init();
+// Handle Window Resize
+window.addEventListener('resize', () => {
+    camera.aspect = container.clientWidth / container.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(container.clientWidth, container.clientHeight);
+});
