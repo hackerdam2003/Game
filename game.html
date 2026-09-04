@@ -2,131 +2,70 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Racing Universe | Live Engine Match</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape">
+    <title>Racing Universe | Open World</title>
     <style>
-        * { box-sizing: border-box; }
-        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #f1f5f9; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
         
-        /* Top HUD */
-        header { background: #1e293b; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; z-index: 10; }
-        .logo { font-size: 15px; font-weight: 900; color: #3b82f6; }
-        .room-badge { background: #334155; color: #fbbf24; padding: 4px 10px; border-radius: 6px; font-family: monospace; font-size: 13px; font-weight: bold; }
+        #game-canvas { display: block; width: 100%; height: 100%; background: #0f172a; }
 
-        /* Game Arena / Canvas Area */
-        .game-viewport { flex: 1; position: relative; background: #090d16; display: flex; align-items: center; justify-content: center; }
-        
-        /* Waiting Room Overlay Panel */
-        .waiting-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.90); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; padding: 20px; text-align: center; }
-        .waiting-box { background: #1e293b; border: 1px solid #334155; padding: 30px; border-radius: 16px; width: 100%; max-width: 350px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
-        .waiting-box h2 { margin-top: 0; color: #3b82f6; font-size: 20px; }
-        .waiting-box p { color: #94a3b8; font-size: 13px; margin-bottom: 20px; }
-        
-        .btn-start-race { background: #ef4444; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 16px; font-weight: 900; text-transform: uppercase; width: 100%; cursor: pointer; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4); }
-        .btn-start-race:disabled { background: #64748b; box-shadow: none; cursor: not-allowed; }
+        #enter-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.95); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .enter-btn { background: #3b82f6; color: white; border: none; padding: 15px 40px; font-size: 20px; font-weight: 900; border-radius: 30px; cursor: pointer; box-shadow: 0 0 20px rgba(59,130,246,0.5); text-transform: uppercase; }
 
-        /* In-Game HUD Controls */
-        .hud-controls { position: absolute; bottom: 20px; width: 100%; display: flex; justify-content: space-between; padding: 0 20px; pointer-events: none; }
-        .control-btn { width: 60px; height: 60px; background: rgba(30, 41, 59, 0.8); border: 2px solid #334155; border-radius: 50%; color: white; font-size: 20px; display: flex; align-items: center; justify-content: center; pointer-events: auto; cursor: pointer; }
-        .control-btn:active { background: #3b82f6; }
+        #hud { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        
+        .hud-profile { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.5); padding: 5px 15px; border-radius: 20px; border: 1px solid #334155; display: flex; align-items: center; gap: 10px; pointer-events: auto; backdrop-filter: blur(5px); }
+        .hud-profile .hp-bar { width: 100px; height: 6px; background: #334; border-radius: 3px; overflow: hidden; }
+        .hud-profile .hp-fill { width: 100%; height: 100%; background: #10b981; }
+
+        .hud-minimap { position: absolute; top: 20px; right: 20px; width: 120px; height: 120px; background: rgba(30,41,59,0.7); border: 2px solid #3b82f6; border-radius: 50%; pointer-events: auto; backdrop-filter: blur(5px); }
+
+        .joystick-zone { position: absolute; bottom: 30px; left: 40px; width: 140px; height: 140px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); pointer-events: auto; display: flex; align-items: center; justify-content: center; }
+        .joystick-knob { width: 50px; height: 50px; background: rgba(255,255,255,0.6); border-radius: 50%; pointer-events: none; transform: translate(0px, 0px); }
+
+        .action-cluster { position: absolute; bottom: 30px; right: 40px; pointer-events: auto; width: 200px; height: 200px; }
+        .btn-action { position: absolute; background: rgba(0,0,0,0.6); border: 2px solid rgba(255,255,255,0.4); border-radius: 50%; color: white; font-weight: bold; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); transition: 0.1s; }
+        .btn-action:active { background: rgba(255,255,255,0.4); transform: scale(0.9); }
+        
+        .btn-main { width: 80px; height: 80px; bottom: 10px; right: 10px; font-size: 24px; }
+        .btn-skill { width: 55px; height: 55px; bottom: 100px; right: 30px; font-size: 18px; }
+        .btn-jump { width: 55px; height: 55px; bottom: 30px; right: 100px; font-size: 18px; }
+        .btn-dash { width: 45px; height: 45px; bottom: 110px; right: 100px; font-size: 14px; }
     </style>
 </head>
 <body>
 
-    <!-- Header HUD -->
-    <header>
-        <div class="logo">🏁 RACE ARENA</div>
-        <div class="room-badge">Room: <span id="room-id-val">CONNECTING...</span></div>
-    </header>
+    <div id="enter-overlay">
+        <button class="enter-btn" onclick="enterWorld()">Tap to Enter World</button>
+    </div>
 
-    <!-- Game Viewport / Canvas -->
-    <div class="game-viewport">
-        <!-- WAITING ROOM PANEL (Handles Host vs Joined Match) -->
-        <div class="waiting-overlay" id="waiting-overlay">
-            <div class="waiting-box">
-                <h2>Pre-Match Lobby</h2>
-                <p id="room-status-text">Synchronizing players into room...</p>
-                <div id="players-in-room" style="font-size: 12px; color: #10b981; margin-bottom: 15px; font-weight: bold;">Players Connected: 1/2</div>
-                
-                <!-- Host Start Button / Waiting Text -->
-                <button id="host-action-btn" class="btn-start-race" style="display: none;">START RACE</button>
+    <canvas id="game-canvas"></canvas>
+
+    <div id="hud">
+        <div class="hud-profile">
+            <span style="font-size: 20px;">👦</span>
+            <div style="color: white;">
+                <div style="font-size: 12px; font-weight: bold; margin-bottom: 3px;" id="player-name-hud">Loading...</div>
+                <div class="hp-bar"><div class="hp-fill"></div></div>
             </div>
         </div>
 
-        <!-- Canvas for Racing Engine (Phaser/ThreeJS placeholder) -->
-        <div style="color: #64748b; font-size: 14px; font-family: monospace;">[Racing Engine Ready - Waiting for Host Signal]</div>
+        <div class="hud-minimap"></div>
+
+        <div class="joystick-zone" id="joystick-base">
+            <div class="joystick-knob" id="joystick-knob"></div>
+        </div>
+
+        <div class="action-cluster">
+            <div class="btn-action btn-main" id="btn-attack">⚔️</div>
+            <div class="btn-action btn-skill" id="btn-skill">🔥</div>
+            <div class="btn-action btn-jump" id="btn-jump">⬆️</div>
+            <div class="btn-action btn-dash" id="btn-dash">💨</div>
+        </div>
     </div>
 
-    <!-- Onscreen Driving Controls (Hidden until race starts) -->
-    <div class="hud-controls" id="driving-controls" style="display: none;">
-        <div class="control-btn" id="btn-left">◀</div>
-        <div class="control-btn" id="btn-right">▶</div>
-    </div>
-
-    <!-- Socket.io CDN -->
-    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
-
-    <!-- Core Multiplayer Logic Script -->
-    <script type="module">
-        // Read URL Parameters (Room ID and Host Status)
-        const urlParams = new URLSearchParams(window.location.search);
-        const roomId = urlParams.get('roomId') || "GLOBAL-ROOM";
-        const isHost = urlParams.get('isHost') === 'true';
-
-        document.getElementById("room-id-val").innerText = roomId;
-
-        const waitingOverlay = document.getElementById("waiting-overlay");
-        const roomStatusText = document.getElementById("room-status-text");
-        const hostActionBtn = document.getElementById("host-action-btn");
-        const drivingControls = document.getElementById("driving-controls");
-        const playersCountText = document.getElementById("players-in-room");
-
-        // Establish real-time connection to Render Backend
-        const socket = io();
-
-        socket.on('connect', () => {
-            console.log("Connected to game server with ID:", socket.id);
-            roomStatusText.innerText = "Connected! Joining room...";
-            
-            // Emit event to join this specific room
-            socket.emit('joinGameRoom', { roomId: roomId, isHost: isHost });
-        });
-
-        // Room update listener (Tracks how many players joined)
-        socket.on('updateRoomPlayers', (data) => {
-            playersCountText.innerText = `Players Connected: ${data.count}/2`;
-            if(data.count >= 2) {
-                roomStatusText.innerText = "Room Full! Ready to race.";
-            }
-        });
-
-        // Host Control Setup
-        if (isHost) {
-            hostActionBtn.style.display = "block";
-            hostActionBtn.innerText = "START RACE";
-            roomStatusText.innerText = "You are the Host. Waiting for players...";
-
-            hostActionBtn.addEventListener('click', () => {
-                hostActionBtn.innerText = "Starting...";
-                hostActionBtn.disabled = true;
-                // Signal server to start the match for all players in this room
-                socket.emit('hostStartGame', { roomId: roomId });
-            });
-        } else {
-            hostActionBtn.style.display = "block";
-            hostActionBtn.innerText = "Waiting for Host...";
-            hostActionBtn.disabled = true;
-            roomStatusText.innerText = "Joined room successfully. Waiting for Host to launch!";
-        }
-
-        // Jab Host start dabayega, server yeh event sabko bhejega
-        socket.on('gameStarting', () => {
-            roomStatusText.innerText = "GO! GO! GO!";
-            setTimeout(() => {
-                waitingOverlay.style.display = "none"; // Hide waiting screen
-                drivingControls.style.display = "flex"; // Show game controls
-            }, 1000);
-        });
-    </script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script type="module" src="js/engine.js"></script> 
 </body>
 </html>
