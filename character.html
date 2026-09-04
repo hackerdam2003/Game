@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Character Customization</title>
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { margin: 0; background: #0f172a; color: white; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        header { background: #1e293b; padding: 15px; text-align: center; font-size: 18px; font-weight: bold; border-bottom: 2px solid #3b82f6; }
+        
+        .main-container { display: flex; flex: 1; overflow: hidden; }
+        
+        /* Left Side: Live Preview */
+        .preview-box { flex: 1; display: flex; justify-content: center; align-items: center; background: #1e293b; border-right: 2px solid #334155; }
+        canvas { background: #0f172a; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+
+        /* Right Side: Customization Controls */
+        .controls-box { flex: 1; padding: 20px; overflow-y: auto; background: #0f172a; }
+        .control-group { background: #1e293b; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #334155; }
+        .control-group h3 { margin: 0 0 10px 0; color: #3b82f6; font-size: 14px; text-transform: uppercase; }
+        
+        .slider-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; font-size: 12px; }
+        .slider-row input[type=range] { flex: 1; margin: 0 10px; }
+        .slider-row input[type=color] { border: none; width: 40px; height: 25px; cursor: pointer; }
+
+        .btn-save { background: #10b981; color: white; border: none; padding: 15px; width: 100%; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .btn-save:hover { background: #059669; }
+    </style>
+</head>
+<body>
+
+    <header>🛠️ Character Customization <span id="gender-lock-status" style="color:#fbbf24; font-size:12px;">(Loading...)</span></header>
+
+    <div class="main-container">
+        <!-- Live Preview -->
+        <div class="preview-box">
+            <canvas id="char-preview" width="200" height="300"></canvas>
+        </div>
+
+        <!-- Customization Sliders -->
+        <div class="controls-box">
+            
+            <div class="control-group">
+                <h3>Skin & Hair (Colors)</h3>
+                <div class="slider-row">
+                    <span>Skin Tone</span>
+                    <input type="color" id="val-skin" value="#fcd34d">
+                </div>
+                <div class="slider-row">
+                    <span>Hair Color</span>
+                    <input type="color" id="val-hair" value="#451a03">
+                </div>
+                <div class="slider-row">
+                    <span>Shirt Color</span>
+                    <input type="color" id="val-shirt" value="#3b82f6">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>Body Dimensions (Limited)</h3>
+                <div class="slider-row">
+                    <span>Height</span>
+                    <input type="range" id="val-height" min="0.8" max="1.2" step="0.05" value="1.0">
+                </div>
+                <div class="slider-row">
+                    <span>Width (Shoulders)</span>
+                    <input type="range" id="val-width" min="0.8" max="1.3" step="0.05" value="1.0">
+                </div>
+            </div>
+
+            <div class="control-group" id="gender-specific-controls">
+                <h3>Facial Features</h3>
+                <div class="slider-row">
+                    <span>Eye Size</span>
+                    <input type="range" id="val-eyes" min="1" max="4" step="0.5" value="2">
+                </div>
+                <div class="slider-row">
+                    <span>Lip Size</span>
+                    <input type="range" id="val-lips" min="1" max="5" step="0.5" value="2">
+                </div>
+            </div>
+
+            <button class="btn-save" onclick="saveCharacter()">💾 SAVE & GO TO LOBBY</button>
+        </div>
+    </div>
+
+    <script type="module" src="js/character-editor.js"></script>
+</body>
+</html>
+
