@@ -1,14 +1,15 @@
 // core/roommanager.js
 
-const userPartyCache = new Map(); // Refresh hone par party restore karne ke liye
-const publicLobbies = new Map();  // 🛑 RANDOM AUTO-JOIN LOBBIES TRACKER
+const userPartyCache = new Map(); 
+const publicLobbies = new Map();  
 
 export function handleRoomEvents(socket, io, connectedPlayers) {
     
-    // --- 1. CREATE PRIVATE PARTY (For Friends) ---
+    // --- 1. CREATE PRIVATE PARTY ---
     socket.on('createPartyRoom', (data) => {
         const player = connectedPlayers.get(socket.id);
-        if (!player) return;
+        // 🛑 BUG FIX: Block Unregistered/Loading players from creating a room
+        if (!player || !player.uid) return; 
 
         const roomId = 'PARTY_' + Math.random().toString(36).substr(2, 6).toUpperCase(); 
         socket.join(roomId);
@@ -21,7 +22,6 @@ export function handleRoomEvents(socket, io, connectedPlayers) {
         updatePartyMembers(roomId, io, connectedPlayers);
     });
 
-    // --- 2. SEND & ACCEPT INVITE ---
     socket.on('sendPartyInvite', (data) => {
         const hostPlayer = connectedPlayers.get(socket.id);
         const room = io.sockets.adapter.rooms.get(data.roomId);
@@ -38,12 +38,23 @@ export function handleRoomEvents(socket, io, connectedPlayers) {
 
     socket.on('acceptPartyInvite', (data) => {
         const player = connectedPlayers.get(socket.id);
-        if (!player) return;
+        // 🛑 BUG FIX: Block Ghost from joining
+        if (!player || !player.uid) return;
+        
         const room = io.sockets.adapter.rooms.get(data.roomId);
-        if (room && room.size >= 4) {
+        let maxSize = 4;
+        if (room) {
+            for (const sId of room) {
+                const p = connectedPlayers.get(sId);
+                if (p && p.isPartyHost && p.partyMaxSize) maxSize = p.partyMaxSize;
+            }
+        }
+
+        if (room && room.size >= maxSize) {
             socket.emit('partyError', 'Lobby is already full!');
             return;
         }
+
         socket.join(data.roomId);
         player.partyRoom = data.roomId;
         player.isPartyHost = false;
@@ -51,7 +62,6 @@ export function handleRoomEvents(socket, io, connectedPlayers) {
         updatePartyMembers(data.roomId, io, connectedPlayers);
     });
 
-    // --- 3. LEAVE LOBBY ---
     socket.on('leavePartyRoom', (data) => {
         const player = connectedPlayers.get(socket.id);
         if (player) {
@@ -63,17 +73,16 @@ export function handleRoomEvents(socket, io, connectedPlayers) {
             handleHostMigration(data.roomId, player.uid, io, connectedPlayers, socket.id);
             updatePartyMembers(data.roomId, io, connectedPlayers);
             
-            // WebRTC Call drop karwao baaki logo ke liye
             socket.to(data.roomId).emit('voice-disconnected', { uid: player.uid });
         }
     });
 
-    // 🚀 4. RANDOM AUTO-JOIN & START MATCH (GENSHIN STYLE)
+    // 🚀 4. RANDOM AUTO-JOIN & START MATCH 
     socket.on('startMatchmaking', () => {
         const player = connectedPlayers.get(socket.id);
-        if (!player) return;
+        // 🛑 BUG FIX: Block Ghost from Auto-Joining
+        if (!player || !player.uid) return;
 
-        // SCENARIO A: Agar Player already Host hai -> PURI LOBBY KO GAME ME BHEJO
         if (player.partyRoom && player.isPartyHost) {
             const gameRoomId = 'GAME_' + Math.floor(Math.random() * 999999);
             io.to(player.partyRoom).emit('teleportToGame', { gameRoomId: gameRoomId, hostUid: player.uid });
@@ -81,10 +90,8 @@ export function handleRoomEvents(socket, io, connectedPlayers) {
             return;
         }
 
-        // SCENARIO B: Agar Player Lobby me hai par Host nahi hai -> WAIT KAREGA
         if (player.partyRoom && !player.isPartyHost) return;
 
-        // SCENARIO C: Player Solo hai aur Find Match dabaya -> RANDOM AUTO-JOIN
         let joinedExisting = false;
 
         for (const [roomId, roomInfo] of publicLobbies.entries()) {
@@ -112,16 +119,11 @@ export function handleRoomEvents(socket, io, connectedPlayers) {
             publicLobbies.set(newRoomId, { hostId: socket.id });
             userPartyCache.set(player.uid, { roomId: newRoomId, isHost: true });
 
-            const hostData = { 
-                uid: player.uid, name: player.gameName, gender: player.gender || 'Boy', 
-                age: player.age || 20, playerTag: player.playerTag, location: player.location, isHost: true 
-            };
-            socket.emit('partyCreated', { roomId: newRoomId, members: [hostData], maxSize: 4 });
+            updatePartyMembers(newRoomId, io, connectedPlayers);
         }
     });
 
-    // --- 🎙️ 5. WEBRTC LIVE VOICE SIGNALING (NEW ZERO-LATENCY SYSTEM) ---
-    
+    // --- 🎙️ 5. WEBRTC LIVE VOICE SIGNALING ---
     socket.on('voice-ready', () => {
         const player = connectedPlayers.get(socket.id);
         if (player && player.partyRoom) {
@@ -169,7 +171,6 @@ export function handlePlayerDisconnect(socket, io, connectedPlayers) {
     const player = connectedPlayers.get(socket.id);
     if (player) {
         if (player.partyRoom) {
-            // 🛑 Call drop signal bhejo taaki aawaz atak na jaye
             socket.to(player.partyRoom).emit('voice-disconnected', { uid: player.uid });
 
             handleHostMigration(player.partyRoom, player.uid, io, connectedPlayers, socket.id);
@@ -191,34 +192,66 @@ function handleHostMigration(roomId, oldHostUid, io, connectedPlayers, disconnec
             return;
         }
 
-        if (room) {
-            for (const sId of room) {
-                if (sId === disconnectedSocketId) continue;
-                const nextPlayer = connectedPlayers.get(sId);
-                if (nextPlayer) {
-                    nextPlayer.isPartyHost = true;
-                    const cachedNext = userPartyCache.get(nextPlayer.uid);
-                    if (cachedNext) cachedNext.isHost = true;
-                    if (publicLobbies.has(roomId)) publicLobbies.set(roomId, { hostId: sId });
-                    break;
-                }
+        for (const sId of room) {
+            if (sId === disconnectedSocketId) continue;
+            const nextPlayer = connectedPlayers.get(sId);
+            // 🛑 BUG FIX: Make sure the new Host is a REAL player, not a Ghost
+            if (nextPlayer && nextPlayer.uid && nextPlayer.gameName !== 'Loading...') {
+                nextPlayer.isPartyHost = true;
+                const cachedNext = userPartyCache.get(nextPlayer.uid);
+                if (cachedNext) cachedNext.isHost = true;
+                if (publicLobbies.has(roomId)) publicLobbies.set(roomId, { hostId: sId });
+                break;
             }
         }
     }
 }
 
+// 🛑 BULLETPROOF UPDATE FUNCTION (Fixes the Screenshot issue 100%)
 function updatePartyMembers(roomId, io, connectedPlayers) {
     const room = io.sockets.adapter.rooms.get(roomId);
-    if (!room) return;
+    if (!room) {
+        publicLobbies.delete(roomId);
+        return;
+    }
+    
     const membersList = [];
     let max = 4;
+    let hasHost = false;
+    let firstValidPlayer = null;
+
     for (const sId of room) {
         const p = connectedPlayers.get(sId);
-        if (p) {
-            if(p.isPartyHost && p.partyMaxSize) max = p.partyMaxSize;
-            membersList.push({ uid: p.uid, name: p.gameName, gender: p.gender, age: p.age, playerTag: p.playerTag, location: p.location, isHost: p.isPartyHost });
+        // 1. GHOST FILTER: Only real, registered players pass through
+        if (p && p.uid && p.gameName && p.gameName !== 'Loading...') {
+            if (!firstValidPlayer) firstValidPlayer = p;
+            
+            if (p.isPartyHost) {
+                hasHost = true;
+                if (p.partyMaxSize) max = p.partyMaxSize;
+            }
+            membersList.push(p);
         }
     }
-    io.to(roomId).emit('partyUpdated', { roomId: roomId, members: membersList, maxSize: max });
+
+    // 2. FORCE HOST FALLBACK: If real players are stuck with NO host, force the first one to be host
+    if (membersList.length > 0 && !hasHost && firstValidPlayer) {
+        firstValidPlayer.isPartyHost = true; 
+        hasHost = true;
+        
+        const cached = userPartyCache.get(firstValidPlayer.uid);
+        if (cached) cached.isHost = true;
+        
+        if (publicLobbies.has(roomId)) publicLobbies.set(roomId, { hostId: firstValidPlayer.id });
+        console.log(`👑 Forced Host Migration triggered! New Host: ${firstValidPlayer.gameName}`);
+    }
+
+    // 3. Clean JSON for the Client
+    const cleanList = membersList.map(p => ({
+        uid: p.uid, name: p.gameName, gender: p.gender, age: p.age, 
+        playerTag: p.playerTag, location: p.location, isHost: p.isPartyHost
+    }));
+
+    io.to(roomId).emit('partyUpdated', { roomId: roomId, members: cleanList, maxSize: max });
 }
 
