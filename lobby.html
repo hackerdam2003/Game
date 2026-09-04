@@ -151,7 +151,7 @@
     <!-- UNIVERSAL PROFILE MODAL -->
     <div class="modal-overlay" id="profile-modal">
         <div class="profile-card-modal">
-            <div style="font-size: 45px; margin-bottom: 5px;" id="modal-avatar">👦</div>
+            <div style="font-size: 45px; margin-bottom: 5px; transition: 0.3s;" id="modal-avatar">👦</div>
             <h3 id="modal-gamename">Racer Name</h3>
             <p style="font-size: 11px; color: #10b981; margin-bottom: 12px;" id="modal-realname">Identity Verified</p>
             <div style="text-align: left; background: #0f172a; padding: 12px; border-radius: 8px; border: 1px solid #334155; display: flex; flex-direction: column; gap: 6px; font-size:13px;">
@@ -239,7 +239,6 @@
                                 window.loadGlobalPlayers();
                                 window.loadMyFriendsData();
                                 
-                                // Send full payload for Profile clicking
                                 window.socket.emit('registerPlayer', {
                                     uid: user.uid, 
                                     gameName: window.myProfileData.gameName,
@@ -274,18 +273,51 @@
             window.openUserProfile(window.myProfileData.gameName, window.myProfileData.age, window.myProfileData.location, window.myProfileData.gender, window.myProfileData.playerTag, window.localUser.uid, true);
         };
 
+        // 🛑 NAYA LOGIC: Avatar click aur Customization Button
         window.openUserProfile = function(name, age, location, gender, uidTag, targetUid, isSelf = false) {
             document.getElementById('modal-gamename').innerText = name;
             document.getElementById('modal-uid').innerText = uidTag || "Old-Account";
             document.getElementById('modal-age').innerText = age || "20";
             document.getElementById('modal-location').innerText = location || "India";
             document.getElementById('modal-gender').innerText = gender || "Boy";
-            document.getElementById('modal-avatar').innerText = gender === 'Girl' ? '👧' : '👦';
+            
+            const avatarDiv = document.getElementById('modal-avatar');
+            avatarDiv.innerText = gender === 'Girl' ? '👧' : '👦';
             
             const actionsWrapper = document.getElementById('modal-actions-wrapper');
-            if (!isSelf) {
-                actionsWrapper.innerHTML = `<button class="modal-action-btn" onclick="window.sendFriendReq('${targetUid}', '${name}')">Send Friend Request</button>`;
-            } else { actionsWrapper.innerHTML = ''; }
+            
+            // 🛑 AGAR YE MERI KHUD KI PROFILE HAI
+            if (isSelf) {
+                // Avatar ko clickable banao
+                avatarDiv.style.cursor = 'pointer';
+                avatarDiv.style.textShadow = '0 0 15px #fbbf24'; // Glow effect
+                avatarDiv.title = "Tap to Customize Character";
+                
+                // Avatar par click karne se character.html khulega
+                avatarDiv.onclick = function() {
+                    window.location.href = 'character.html';
+                };
+                
+                // Niche ek extra button bhi de do
+                actionsWrapper.innerHTML = `
+                    <button class="modal-action-btn" style="background: #fbbf24; color: black; font-weight: 900;" onclick="window.location.href='character.html'">
+                        ✏️ Customize Character
+                    </button>
+                `;
+            } 
+            // 🛑 AGAR YE KISI DUSRE KI PROFILE HAI
+            else {
+                avatarDiv.style.cursor = 'default';
+                avatarDiv.style.textShadow = 'none';
+                avatarDiv.onclick = null; // Dusre ke character ko edit nahi kar sakte
+                
+                actionsWrapper.innerHTML = `
+                    <button class="modal-action-btn" onclick="window.sendFriendReq('${targetUid}', '${name}')">
+                        Send Friend Request
+                    </button>
+                `;
+            }
+            
             document.getElementById('profile-modal').style.display = 'flex';
         };
 
