@@ -3,38 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Advanced Anatomy Customizer</title>
+    <title>Racing Universe | Ultra Advanced Body Foundry</title>
     <style>
-        * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
-        body { margin: 0; background: #050505; color: white; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        header { background: #0f172a; padding: 15px; text-align: center; font-size: 16px; font-weight: 900; border-bottom: 2px solid #3b82f6; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center;}
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { margin: 0; background: #030712; color: #f3f4f6; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        .coin-display { background: #fbbf24; color: black; padding: 5px 15px; border-radius: 20px; font-weight: bold; font-size: 14px; }
+        header { background: #0f172a; padding: 12px 20px; text-align: center; font-size: 15px; font-weight: 900; border-bottom: 2px solid #3b82f6; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center; letter-spacing: 1px;}
+        .coin-display { background: linear-gradient(135deg, #fbbf24, #d97706); color: #000; padding: 4px 12px; border-radius: 20px; font-weight: 900; font-size: 12px; box-shadow: 0 0 10px rgba(251,191,36,0.4); }
         
         .main-container { display: flex; flex: 1; overflow: hidden; flex-direction: row; }
         @media (max-width: 768px) { .main-container { flex-direction: column; } }
         
-        /* Left: 3D-Like Preview */
-        .preview-box { flex: 1.2; display: flex; justify-content: center; align-items: center; background: radial-gradient(circle, #1e293b 0%, #050505 100%); border-right: 1px solid #1e293b; position: relative; }
-        canvas { filter: drop-shadow(0px 20px 30px rgba(0,0,0,0.9)); }
-        .age-toggle { position: absolute; top: 20px; display: flex; background: #0f172a; border-radius: 10px; border: 1px solid #334155; overflow: hidden; z-index: 10; }
-        .age-btn { padding: 10px 20px; cursor: pointer; font-weight: bold; color: #94a3b8; transition: 0.3s; }
-        .age-btn.active { background: #3b82f6; color: white; }
+        /* Left: Ultra 3D Preview Box */
+        .preview-box { flex: 1.2; display: flex; justify-content: center; align-items: center; background: radial-gradient(circle at center, #1e293b 0%, #030712 100%); border-right: 1px solid #1e293b; position: relative; overflow: hidden; }
+        .preview-box::before { content: ''; position: absolute; width: 250px; height: 250px; background: rgba(59, 130, 246, 0.1); border-radius: 50%; filter: blur(50px); pointer-events: none; }
+        canvas { filter: drop-shadow(0px 25px 35px rgba(0,0,0,0.9)); z-index: 2; }
+        
+        .age-toggle { position: absolute; top: 15px; display: flex; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(10px); border-radius: 12px; border: 1px solid #334155; overflow: hidden; z-index: 10; padding: 3px; }
+        .age-btn { padding: 8px 18px; cursor: pointer; font-weight: bold; color: #94a3b8; font-size: 11px; transition: 0.3s; border-radius: 8px; }
+        .age-btn.active { background: #3b82f6; color: white; box-shadow: 0 0 10px rgba(59,130,246,0.5); }
 
         /* Right: Advanced Anatomy Controls */
-        .controls-box { flex: 1; padding: 15px; overflow-y: auto; background: #0a0f1a; display: flex; flex-direction: column; gap: 15px; }
+        .controls-box { flex: 1.1; padding: 15px; overflow-y: auto; background: #0b0f19; display: flex; flex-direction: column; gap: 12px; }
         
-        .control-section { background: #121826; padding: 15px; border-radius: 10px; border: 1px solid #1e293b; position: relative; }
-        .control-section h3 { margin: 0 0 15px 0; color: #38bdf8; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #1e293b; padding-bottom: 5px;}
+        .control-section { background: #111827; padding: 12px 15px; border-radius: 12px; border: 1px solid #1f2937; position: relative; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2); }
+        .control-section h3 { margin: 0 0 10px 0; color: #38bdf8; font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; border-bottom: 1px solid #1f2937; padding-bottom: 5px; display: flex; justify-content: space-between; align-items: center;}
         
-        .slider-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-size: 12px; font-weight: bold; color: #cbd5e1; }
-        .slider-row input[type=range] { flex: 1; margin: 0 15px; accent-color: #3b82f6; }
-        .slider-row input[type=color] { border: none; width: 35px; height: 35px; cursor: pointer; border-radius: 5px; background: transparent; }
+        .slider-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 11px; font-weight: bold; color: #9ca3af; }
+        .slider-row span:first-child { width: 110px; }
+        .slider-row input[type=range] { flex: 1; margin: 0 10px; accent-color: #3b82f6; height: 5px; background: #374151; border-radius: 3px; outline: none; }
+        .slider-val { width: 35px; text-align: right; color: #38bdf8; font-family: monospace; font-size: 11px; }
+        
+        .slider-row input[type=color] { border: none; width: 30px; height: 26px; cursor: pointer; border-radius: 6px; background: transparent; }
 
-        /* Future Premium Lock Example */
-        .premium-lock { font-size: 10px; background: #ef4444; color: white; padding: 2px 6px; border-radius: 4px; margin-left: 5px; }
+        .preset-row { display: flex; gap: 8px; margin-top: 5px; }
+        .preset-btn { flex: 1; background: #1f2937; border: 1px solid #374151; color: #d1d5db; padding: 6px; font-size: 10px; font-weight: bold; border-radius: 6px; cursor: pointer; transition: 0.2s; }
+        .preset-btn:hover { background: #374151; color: #fff; border-color: #3b82f6; }
 
-        .btn-save { background: linear-gradient(90deg, #10b981, #059669); color: white; border: none; padding: 18px; width: 100%; border-radius: 8px; font-size: 16px; font-weight: 900; cursor: pointer; text-transform: uppercase; box-shadow: 0 5px 20px rgba(16, 185, 129, 0.3); transition: 0.2s; }
+        .premium-lock { font-size: 9px; background: linear-gradient(135deg, #ef4444, #b91c1c); color: white; padding: 2px 5px; border-radius: 4px; margin-left: 5px; font-weight: 900; }
+
+        .btn-save { background: linear-gradient(90deg, #10b981, #059669); color: white; border: none; padding: 15px; width: 100%; border-radius: 10px; font-size: 14px; font-weight: 900; cursor: pointer; text-transform: uppercase; box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4); transition: 0.2s; letter-spacing: 1px; margin-top: 5px; }
         .btn-save:active { transform: scale(0.98); }
         .hidden { display: none !important; }
     </style>
@@ -42,8 +50,8 @@
 <body>
 
     <header>
-        <span id="dna-lock" style="font-size: 12px; color: #94a3b8;">DNA: Loading...</span>
-        <span>🧬 Body Foundry</span>
+        <span id="dna-lock" style="font-size: 11px; color: #94a3b8; font-weight: bold;">DNA: Loading...</span>
+        <span>🧬 Advanced Body Foundry</span>
         <div class="coin-display">1500 🪙</div>
     </header>
 
@@ -60,39 +68,74 @@
         <!-- Customization Sliders -->
         <div class="controls-box">
             
-            <div class="control-section">
-                <h3>Genetics & Colors</h3>
-                <div class="slider-row"><span>Skin Tone</span><input type="color" id="val-skin" value="#ffcc99"></div>
-                <div class="slider-row"><span>Eye Color</span><input type="color" id="val-eyeColor" value="#0ea5e9"></div>
-                <div class="slider-row"><span>Hair Color</span><input type="color" id="val-hair" value="#27272a"></div>
-                <div class="slider-row"><span>Face Shape</span><input type="range" id="val-faceShape" min="0.8" max="1.2" step="0.05" value="1.0"></div>
-                <div class="slider-row"><span>Hairstyle <span class="premium-lock">VIP</span></span><input type="range" id="val-hairStyle" min="1" max="4" step="1" value="1"></div>
+            <!-- Quick Presets -->
+            <div class="control-section" style="padding: 10px 15px;">
+                <h3>⚡ Quick DNA Presets</h3>
+                <div class="preset-row">
+                    <button class="preset-btn" onclick="applyPreset('default')">Balanced</button>
+                    <button class="preset-btn" onclick="applyPreset('athletic')">Athletic</button>
+                    <button class="preset-btn" onclick="applyPreset('cyber')">Stylized</button>
+                </div>
             </div>
 
+            <!-- Genetics & Colors -->
             <div class="control-section">
-                <h3>Anatomy Proportions</h3>
-                <div class="slider-row"><span>Total Height</span><input type="range" id="val-height" min="0.8" max="1.2" step="0.02" value="1.0"></div>
-                <div class="slider-row"><span>Head Size</span><input type="range" id="val-headSize" min="0.8" max="1.4" step="0.05" value="1.0"></div>
+                <h3>🎨 Genetics & Palette</h3>
+                <div class="slider-row"><span>Skin Tone</span><input type="color" id="val-skin" value="#ffcc99"><span class="slider-val" id="disp-skin">HEX</span></div>
+                <div class="slider-row"><span>Eye Color</span><input type="color" id="val-eyeColor" value="#0ea5e9"><span class="slider-val" id="disp-eyeColor">HEX</span></div>
+                <div class="slider-row"><span>Hair Color</span><input type="color" id="val-hair" value="#27272a"><span class="slider-val" id="disp-hair">HEX</span></div>
+                <div class="slider-row"><span>Face Shape</span><input type="range" id="val-faceShape" min="0.8" max="1.3" step="0.05" value="1.0"><span class="slider-val" id="disp-faceShape">1.0</span></div>
+                <div class="slider-row"><span>Jaw / Chin</span><input type="range" id="val-jaw" min="0.8" max="1.3" step="0.05" value="1.0"><span class="slider-val" id="disp-jaw">1.0</span></div>
+                <div class="slider-row"><span>Hairstyle <span class="premium-lock">VIP</span></span><input type="range" id="val-hairStyle" min="1" max="4" step="1" value="1"><span class="slider-val" id="disp-hairStyle">1</span></div>
+            </div>
+
+            <!-- Anatomy Proportions -->
+            <div class="control-section">
+                <h3>📐 Skeletal & Muscle Anatomy</h3>
+                <div class="slider-row"><span>Total Height</span><input type="range" id="val-height" min="0.8" max="1.2" step="0.02" value="1.0"><span class="slider-val" id="disp-height">1.0</span></div>
+                <div class="slider-row"><span>Head Size</span><input type="range" id="val-headSize" min="0.8" max="1.4" step="0.05" value="1.0"><span class="slider-val" id="disp-headSize">1.0</span></div>
                 
-                <!-- Dynamic Boy/Girl conditional sliders handled by JS -->
-                <div class="slider-row hidden" id="boy-muscles"><span>Shoulders & Torso</span><input type="range" id="val-torso" min="0.8" max="1.4" step="0.05" value="1.1"></div>
-                <div class="slider-row hidden" id="girl-chest"><span>Breast Size</span><input type="range" id="val-chest" min="0.6" max="1.8" step="0.05" value="1.0"></div>
+                <!-- Dynamic Boy/Girl Conditional Sliders -->
+                <div class="slider-row hidden" id="boy-muscles"><span>Torso / Pecs</span><input type="range" id="val-torso" min="0.8" max="1.5" step="0.05" value="1.1"><span class="slider-val" id="disp-torso">1.1</span></div>
+                <div class="slider-row hidden" id="girl-chest"><span>Breast Size</span><input type="range" id="val-chest" min="0.6" max="1.9" step="0.05" value="1.0"><span class="slider-val" id="disp-chest">1.0</span></div>
                 
-                <div class="slider-row"><span>Pelvis & Glutes</span><input type="range" id="val-pelvis" min="0.8" max="1.6" step="0.05" value="1.0"></div>
-                <div class="slider-row"><span>Limb Thickness</span><input type="range" id="val-limbs" min="0.7" max="1.4" step="0.05" value="1.0"></div>
+                <div class="slider-row"><span>Pelvis & Hips</span><input type="range" id="val-pelvis" min="0.8" max="1.6" step="0.05" value="1.0"><span class="slider-val" id="disp-pelvis">1.0</span></div>
+                <div class="slider-row"><span>Muscle Tone</span><input type="range" id="val-muscleTone" min="0.5" max="1.5" step="0.05" value="1.0"><span class="slider-val" id="disp-muscleTone">1.0</span></div>
+                <div class="slider-row"><span>Limb Thickness</span><input type="range" id="val-limbs" min="0.7" max="1.4" step="0.05" value="1.0"><span class="slider-val" id="disp-limbs">1.0</span></div>
             </div>
 
+            <!-- Wardrobe -->
             <div class="control-section">
-                <h3>Wardrobe</h3>
-                <div class="slider-row"><span>Top Color</span><input type="color" id="val-topColor" value="#3b82f6"></div>
-                <div class="slider-row"><span>Bottom Color</span><input type="color" id="val-bottomColor" value="#1e293b"></div>
+                <h3>👕 Outfit & Gear Customization</h3>
+                <div class="slider-row"><span>Top Color</span><input type="color" id="val-topColor" value="#3b82f6"><span class="slider-val" id="disp-topColor">HEX</span></div>
+                <div class="slider-row"><span>Bottom Color</span><input type="color" id="val-bottomColor" value="#1e293b"><span class="slider-val" id="disp-bottomColor">HEX</span></div>
             </div>
 
-            <button class="btn-save" onclick="saveCharacter()">💾 Save DNA & Enter</button>
+            <button class="btn-save" onclick="saveCharacter()">💾 Save DNA & Enter World</button>
         </div>
     </div>
 
-    <!-- Ensure your js/character-editor.js is properly linked to control the canvas and Firebase updates -->
     <script type="module" src="js/character-editor.js"></script>
+    <script>
+        // Preset quick loaders function
+        window.applyPreset = function(type) {
+            if(type === 'athletic') {
+                document.getElementById('val-pelvis').value = 1.3;
+                document.getElementById('val-limbs').value = 1.2;
+                document.getElementById('val-faceShape').value = 1.1;
+            } else if(type === 'cyber') {
+                document.getElementById('val-height').value = 1.15;
+                document.getElementById('val-headSize').value = 0.9;
+                document.getElementById('val-jaw').value = 1.2;
+            } else {
+                document.getElementById('val-pelvis').value = 1.0;
+                document.getElementById('val-limbs').value = 1.0;
+                document.getElementById('val-faceShape').value = 1.0;
+            }
+            // Trigger input change event for real-time canvas update
+            document.querySelectorAll('input').forEach(i => i.dispatchEvent(new Event('input')));
+        }
+    </script>
 </body>
 </html>
+
