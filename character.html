@@ -3,89 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Character Customization</title>
+    <title>Advanced Character Customizer</title>
     <style>
         * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { margin: 0; background: #0f172a; color: white; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        header { background: #1e293b; padding: 15px; text-align: center; font-size: 18px; font-weight: bold; border-bottom: 2px solid #3b82f6; }
+        body { margin: 0; background: #0b0f19; color: white; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        header { background: #161e2e; padding: 15px; text-align: center; font-size: 16px; font-weight: 900; border-bottom: 2px solid #3b82f6; text-transform: uppercase; letter-spacing: 1px;}
         
-        .main-container { display: flex; flex: 1; overflow: hidden; }
+        .main-container { display: flex; flex: 1; overflow: hidden; flex-direction: row; }
+        @media (max-width: 768px) { .main-container { flex-direction: column; } }
         
-        /* Left Side: Live Preview */
-        .preview-box { flex: 1; display: flex; justify-content: center; align-items: center; background: #1e293b; border-right: 2px solid #334155; }
-        canvas { background: #0f172a; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        /* Left: Live Preview */
+        .preview-box { flex: 1; display: flex; justify-content: center; align-items: center; background: radial-gradient(circle, #1e293b 0%, #0b0f19 100%); border-right: 1px solid #334155; position: relative; }
+        canvas { background: transparent; filter: drop-shadow(0px 10px 15px rgba(0,0,0,0.8)); }
+        .preview-label { position: absolute; bottom: 20px; font-size: 12px; color: #94a3b8; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
 
-        /* Right Side: Customization Controls */
-        .controls-box { flex: 1; padding: 20px; overflow-y: auto; background: #0f172a; }
-        .control-group { background: #1e293b; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #334155; }
-        .control-group h3 { margin: 0 0 10px 0; color: #3b82f6; font-size: 14px; text-transform: uppercase; }
+        /* Right: Advanced Controls */
+        .controls-box { flex: 1.2; padding: 15px; overflow-y: auto; background: #0f172a; display: flex; flex-direction: column; gap: 10px; }
         
-        .slider-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; font-size: 12px; }
-        .slider-row input[type=range] { flex: 1; margin: 0 10px; }
-        .slider-row input[type=color] { border: none; width: 40px; height: 25px; cursor: pointer; }
+        .control-section { background: #161e2e; padding: 15px; border-radius: 10px; border: 1px solid #1e293b; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .control-section h3 { margin: 0 0 15px 0; color: #38bdf8; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #334155; padding-bottom: 5px;}
+        
+        .slider-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-size: 12px; font-weight: bold; color: #cbd5e1; }
+        .slider-row input[type=range] { flex: 1; margin: 0 15px; accent-color: #3b82f6; }
+        .slider-row input[type=color] { border: none; width: 35px; height: 35px; cursor: pointer; border-radius: 5px; background: transparent; }
 
-        .btn-save { background: #10b981; color: white; border: none; padding: 15px; width: 100%; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        .btn-save:hover { background: #059669; }
+        .btn-save { background: linear-gradient(90deg, #10b981, #059669); color: white; border: none; padding: 15px; width: 100%; border-radius: 8px; font-size: 16px; font-weight: 900; cursor: pointer; margin-top: 10px; text-transform: uppercase; transition: 0.2s; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4); }
+        .btn-save:active { transform: scale(0.98); }
+        
+        /* Hide element class */
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
-    <header>🛠️ Character Customization <span id="gender-lock-status" style="color:#fbbf24; font-size:12px;">(Loading...)</span></header>
+    <header>⚙️ Garage Customization <span id="gender-lock-status" style="color:#fbbf24; font-size:11px; margin-left: 10px;"></span></header>
 
     <div class="main-container">
         <!-- Live Preview -->
         <div class="preview-box">
-            <canvas id="char-preview" width="200" height="300"></canvas>
+            <canvas id="char-preview" width="300" height="400"></canvas>
+            <div class="preview-label">Live 2D Vector Render</div>
         </div>
 
         <!-- Customization Sliders -->
         <div class="controls-box">
             
-            <div class="control-group">
-                <h3>Skin & Hair (Colors)</h3>
-                <div class="slider-row">
-                    <span>Skin Tone</span>
-                    <input type="color" id="val-skin" value="#fcd34d">
-                </div>
-                <div class="slider-row">
-                    <span>Hair Color</span>
-                    <input type="color" id="val-hair" value="#451a03">
-                </div>
-                <div class="slider-row">
-                    <span>Shirt Color</span>
-                    <input type="color" id="val-shirt" value="#3b82f6">
-                </div>
+            <div class="control-section">
+                <h3>Genetics & Style</h3>
+                <div class="slider-row"><span>Skin Tone</span><input type="color" id="val-skin" value="#fcd34d"></div>
+                <div class="slider-row"><span>Hair Color</span><input type="color" id="val-hair" value="#1e293b"></div>
+                <div class="slider-row"><span>Hair Style (1-3)</span><input type="range" id="val-hairStyle" min="1" max="3" step="1" value="1"></div>
+                <div class="slider-row"><span>Face Shape</span><input type="range" id="val-faceShape" min="0.8" max="1.2" step="0.05" value="1.0"></div>
+                <div class="slider-row"><span>Eye Size</span><input type="range" id="val-eyes" min="1" max="3" step="0.2" value="2"></div>
+                <div class="slider-row"><span>Lip Size</span><input type="range" id="val-lips" min="1" max="5" step="0.5" value="2"></div>
             </div>
 
-            <div class="control-group">
-                <h3>Body Dimensions (Limited)</h3>
-                <div class="slider-row">
-                    <span>Height</span>
-                    <input type="range" id="val-height" min="0.8" max="1.2" step="0.05" value="1.0">
-                </div>
-                <div class="slider-row">
-                    <span>Width (Shoulders)</span>
-                    <input type="range" id="val-width" min="0.8" max="1.3" step="0.05" value="1.0">
-                </div>
+            <div class="control-section">
+                <h3>Body Proportions</h3>
+                <div class="slider-row"><span>Height Scale</span><input type="range" id="val-height" min="0.85" max="1.15" step="0.02" value="1.0"></div>
+                <div class="slider-row"><span>Torso/Shoulders</span><input type="range" id="val-torso" min="0.8" max="1.3" step="0.05" value="1.0"></div>
+                
+                <!-- Girl Specific: Chest -->
+                <div class="slider-row hidden" id="chest-control"><span>Chest / Breast Size</span><input type="range" id="val-chest" min="0.5" max="1.5" step="0.05" value="1.0"></div>
+                
+                <!-- Pelvis/Glutes -->
+                <div class="slider-row"><span>Pelvis & Hips</span><input type="range" id="val-pelvis" min="0.8" max="1.4" step="0.05" value="1.0"></div>
             </div>
 
-            <div class="control-group" id="gender-specific-controls">
-                <h3>Facial Features</h3>
-                <div class="slider-row">
-                    <span>Eye Size</span>
-                    <input type="range" id="val-eyes" min="1" max="4" step="0.5" value="2">
-                </div>
-                <div class="slider-row">
-                    <span>Lip Size</span>
-                    <input type="range" id="val-lips" min="1" max="5" step="0.5" value="2">
-                </div>
+            <div class="control-section">
+                <h3>Clothing</h3>
+                <div class="slider-row"><span>Top Color</span><input type="color" id="val-shirt" value="#3b82f6"></div>
+                <div class="slider-row"><span>Bottom Color</span><input type="color" id="val-pants" value="#0f172a"></div>
             </div>
 
-            <button class="btn-save" onclick="saveCharacter()">💾 SAVE & GO TO LOBBY</button>
+            <button class="btn-save" onclick="saveCharacter()">💾 Confirm & Enter</button>
         </div>
     </div>
 
     <script type="module" src="js/character-editor.js"></script>
 </body>
 </html>
-
