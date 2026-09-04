@@ -43,12 +43,12 @@ let bodyMesh = null;
 let mixer = null;
 const clock = new THREE.Clock();
 
-// 4. Load Custom 3D Model (.glb) and Default Animation (.fbx)
+// 4. Load Custom 3D Model (.glb) and Default Animation (.fbx) using GitHub Raw Links
 const gltfLoader = new GLTFLoader();
 const fbxLoader = new FBXLoader();
 
-const modelURL = 'assets/ee654438-4e51-4637-a703-1e2188cea38e.glb';
-const idleAnimURL = 'assets/ee654438-4e51-4637-a703-1e2188cea38e_Idle_bouncing_fight.fbx';
+const modelURL = 'https://raw.githubusercontent.com/hacker2003/Game/main/Game/assets/ee654438-4e51-4637-a703-1e2188cea38e.glb';[span_0](start_span)[span_0](end_span)
+const idleAnimURL = 'https://raw.githubusercontent.com/hacker2003/Game/main/Game/assets/ee654438-4e51-4637-a703-1e2188cea38e_Idle_bouncing_fight.fbx';[span_1](start_span)[span_1](end_span)
 
 gltfLoader.load(
     modelURL,
