@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>True 3D Character Engine</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #32b2e8; }
+        canvas { display: block; }
+        .loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-family: sans-serif; font-weight: bold; font-size: 24px; }
+    </style>
+</head>
+<body>
+
+    <div id="loading-text" class="loading">Loading 3D Model...</div>
+
+    <!-- Three.js aur GLTF Loader import kar rahe hain -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+        // 1. Scene Setup
+        const scene = new THREE.Scene();
+        // Background color (matching your image)
+        scene.background = new THREE.Color('#32b2e8'); 
+
+        // 2. Camera Setup
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 1.5, 4); // Camera ko character ke samne set kiya
+
+        // 3. Renderer Setup
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true; // Shadows on
+        document.body.appendChild(renderer.domElement);
+
+        // 4. Lighting (Ultra Realistic Setup)
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); // Base light
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5); // Sun light
+        directionalLight.position.set(5, 5, 5);
+        directionalLight.castShadow = true;
+        scene.add(directionalLight);
+
+        const fillLight = new THREE.DirectionalLight(0xe0eaff, 0.5); // Blue-ish fill light
+        fillLight.position.set(-5, 3, -5);
+        scene.add(fillLight);
+
+        // 5. Controls (Mouse se ghumane ke liye)
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.target.set(0, 1, 0); // Character ki kamar/chest par focus
+
+        // 6. Load the 3D Model (.glb file)
+        const loader = new GLTFLoader();
+        
+        // YAHAN APNE 3D MODEL KA NAAM DALO
+        const modelPath = 'your_character_model.glb'; 
+
+        loader.load(
+            modelPath,
+            function (gltf) {
+                const model = gltf.scene;
+                
+                // Model ko center aur scale karo
+                model.position.set(0, 0, 0);
+                model.scale.set(1, 1, 1);
+                
+                // Shadows on for realistic look
+                model.traverse((node) => {
+                    if (node.isMesh) {
+                        node.castShadow = true;
+                        node.receiveShadow = true;
+                    }
+                });
+
+                scene.add(model);
+                document.getElementById('loading-text').style.display = 'none';
+            },
+            function (xhr) {
+                console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+            },
+            function (error) {
+                console.error('Error loading model:', error);
+                document.getElementById('loading-text').innerText = "Model load fail ho gaya. File path check karo!";
+            }
+        );
+
+        // 7. Animation Loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update(); // Mouse movement update
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // 8. Window Resize Handler
+        window.addEventListener('resize', onWindowResize, false);
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+    </script>
+</body>
+</html>
+
