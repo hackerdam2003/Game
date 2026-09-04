@@ -10,28 +10,40 @@
         
         #game-canvas { display: block; width: 100%; height: 100%; background: #0f172a; }
 
+        /* Enter Screen */
         #enter-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.95); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-        .enter-btn { background: #3b82f6; color: white; border: none; padding: 15px 40px; font-size: 20px; font-weight: 900; border-radius: 30px; cursor: pointer; box-shadow: 0 0 20px rgba(59,130,246,0.5); text-transform: uppercase; }
+        .enter-btn { background: #3b82f6; color: white; border: none; padding: 15px 40px; font-size: 20px; font-weight: bold; border-radius: 30px; cursor: pointer; text-transform: uppercase; }
 
         #hud { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
         
-        .hud-profile { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.5); padding: 5px 15px; border-radius: 20px; border: 1px solid #334155; display: flex; align-items: center; gap: 10px; pointer-events: auto; backdrop-filter: blur(5px); }
-        .hud-profile .hp-bar { width: 100px; height: 6px; background: #334; border-radius: 3px; overflow: hidden; }
-        .hud-profile .hp-fill { width: 100%; height: 100%; background: #10b981; }
-
-        .hud-minimap { position: absolute; top: 20px; right: 20px; width: 120px; height: 120px; background: rgba(30,41,59,0.7); border: 2px solid #3b82f6; border-radius: 50%; pointer-events: auto; backdrop-filter: blur(5px); }
-
-        .joystick-zone { position: absolute; bottom: 30px; left: 40px; width: 140px; height: 140px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); pointer-events: auto; display: flex; align-items: center; justify-content: center; }
-        .joystick-knob { width: 50px; height: 50px; background: rgba(255,255,255,0.6); border-radius: 50%; pointer-events: none; transform: translate(0px, 0px); }
-
-        .action-cluster { position: absolute; bottom: 30px; right: 40px; pointer-events: auto; width: 200px; height: 200px; }
-        .btn-action { position: absolute; background: rgba(0,0,0,0.6); border: 2px solid rgba(255,255,255,0.4); border-radius: 50%; color: white; font-weight: bold; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); transition: 0.1s; }
-        .btn-action:active { background: rgba(255,255,255,0.4); transform: scale(0.9); }
+        /* Top Left: Team List & Health */
+        .hud-team-container { position: absolute; top: 15px; left: 15px; display: flex; flex-direction: column; gap: 8px; pointer-events: auto; }
+        .hud-profile { background: rgba(0,0,0,0.6); padding: 5px 12px; border-radius: 15px; border: 1px solid #334155; display: flex; align-items: center; gap: 10px; backdrop-filter: blur(5px); }
+        .hp-bar { width: 100px; height: 6px; background: #334; border-radius: 3px; overflow: hidden; }
+        .hp-fill { width: 100%; height: 100%; background: #10b981; }
         
-        .btn-main { width: 80px; height: 80px; bottom: 10px; right: 10px; font-size: 24px; }
-        .btn-skill { width: 55px; height: 55px; bottom: 100px; right: 30px; font-size: 18px; }
-        .btn-jump { width: 55px; height: 55px; bottom: 30px; right: 100px; font-size: 18px; }
-        .btn-dash { width: 45px; height: 45px; bottom: 110px; right: 100px; font-size: 14px; }
+        /* Top Right: Minimap & Mic/Chat Icons */
+        .top-right-controls { position: absolute; top: 15px; right: 15px; display: flex; gap: 15px; align-items: flex-start; pointer-events: auto; }
+        .icon-btn-game { width: 45px; height: 45px; background: rgba(30,41,59,0.8); border: 2px solid #334155; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; backdrop-filter: blur(5px); }
+        .hud-minimap { width: 100px; height: 100px; background: rgba(30,41,59,0.7); border: 2px solid #3b82f6; border-radius: 50%; }
+
+        /* In-Game Chat Box */
+        #game-chat-box { position: absolute; bottom: 30px; left: 200px; width: 250px; height: 150px; background: rgba(0,0,0,0.5); border: 1px solid #334155; border-radius: 10px; display: none; flex-direction: column; pointer-events: auto; backdrop-filter: blur(5px); }
+        .chat-msgs { flex: 1; overflow-y: auto; padding: 5px; color: white; font-size: 11px; }
+        .chat-input-row { display: flex; border-top: 1px solid #334; }
+        .chat-input-row input { flex: 1; background: transparent; border: none; color: white; padding: 5px; outline: none; font-size: 12px; }
+        .chat-input-row button { background: #3b82f6; border: none; color: white; padding: 5px 10px; border-radius: 0 0 10px 0; }
+
+        /* Controls */
+        .joystick-zone { position: absolute; bottom: 20px; left: 30px; width: 130px; height: 130px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); pointer-events: auto; display: flex; align-items: center; justify-content: center; }
+        .joystick-knob { width: 45px; height: 45px; background: rgba(255,255,255,0.6); border-radius: 50%; pointer-events: none; }
+
+        .action-cluster { position: absolute; bottom: 20px; right: 30px; pointer-events: auto; width: 180px; height: 180px; }
+        .btn-action { position: absolute; background: rgba(0,0,0,0.6); border: 2px solid rgba(255,255,255,0.4); border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); transition: 0.1s; }
+        .btn-action:active { background: rgba(255,255,255,0.4); transform: scale(0.9); }
+        .btn-main { width: 70px; height: 70px; bottom: 10px; right: 10px; font-size: 24px; }
+        .btn-skill { width: 50px; height: 50px; bottom: 90px; right: 20px; font-size: 18px; }
+        .btn-jump { width: 50px; height: 50px; bottom: 20px; right: 90px; font-size: 18px; }
     </style>
 </head>
 <body>
@@ -43,15 +55,26 @@
     <canvas id="game-canvas"></canvas>
 
     <div id="hud">
-        <div class="hud-profile">
-            <span style="font-size: 20px;">👦</span>
-            <div style="color: white;">
-                <div style="font-size: 12px; font-weight: bold; margin-bottom: 3px;" id="player-name-hud">Loading...</div>
-                <div class="hp-bar"><div class="hp-fill"></div></div>
-            </div>
+        <!-- Dynamic Team List -->
+        <div class="hud-team-container" id="team-hud-list">
+            <!-- Inject by JS -->
         </div>
 
-        <div class="hud-minimap"></div>
+        <!-- Top Right Controls -->
+        <div class="top-right-controls">
+            <div class="icon-btn-game" id="btn-mic-toggle" onclick="toggleVoiceChat()">🔇</div>
+            <div class="icon-btn-game" onclick="toggleGameChat()">💬</div>
+            <div class="hud-minimap"></div>
+        </div>
+
+        <!-- In-Game Chat Overlay -->
+        <div id="game-chat-box">
+            <div class="chat-msgs" id="in-game-msgs"><i>Welcome to Open World...</i></div>
+            <div class="chat-input-row">
+                <input type="text" id="game-chat-input" placeholder="Team message...">
+                <button onclick="sendGameChat()">Send</button>
+            </div>
+        </div>
 
         <div class="joystick-zone" id="joystick-base">
             <div class="joystick-knob" id="joystick-knob"></div>
@@ -61,11 +84,32 @@
             <div class="btn-action btn-main" id="btn-attack">⚔️</div>
             <div class="btn-action btn-skill" id="btn-skill">🔥</div>
             <div class="btn-action btn-jump" id="btn-jump">⬆️</div>
-            <div class="btn-action btn-dash" id="btn-dash">💨</div>
         </div>
     </div>
 
+    <!-- Load Socket & Both Voice/Engine modules -->
     <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // Setup dual connection for Game (world) and Voice/Chat (default)
+        window.socket = io(); // For Voice/Chat
+        window.gameSocket = io('/world'); // For Movement
+    </script>
+    <script type="module" src="js/voice.js"></script> 
     <script type="module" src="js/engine.js"></script> 
+
+    <script>
+        function toggleGameChat() {
+            const box = document.getElementById('game-chat-box');
+            box.style.display = box.style.display === 'flex' ? 'none' : 'flex';
+        }
+        function sendGameChat() {
+            const input = document.getElementById('game-chat-input');
+            if(input.value.trim() !== '') {
+                document.getElementById('in-game-msgs').innerHTML += `<br><b style="color:#3b82f6">You:</b> ${input.value}`;
+                input.value = '';
+                // Future: Add emit for chat here
+            }
+        }
+    </script>
 </body>
 </html>
