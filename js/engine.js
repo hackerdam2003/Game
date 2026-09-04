@@ -2,6 +2,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { renderMinimap } from './minimap.js'; // 🛑 Import minimap module
 
 const engineConfig = {
     apiKey: "AIzaSyCuYPugV4qIsu9ZT9E5l63bFLgIbte_S8I",
@@ -21,7 +22,6 @@ const gameRoomId = urlParams.get('roomId') || "GLOBAL-ROOM";
 
 let myUid = "UID_" + Math.floor(Math.random()*9999);
 let myName = "Racer";
-// 🛑 Default config includes gender correctly
 let myAvatarConfig = { 
     gender: "Boy", skin: "#ffcc99", hair: "#1e293b", 
     topColor: "#3b82f6", bottomColor: "#0f172a", 
@@ -50,10 +50,12 @@ window.enterWorld = async function() {
             if (snap.exists()) {
                 const data = snap.data();
                 myName = data.gameName || "Racer";
-                if (data.gender) myAvatarConfig.gender = data.gender; // Fix gender sync
+                
+                // Properly map gender and avatar configuration
+                if (data.gender) myAvatarConfig.gender = data.gender;
                 if (data.avatarConfig) {
                     myAvatarConfig = { ...myAvatarConfig, ...data.avatarConfig };
-                    if(data.gender) myAvatarConfig.gender = data.gender;
+                    if (data.gender) myAvatarConfig.gender = data.gender;
                 }
             }
         } catch(e) { console.warn("Firebase fetch warning, using defaults"); }
@@ -247,8 +249,8 @@ function renderLoop() {
 
     ctx.restore();
 
-    // 4. Minimap with Smooth Numbered Dots (`1p`, `2p`)
-    renderMinimap();
+    // 4. Render Minimap using modular js/minimap.js
+    renderMinimap(players, myUid);
 
     requestAnimationFrame(renderLoop);
 }
@@ -382,35 +384,4 @@ function drawAdvancedAvatar(ctx, p, isMe, index) {
     }
 
     ctx.restore();
-}
-
-// --- MINIMAP WITH NUMBERED DOTS (`1p`, `2p`) ---
-function renderMinimap() {
-    let minimapHtml = '';
-    const myPlayer = players[myUid];
-    if(!myPlayer) return;
-
-    let index = 1;
-    for (const uid in players) {
-        const p = players[uid];
-        // Smooth scaling calculation relative to local player position
-        let relX = 50 + (p.x - myPlayer.x) * 0.08;
-        let relY = 50 + (p.y - myPlayer.y) * 0.08;
-        
-        if (relX > 5 && relX < 95 && relY > 5 && relY < 95) {
-            minimapHtml += `
-                <div style="position: absolute; left: ${relX}px; top: ${relY}px; transform: translate(-50%, -50%); background: ${uid === myUid ? '#3b82f6' : '#10b981'}; color: white; font-size: 9px; font-weight: bold; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1px solid white;">
-                    ${index}p
-                </div>
-            `;
-        }
-        index++;
-    }
-    
-    const minimapContainer = document.querySelector('.hud-minimap');
-    if(minimapContainer) {
-        minimapContainer.style.position = 'relative';
-        minimapContainer.style.overflow = 'hidden';
-        minimapContainer.innerHTML = minimapHtml;
-    }
 }
