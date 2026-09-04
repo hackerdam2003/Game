@@ -7,6 +7,8 @@ import { fileURLToPath } from 'url';
 
 import { handleRoomEvents, handlePlayerDisconnect, checkAutoRejoin } from './core/roommanager.js';
 import { handleChatEvents } from './core/chatmanager.js'; 
+// 🛑 NAYA IMPORT: Dedicated Game Engine
+import { handleGameWorld } from './core/gameEngine.js'; 
 
 const app = express();
 app.use(cors());
@@ -24,6 +26,9 @@ const httpServer = createServer(app);
 const io = new Server(httpServer, { cors: { origin: "*", methods: ["GET", "POST"] } });
 
 const connectedPlayers = new Map();
+
+// 🚀 START THE DEDICATED GAME ENGINE PIPELINE ('/world')
+handleGameWorld(io);
 
 io.on('connection', (socket) => {
     console.log(`🟢 Socket Connected: ${socket.id}`);
