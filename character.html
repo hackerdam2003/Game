@@ -17,7 +17,7 @@
         /* Left: 3D-Like Preview */
         .preview-box { flex: 1.2; display: flex; justify-content: center; align-items: center; background: radial-gradient(circle, #1e293b 0%, #050505 100%); border-right: 1px solid #1e293b; position: relative; }
         canvas { filter: drop-shadow(0px 20px 30px rgba(0,0,0,0.9)); }
-        .age-toggle { position: absolute; top: 20px; display: flex; background: #0f172a; border-radius: 10px; border: 1px solid #334155; overflow: hidden; }
+        .age-toggle { position: absolute; top: 20px; display: flex; background: #0f172a; border-radius: 10px; border: 1px solid #334155; overflow: hidden; z-index: 10; }
         .age-btn { padding: 10px 20px; cursor: pointer; font-weight: bold; color: #94a3b8; transition: 0.3s; }
         .age-btn.active { background: #3b82f6; color: white; }
 
@@ -74,12 +74,11 @@
                 <div class="slider-row"><span>Total Height</span><input type="range" id="val-height" min="0.8" max="1.2" step="0.02" value="1.0"></div>
                 <div class="slider-row"><span>Head Size</span><input type="range" id="val-headSize" min="0.8" max="1.4" step="0.05" value="1.0"></div>
                 
-                <div class="slider-row" id="boy-muscles"><span>Shoulders & Torso</span><input type="range" id="val-torso" min="0.8" max="1.4" step="0.05" value="1.1"></div>
-                
+                <!-- Dynamic Boy/Girl conditional sliders handled by JS -->
+                <div class="slider-row hidden" id="boy-muscles"><span>Shoulders & Torso</span><input type="range" id="val-torso" min="0.8" max="1.4" step="0.05" value="1.1"></div>
                 <div class="slider-row hidden" id="girl-chest"><span>Breast Size</span><input type="range" id="val-chest" min="0.6" max="1.8" step="0.05" value="1.0"></div>
                 
                 <div class="slider-row"><span>Pelvis & Glutes</span><input type="range" id="val-pelvis" min="0.8" max="1.6" step="0.05" value="1.0"></div>
-                
                 <div class="slider-row"><span>Limb Thickness</span><input type="range" id="val-limbs" min="0.7" max="1.4" step="0.05" value="1.0"></div>
             </div>
 
@@ -93,6 +92,7 @@
         </div>
     </div>
 
+    <!-- Ensure your js/character-editor.js is properly linked to control the canvas and Firebase updates -->
     <script type="module" src="js/character-editor.js"></script>
 </body>
 </html>
