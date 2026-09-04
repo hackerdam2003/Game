@@ -62,6 +62,9 @@ export function handleRoomEvents(socket, io, connectedPlayers) {
             userPartyCache.delete(player.uid); 
             handleHostMigration(data.roomId, player.uid, io, connectedPlayers, socket.id);
             updatePartyMembers(data.roomId, io, connectedPlayers);
+            
+            // WebRTC Call drop karwao baaki logo ke liye
+            socket.to(data.roomId).emit('voice-disconnected', { uid: player.uid });
         }
     });
 
@@ -74,17 +77,16 @@ export function handleRoomEvents(socket, io, connectedPlayers) {
         if (player.partyRoom && player.isPartyHost) {
             const gameRoomId = 'GAME_' + Math.floor(Math.random() * 999999);
             io.to(player.partyRoom).emit('teleportToGame', { gameRoomId: gameRoomId, hostUid: player.uid });
-            publicLobbies.delete(player.partyRoom); // Game start hote hi public search se hata do
+            publicLobbies.delete(player.partyRoom); 
             return;
         }
 
-        // SCENARIO B: Agar Player Lobby me hai par Host nahi hai -> WAIT KAREGA (Ignore)
+        // SCENARIO B: Agar Player Lobby me hai par Host nahi hai -> WAIT KAREGA
         if (player.partyRoom && !player.isPartyHost) return;
 
         // SCENARIO C: Player Solo hai aur Find Match dabaya -> RANDOM AUTO-JOIN
         let joinedExisting = false;
 
-        // Open (khali) lobbies dhundo
         for (const [roomId, roomInfo] of publicLobbies.entries()) {
             const room = io.sockets.adapter.rooms.get(roomId);
             if (room && room.size < 4) { 
@@ -96,11 +98,10 @@ export function handleRoomEvents(socket, io, connectedPlayers) {
                 userPartyCache.set(player.uid, { roomId: roomId, isHost: false });
                 socket.emit('joinedParty', { roomId: roomId });
                 updatePartyMembers(roomId, io, connectedPlayers);
-                break; // Room mil gaya, search stop karo
+                break; 
             }
         }
 
-        // Agar koi open lobby nahi mili -> NAYI LOBBY BANAO AUR HOST BAN JAO
         if (!joinedExisting) {
             const newRoomId = 'PUBLIC_' + Math.random().toString(36).substr(2, 6).toUpperCase();
             socket.join(newRoomId);
@@ -119,11 +120,32 @@ export function handleRoomEvents(socket, io, connectedPlayers) {
         }
     });
 
-    // 🎙️ 5. LIVE VOICE CHAT
-    socket.on('voiceStream', (data) => {
+    // --- 🎙️ 5. WEBRTC LIVE VOICE SIGNALING (NEW ZERO-LATENCY SYSTEM) ---
+    
+    socket.on('voice-ready', () => {
         const player = connectedPlayers.get(socket.id);
         if (player && player.partyRoom) {
-            socket.to(player.partyRoom).emit('receiveVoiceStream', { audioData: data.audioData, uid: player.uid });
+            socket.to(player.partyRoom).emit('voice-ready', { uid: player.uid });
+        }
+    });
+
+    socket.on('voice-disconnected', () => {
+        const player = connectedPlayers.get(socket.id);
+        if (player && player.partyRoom) {
+            socket.to(player.partyRoom).emit('voice-disconnected', { uid: player.uid });
+        }
+    });
+
+    socket.on('webrtc-signal', (data) => {
+        let targetSocketId = null;
+        for (const [sId, pData] of connectedPlayers.entries()) {
+            if (pData.uid === data.targetUid) { targetSocketId = sId; break; }
+        }
+        if (targetSocketId) {
+            io.to(targetSocketId).emit('webrtc-signal', {
+                senderUid: data.senderUid,
+                signalData: data.signalData
+            });
         }
     });
 }
@@ -147,6 +169,9 @@ export function handlePlayerDisconnect(socket, io, connectedPlayers) {
     const player = connectedPlayers.get(socket.id);
     if (player) {
         if (player.partyRoom) {
+            // 🛑 Call drop signal bhejo taaki aawaz atak na jaye
+            socket.to(player.partyRoom).emit('voice-disconnected', { uid: player.uid });
+
             handleHostMigration(player.partyRoom, player.uid, io, connectedPlayers, socket.id);
             socket.leave(player.partyRoom);
             updatePartyMembers(player.partyRoom, io, connectedPlayers);
@@ -161,7 +186,6 @@ function handleHostMigration(roomId, oldHostUid, io, connectedPlayers, disconnec
         cachedOld.isHost = false; 
         const room = io.sockets.adapter.rooms.get(roomId);
         
-        // Agar room khali ho gaya toh public lobbies se hata do
         if (!room || room.size === 0) {
             publicLobbies.delete(roomId);
             return;
@@ -175,7 +199,6 @@ function handleHostMigration(roomId, oldHostUid, io, connectedPlayers, disconnec
                     nextPlayer.isPartyHost = true;
                     const cachedNext = userPartyCache.get(nextPlayer.uid);
                     if (cachedNext) cachedNext.isHost = true;
-                    // Agar public lobby thi, toh naya host record kar lo
                     if (publicLobbies.has(roomId)) publicLobbies.set(roomId, { hostId: sId });
                     break;
                 }
@@ -198,3 +221,4 @@ function updatePartyMembers(roomId, io, connectedPlayers) {
     }
     io.to(roomId).emit('partyUpdated', { roomId: roomId, members: membersList, maxSize: max });
 }
+
