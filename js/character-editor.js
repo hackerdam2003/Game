@@ -1,117 +1,165 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 
-// 1. Core 3D Engine Setup
-const container = document.getElementById('render-container');
-const scene = new THREE.Scene();
+let scene, camera, renderer, controls;
+let characterModel, mixer;
+const clock = new THREE.Clock();
 
-const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
-camera.position.set(0, 1.2, 3); // Position camera looking at character
+// Initialize Scene
+function init() {
+    const container = document.getElementById('render-container');
+    const loadingText = document.getElementById('loading-text');
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-renderer.setSize(container.clientWidth, container.clientHeight);
-renderer.setPixelRatio(window.devicePixelRatio);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Ultra-realistic soft shadows
-container.appendChild(renderer.domElement);
+    // 1. Scene & Camera Setup
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+    camera.position.set(0, 1.5, 3.5);
 
-// 2. AAA Studio Lighting (For Subsurface Skin Glow)
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-scene.add(ambientLight);
+    // 2. WebGL Renderer
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.shadowMap.enabled = true;
+    container.appendChild(renderer.domElement);
 
-const keyLight = new THREE.DirectionalLight(0xffedd5, 1.5); // Warm sun light
-keyLight.position.set(2, 3, 2);
-keyLight.castShadow = true;
-scene.add(keyLight);
+    // 3. Orbit Controls
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.target.set(0, 1, 0);
 
-const rimLight = new THREE.DirectionalLight(0x3b82f6, 1.2); // Blue rim light for 3D pop
-rimLight.position.set(-2, 2, -3);
-scene.add(rimLight);
+    // 4. Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+    scene.add(ambientLight);
 
-// 3. Mouse Camera Controls
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.target.set(0, 0.9, 0); // Look at chest/face level
-controls.minDistance = 1;
-controls.maxDistance = 5;
+    const dirLight = new THREE.DirectionalLight(0xffffff, 2.0);
+    dirLight.position.set(2, 4, 2);
+    dirLight.castShadow = true;
+    scene.add(dirLight);
 
-// 4. Load 3D Model (.glb file)
-let characterModel = null;
-let bodyMesh = null; // To target skin/blendshapes
-const loader = new GLTFLoader();
-
-// 🚨 IMPORTANT: You must provide a highly detailed .glb file here!
-// The file must be rigged and contain "Blendshapes/MorphTargets" for chest, waist, etc.
-const modelURL = 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/RiggedFigure/glTF-Binary/RiggedFigure.glb'; 
-
-loader.load(
-    modelURL,
-    (gltf) => {
+    // 5. Load 3D Character GLB Model[span_2](start_span)[span_2](end_span)
+    const gltfLoader = new GLTFLoader();
+    gltfLoader.load('assets/ee654438-4e51-4637-a703-1e2188cea38e.glb', (gltf) => {
         characterModel = gltf.scene;
         
-        // Setup shadows and find the body mesh
-        characterModel.traverse((node) => {
-            if (node.isMesh) {
-                node.castShadow = true;
-                node.receiveShadow = true;
-                
-                // Improve skin material realism (Physical Material)
-                if (node.material) {
-                    node.material.roughness = 0.4;
-                    node.material.metalness = 0.1;
-                }
-                
-                // Assume the mesh with morph targets is the body
-                if (node.morphTargetDictionary) {
-                    bodyMesh = node; 
-                }
+        // Scale and Position Adjustments
+        characterModel.position.set(0, 0, 0);
+        scene.add(characterModel);
+
+        // Hide loading text once loaded
+        loadingText.style.display = 'none';
+
+        // 6. Load Initial Idle Animation (FBX)[span_3](start_span)[span_3](end_span)
+        loadAnimation('assets/ee654438-4e51-4637-a703-1e2188cea38e_Idle_bouncing_fight.fbx');
+
+        // Setup UI Controls Listeners
+        setupUIControls();
+
+    }, (xhr) => {
+        // Loading Progress
+        const percent = Math.floor((xhr.loaded / xhr.total) * 100);
+        if (percent) loadingText.innerText = `Loading 3D Core... ${percent}%`;
+    }, (error) => {
+        console.error('Error loading model:', error);
+        loadingText.innerText = 'Failed to load 3D model!';
+        loadingText.style.color = '#ef4444';
+    });
+
+    // Window Resize Handler
+    window.addEventListener('resize', onWindowResize);
+    
+    // Start Animation Loop
+    animate();
+}
+
+// Load FBX Animation and bind to Character Mixer
+function animation(animPath) {
+    const fbxLoader = new FBXLoader();
+    fbxLoader.load(animPath, (object) => {
+        if (!mixer) {
+            mixer = new THREE.AnimationMixer(characterModel);
+        }
+        const action = mixer.clipAction(object.animations[0]);
+        action.reset().play();
+    });
+}
+
+function loadAnimation(path) {
+    animation(path);
+}
+
+// Handle UI Sliders & Color Pickers for Morphing/Scaling
+function setupUIControls() {
+    const chestSlider = document.getElementById('morph-chest');
+    const waistSlider = document.getElementById('morph-waist');
+    const hipsSlider = document.getElementById('morph-hips');
+    const skinColorPicker = document.getElementById('color-skin');
+
+    // Bone/Mesh scaling fallback for morphing if blendshapes aren't embedded
+    chestSlider.addEventListener('input', (e) => {
+        const val = e.target.value;
+        // Find skeleton bone or scale mesh parts if needed, e.g., spine/chest bones
+        const spine = characterModel.getObjectByName('spine_02.x'); //
+        if (spine) {
+            const scaleFactor = 0.8 + (val * 0.4);
+            spine.scale.set(scaleFactor, scaleFactor, scaleFactor);
+        }
+    });
+
+    waistSlider.addEventListener('input', (e) => {
+        const val = e.target.value;
+        const spine1 = characterModel.getObjectByName('spine_01.x');
+        if (spine1) {
+            const scaleFactor = 1.2 - (val * 0.4);
+            spine1.scale.x = scaleFactor;
+            spine1.scale.z = scaleFactor;
+        }
+    });
+
+    hipsSlider.addEventListener('input', (e) => {
+        const val = e.target.value;
+        const hips = characterModel.getObjectByName('root.x') || characterModel.getObjectByName('hips');
+        if (hips) {
+            const scaleFactor = 0.8 + (val * 0.4);
+            hips.scale.set(scaleFactor, scaleFactor, scaleFactor);
+        }
+    });
+
+    // Skin Color Texturing Change
+    skinColorPicker.addEventListener('input', (e) => {
+        const hexColor = e.target.value;
+        characterModel.traverse((child) => {
+            if (child.isMesh && child.material) {
+                child.material.color.set(hexColor);
             }
         });
-
-        scene.add(characterModel);
-        document.getElementById('loading-text').style.display = 'none';
-    },
-    undefined,
-    (error) => { console.error("Error loading 3D model:", error); }
-);
-
-// 5. Connect UI Sliders to 3D Morph Targets
-function updateMorphs() {
-    if (!bodyMesh || !bodyMesh.morphTargetDictionary) return;
-    
-    // Example: Map sliders to model's exact Blendshape names (You must configure these names based on your .glb file)
-    const chestVal = parseFloat(document.getElementById('morph-chest').value);
-    const waistVal = parseFloat(document.getElementById('morph-waist').value);
-    
-    // If your 3D artist named the morphs 'BustSize' and 'WaistNarrow'
-    if (bodyMesh.morphTargetDictionary['BustSize'] !== undefined) {
-        bodyMesh.morphTargetInfluences[bodyMesh.morphTargetDictionary['BustSize']] = chestVal;
-    }
+    });
 }
 
-// Attach event listeners
-document.getElementById('morph-chest').addEventListener('input', updateMorphs);
-document.getElementById('morph-waist').addEventListener('input', updateMorphs);
+// Save / Enter World Action
+window.save3DDNA = function() {
+    alert('3D Character DNA Saved Successfully! Entering Game World...');
+    // Redirect or transition to gameplay state here
+};
 
-document.getElementById('color-skin').addEventListener('input', (e) => {
-    if (bodyMesh && bodyMesh.material) {
-        bodyMesh.material.color.set(e.target.value);
-    }
-});
-
-// 6. Rendering Loop
-function animate() {
-    requestAnimationFrame(animate);
-    controls.update();
-    renderer.render(scene, camera);
-}
-animate();
-
-// Handle Window Resize
-window.addEventListener('resize', () => {
+function onWindowResize() {
+    const container = document.getElementById('render-container');
     camera.aspect = container.clientWidth / container.clientHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(container.clientWidth, container.clientHeight);
-});
+}
 
+function animate() {
+    requestAnimationFrame(animate);
+    const delta = clock.getDelta();
+    
+    if (mixer) {
+        mixer.update(delta);
+    }
+
+    controls.update();
+    renderer.render(scene, camera);
+}
+
+init();
