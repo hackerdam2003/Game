@@ -21,7 +21,13 @@ const gameRoomId = urlParams.get('roomId') || "GLOBAL-ROOM";
 
 let myUid = "UID_" + Math.floor(Math.random()*9999);
 let myName = "Racer";
-let myAvatarConfig = { gender: "Boy", skin: "#ffcc99", hair: "#1e293b", topColor: "#3b82f6", bottomColor: "#0f172a", height: 1.0, torso: 1.0, chest: 1.0, pelvis: 1.0, faceShape: 1.0, eyes: 2, hairStyle: 1 }; 
+// 🛑 Default config includes gender correctly
+let myAvatarConfig = { 
+    gender: "Boy", skin: "#ffcc99", hair: "#1e293b", 
+    topColor: "#3b82f6", bottomColor: "#0f172a", 
+    height: 1.0, torso: 1.0, chest: 1.0, pelvis: 1.0, 
+    faceShape: 1.0, eyes: 2, hairStyle: 1 
+}; 
 let players = {}; 
 
 window.enterWorld = async function() {
@@ -36,7 +42,7 @@ window.enterWorld = async function() {
     if(overlay) overlay.style.display = 'none';
     if(hud) hud.style.display = 'block';
     
-    // Fetch user profile and custom avatar config from Firebase safely
+    // 🛑 Fetch user profile and custom avatar config from Firebase safely
     if (auth.currentUser) {
         myUid = auth.currentUser.uid;
         try {
@@ -44,8 +50,11 @@ window.enterWorld = async function() {
             if (snap.exists()) {
                 const data = snap.data();
                 myName = data.gameName || "Racer";
-                if (data.avatarConfig) myAvatarConfig = data.avatarConfig;
-                myAvatarConfig.gender = data.gender || "Boy";
+                if (data.gender) myAvatarConfig.gender = data.gender; // Fix gender sync
+                if (data.avatarConfig) {
+                    myAvatarConfig = { ...myAvatarConfig, ...data.avatarConfig };
+                    if(data.gender) myAvatarConfig.gender = data.gender;
+                }
             }
         } catch(e) { console.warn("Firebase fetch warning, using defaults"); }
     } else {
@@ -64,10 +73,13 @@ function startGameEngine() {
     gameSocket.on('world-state', (serverPlayers) => {
         serverPlayers.forEach(p => { 
             players[p.uid] = p; 
+            if(!players[p.uid].avatarConfig) players[p.uid].avatarConfig = myAvatarConfig;
             players[p.uid].chatBubble = null;
             players[p.uid].attackAnim = 0;
         });
-        if (!players[myUid]) players[myUid] = { uid: myUid, name: myName, x: 500, y: 500, avatarConfig: myAvatarConfig, attackAnim: 0 };
+        if (!players[myUid]) {
+            players[myUid] = { uid: myUid, name: myName, x: 500, y: 500, avatarConfig: myAvatarConfig, attackAnim: 0 };
+        }
         updateTeamHUD();
     });
 
@@ -75,6 +87,8 @@ function startGameEngine() {
         if (players[data.uid]) {
             players[data.uid].x = data.x;
             players[data.uid].y = data.y;
+        } else {
+            players[data.uid] = { uid: data.uid, name: "Racer", x: data.x, y: data.y, avatarConfig: { gender: "Boy" } };
         }
     });
 
@@ -111,9 +125,10 @@ function updateTeamHUD() {
     for (const uid in players) {
         const p = players[uid];
         const isMe = uid === myUid;
+        const genderIcon = p.avatarConfig?.gender === 'Girl' ? '👧' : '👦';
         container.innerHTML += `
             <div class="hud-profile" style="border-color: ${isMe ? '#3b82f6' : '#10b981'}">
-                <span style="font-size: 14px;">${p.avatarConfig?.gender === 'Girl' ? '👧' : '👦'}</span>
+                <span style="font-size: 14px;">${genderIcon}</span>
                 <div style="color: white;">
                     <div style="font-size: 11px; font-weight: bold;">[${index}p] ${p.name} ${isMe ? '(You)' : ''}</div>
                     <div class="hp-bar" style="width: 70px;"><div class="hp-fill"></div></div>
@@ -222,7 +237,7 @@ function renderLoop() {
     // 2. Environment
     drawEnvironment(ctx);
 
-    // 3. Render Custom Characters with Jiggle & Curves
+    // 3. Render Custom Characters with Correct Tags (Name on T-shirt, UID on Head)
     let pIndex = 1;
     for (const uid in players) {
         const p = players[uid];
@@ -232,7 +247,7 @@ function renderLoop() {
 
     ctx.restore();
 
-    // 4. Minimap with Numbered Dots (`1p`, `2p`)
+    // 4. Minimap with Smooth Numbered Dots (`1p`, `2p`)
     renderMinimap();
 
     requestAnimationFrame(renderLoop);
@@ -264,7 +279,7 @@ function drawEnvironment(ctx) {
     ctx.fillText("Premium Cars Showroom", 750, 80);
 }
 
-// --- ADVANCED 2.5D VECTOR ANATOMY & PHYSICS RENDERER ---
+// --- ADVANCED 2.5D VECTOR ANATOMY & TEXT PLACEMENT RENDERER ---
 function drawAdvancedAvatar(ctx, p, isMe, index) {
     const cfg = p.avatarConfig || { gender: 'Boy', skin: '#ffcc99', hair: '#1e293b', topColor: '#3b82f6', bottomColor: '#0f172a', height: 1.0, torso: 1.0, chest: 1.0, pelvis: 1.0, faceShape: 1.0, eyes: 2, hairStyle: 1 };
     const isGirl = (cfg.gender === 'Girl');
@@ -273,33 +288,30 @@ function drawAdvancedAvatar(ctx, p, isMe, index) {
     ctx.translate(p.x, p.y);
     ctx.scale(cfg.height || 1.0, cfg.height || 1.0);
 
-    // Name & Number Tag
-    ctx.fillStyle = 'white';
-    ctx.font = 'bold 12px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText(`[${index}p] ${p.name}`, 0, -80);
+    // 🛑 1. UID directly ABOVE HEAD (at y = -85)
     ctx.fillStyle = '#fbbf24';
-    ctx.font = '10px Arial';
-    ctx.fillText(p.uid.substring(0,8), 0, -68);
+    ctx.font = 'bold 10px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(`UID: ${p.uid.substring(0,8)}`, 0, -85);
 
-    // Chat Bubble Popup
+    // 🛑 2. Chat Bubble Popup (Above UID)
     if (p.chatBubble) {
         ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-        ctx.fillRect(-45, -125, 90, 28);
+        ctx.fillRect(-50, -125, 100, 30);
         ctx.strokeStyle = '#3b82f6';
         ctx.lineWidth = 1;
-        ctx.strokeRect(-45, -125, 90, 28);
+        ctx.strokeRect(-50, -125, 100, 30);
         
         ctx.fillStyle = '#000';
         ctx.font = 'bold 11px Arial';
-        ctx.fillText(p.chatBubble, 0, -107);
+        ctx.fillText(p.chatBubble, 0, -106);
     }
 
     // Shadow
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
     ctx.beginPath(); ctx.ellipse(0, 35, 18, 8, 0, 0, Math.PI*2); ctx.fill();
 
-    // Breathing / Jiggle Effect Offset
+    // Breathing / Jiggle Effect
     let time = Date.now() * 0.005;
     let breath = Math.sin(time + p.x) * 2;
 
@@ -320,7 +332,13 @@ function drawAdvancedAvatar(ctx, p, isMe, index) {
     ctx.quadraticCurveTo(shoulderW, -35 + breath, hipW, 0);
     ctx.fill();
 
-    // Chest / Jiggle Physics volume representation
+    // 🛑 3. NAME DIRECTLY ON THE T-SHIRT (at y = -25)
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 11px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(`[${index}p] ${p.name}`, 0, -25);
+
+    // Chest volume representation
     if (isGirl) {
         let cSize = 10 * (cfg.chest || 1.0);
         ctx.fillStyle = cfg.topColor || '#3b82f6';
@@ -332,12 +350,10 @@ function drawAdvancedAvatar(ctx, p, isMe, index) {
     ctx.fillStyle = cfg.skin || '#ffcc99';
     if (p.attackAnim > 0) {
         p.attackAnim--;
-        // Sword slash swing
         ctx.beginPath(); ctx.ellipse(shoulderW + 12, -45, 6, 25, -0.8, 0, Math.PI*2); ctx.fill();
         ctx.fillStyle = '#94a3b8';
         ctx.fillRect(shoulderW + 15, -60, 6, 35);
     } else {
-        // Normal arms curving down
         ctx.beginPath(); ctx.ellipse(-shoulderW - 5, -35 + breath, 6, 22, 0.2, 0, Math.PI*2); ctx.fill();
         ctx.beginPath(); ctx.ellipse(shoulderW + 5, -35 + breath, 6, 22, -0.2, 0, Math.PI*2); ctx.fill();
     }
@@ -356,7 +372,7 @@ function drawAdvancedAvatar(ctx, p, isMe, index) {
     ctx.fillStyle = p.chatBubble ? '#ef4444' : '#64748b';
     ctx.beginPath(); ctx.arc(0, headY + 8, p.chatBubble ? 3 : 2, 0, Math.PI*2); ctx.fill();
 
-    // Hair
+    // Hair (Correctly rendering Girl buns/hair vs Boy hair based on DNA)
     ctx.fillStyle = cfg.hair || '#1e293b';
     if(isGirl) {
         ctx.beginPath(); ctx.ellipse(0, headY - 12, faceW + 3, 12, 0, 0, Math.PI*2); ctx.fill();
@@ -377,6 +393,7 @@ function renderMinimap() {
     let index = 1;
     for (const uid in players) {
         const p = players[uid];
+        // Smooth scaling calculation relative to local player position
         let relX = 50 + (p.x - myPlayer.x) * 0.08;
         let relY = 50 + (p.y - myPlayer.y) * 0.08;
         
