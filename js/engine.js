@@ -12,7 +12,7 @@ const app = initializeApp(engineConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-console.log("🎮 [Game Engine] Advanced Open World Pro Module Loaded!");
+console.log("🎮 [Game Engine] Advanced Open World & Physics Module Loaded!");
 
 const gameSocket = io('/world'); 
 
@@ -21,7 +21,7 @@ const gameRoomId = urlParams.get('roomId') || "GLOBAL-ROOM";
 
 let myUid = "UID_" + Math.floor(Math.random()*9999);
 let myName = "Racer";
-let myAvatarConfig = {}; 
+let myAvatarConfig = { gender: "Boy", skin: "#ffcc99", hair: "#1e293b", topColor: "#3b82f6", bottomColor: "#0f172a", height: 1.0, torso: 1.0, chest: 1.0, pelvis: 1.0, faceShape: 1.0, eyes: 2, hairStyle: 1 }; 
 let players = {}; 
 
 window.enterWorld = async function() {
@@ -33,10 +33,10 @@ window.enterWorld = async function() {
         if (screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape');
     } catch (err) { console.warn("Fullscreen API skipped"); }
 
-    overlay.style.display = 'none';
-    hud.style.display = 'block';
+    if(overlay) overlay.style.display = 'none';
+    if(hud) hud.style.display = 'block';
     
-    // Fetch user profile and custom avatar config from Firebase before entering
+    // Fetch user profile and custom avatar config from Firebase safely
     if (auth.currentUser) {
         myUid = auth.currentUser.uid;
         try {
@@ -51,10 +51,8 @@ window.enterWorld = async function() {
     } else {
         myUid = window.localStorage.getItem('temp_uid') || myUid;
         myName = window.localStorage.getItem('temp_name') || "Racer";
-        myAvatarConfig = { gender: "Boy", skin: "#ffcc99", hair: "#1e293b", topColor: "#3b82f6", bottomColor: "#0f172a", height: 1.0, torso: 1.0, chest: 1.0, pelvis: 1.0, faceShape: 1.0, eyes: 2, hairStyle: 1 };
     }
 
-    document.getElementById('player-name-hud').innerText = myName;
     if(window.initVoiceSystem) window.initVoiceSystem();
 
     startGameEngine();
@@ -83,7 +81,7 @@ function startGameEngine() {
     gameSocket.on('player-action', (data) => {
         if (players[data.uid]) {
             if (data.action === 'attack') {
-                players[data.uid].attackAnim = 15; // Trigger sword swing frames
+                players[data.uid].attackAnim = 15; 
             }
         }
     });
@@ -106,6 +104,7 @@ function startGameEngine() {
 
 function updateTeamHUD() {
     const container = document.getElementById('team-hud-list');
+    if(!container) return;
     container.innerHTML = '';
     let index = 1;
     
@@ -132,6 +131,8 @@ let speed = 6;
 function setupJoystick() {
     const base = document.getElementById('joystick-base');
     const knob = document.getElementById('joystick-knob');
+    if(!base || !knob) return;
+    
     let isDragging = false;
     let center = { x: 0, y: 0 };
 
@@ -161,7 +162,7 @@ function setupJoystick() {
     }
 }
 
-// --- ATTACK / FIRE BUTTON LISTENER ---
+// --- ATTACK / FIRE BUTTON ---
 const btnAttack = document.getElementById('btn-attack');
 if(btnAttack) {
     btnAttack.addEventListener('touchstart', () => {
@@ -175,10 +176,11 @@ if(btnAttack) {
 
 // --- RENDER LOOP ---
 const canvas = document.getElementById('game-canvas');
-const ctx = canvas.getContext('2d');
+const ctx = canvas ? canvas.getContext('2d') : null;
 let camX = 0, camY = 0;
 
 function renderLoop() {
+    if(!canvas || !ctx) return;
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -189,12 +191,12 @@ function renderLoop() {
             let nextX = myPlayer.x + moveVector.x * speed;
             let nextY = myPlayer.y + moveVector.y * speed;
             
-            // 🛑 COLLISION PUSH LOGIC (Dhakka dena / Touching barrier)
+            // 🛑 COLLISION PUSH LOGIC (Dhakka dena)
             for (const uid in players) {
                 if (uid === myUid) continue;
                 const other = players[uid];
                 let dist = Math.hypot(nextX - other.x, nextY - other.y);
-                if (dist < 40) { // Push back if too close
+                if (dist < 40) { 
                     nextX -= moveVector.x * speed * 0.6;
                     nextY -= moveVector.y * speed * 0.6;
                 }
@@ -217,27 +219,26 @@ function renderLoop() {
     for(let i=-3000; i<3000; i+=80) { ctx.beginPath(); ctx.moveTo(i,-3000); ctx.lineTo(i,3000); ctx.stroke(); }
     for(let i=-3000; i<3000; i+=80) { ctx.beginPath(); ctx.moveTo(-3000,i); ctx.lineTo(3000,i); ctx.stroke(); }
 
-    // 2. Draw Environment
+    // 2. Environment
     drawEnvironment(ctx);
 
-    // 3. Render All Customized Characters
+    // 3. Render Custom Characters with Jiggle & Curves
     let pIndex = 1;
     for (const uid in players) {
         const p = players[uid];
-        drawCustomizedAvatar(ctx, p, uid === myUid, pIndex);
+        drawAdvancedAvatar(ctx, p, uid === myUid, pIndex);
         pIndex++;
     }
 
     ctx.restore();
 
-    // 4. Render Minimap with Numbered Dots (`1p`, `2p`)
+    // 4. Minimap with Numbered Dots (`1p`, `2p`)
     renderMinimap();
 
     requestAnimationFrame(renderLoop);
 }
 
 function drawEnvironment(ctx) {
-    // --- Safe House ---
     ctx.fillStyle = '#451a03'; 
     ctx.fillRect(200, 100, 250, 200);
     ctx.fillStyle = '#000'; 
@@ -246,7 +247,6 @@ function drawEnvironment(ctx) {
     ctx.font = 'bold 20px Arial';
     ctx.fillText("Safe House", 325, 90);
 
-    // --- Car Showroom ---
     ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
     ctx.fillRect(700, 100, 400, 250);
     ctx.strokeStyle = '#3b82f6';
@@ -261,11 +261,11 @@ function drawEnvironment(ctx) {
     
     ctx.fillStyle = '#3b82f6';
     ctx.font = 'bold 24px Arial';
-    ctx.fillText("Premium Cars (Buy with Coins)", 750, 80);
+    ctx.fillText("Premium Cars Showroom", 750, 80);
 }
 
-// --- ADVANCED CUSTOMIZED AVATAR RENDERER (DNA Sync) ---
-function drawCustomizedAvatar(ctx, p, isMe, index) {
+// --- ADVANCED 2.5D VECTOR ANATOMY & PHYSICS RENDERER ---
+function drawAdvancedAvatar(ctx, p, isMe, index) {
     const cfg = p.avatarConfig || { gender: 'Boy', skin: '#ffcc99', hair: '#1e293b', topColor: '#3b82f6', bottomColor: '#0f172a', height: 1.0, torso: 1.0, chest: 1.0, pelvis: 1.0, faceShape: 1.0, eyes: 2, hairStyle: 1 };
     const isGirl = (cfg.gender === 'Girl');
 
@@ -273,77 +273,96 @@ function drawCustomizedAvatar(ctx, p, isMe, index) {
     ctx.translate(p.x, p.y);
     ctx.scale(cfg.height || 1.0, cfg.height || 1.0);
 
-    // Name & [1p] Tag
+    // Name & Number Tag
     ctx.fillStyle = 'white';
     ctx.font = 'bold 12px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText(`[${index}p] ${p.name}`, 0, -55);
+    ctx.fillText(`[${index}p] ${p.name}`, 0, -80);
     ctx.fillStyle = '#fbbf24';
     ctx.font = '10px Arial';
-    ctx.fillText(p.uid.substring(0,8), 0, -43);
+    ctx.fillText(p.uid.substring(0,8), 0, -68);
 
-    // Speech / Chat Bubble Popup
+    // Chat Bubble Popup
     if (p.chatBubble) {
         ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-        ctx.fillRect(-45, -95, 90, 28);
+        ctx.fillRect(-45, -125, 90, 28);
         ctx.strokeStyle = '#3b82f6';
         ctx.lineWidth = 1;
-        ctx.strokeRect(-45, -95, 90, 28);
+        ctx.strokeRect(-45, -125, 90, 28);
         
         ctx.fillStyle = '#000';
         ctx.font = 'bold 11px Arial';
-        ctx.fillText(p.chatBubble, 0, -77);
+        ctx.fillText(p.chatBubble, 0, -107);
     }
 
     // Shadow
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.beginPath(); ctx.ellipse(0, 20, 16, 8, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, 35, 18, 8, 0, 0, Math.PI*2); ctx.fill();
 
-    // Legs / Pants
+    // Breathing / Jiggle Effect Offset
+    let time = Date.now() * 0.005;
+    let breath = Math.sin(time + p.x) * 2;
+
+    // Legs
     ctx.fillStyle = cfg.bottomColor || '#0f172a';
-    ctx.fillRect(-10, 5, 8, 18);
-    ctx.fillRect(2, 5, 8, 18);
+    ctx.beginPath(); ctx.ellipse(-10, 15, 7, 25, 0.05, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(10, 15, 7, 25, -0.05, 0, Math.PI*2); ctx.fill();
 
-    // Torso / Shirt
+    // Torso / Hourglass Body
     ctx.fillStyle = cfg.topColor || '#3b82f6';
-    let tW = 24 * (cfg.torso || 1.0);
-    ctx.fillRect(-tW/2, -20, tW, 28);
+    let shoulderW = 22 * (cfg.torso || 1.0) * (isGirl ? 0.85 : 1.1);
+    let hipW = 20 * (cfg.pelvis || 1.0) * (isGirl ? 1.2 : 0.9);
+    
+    ctx.beginPath();
+    ctx.moveTo(-hipW, 0);
+    ctx.quadraticCurveTo(-shoulderW, -35 + breath, -shoulderW, -55 + breath);
+    ctx.lineTo(shoulderW, -55 + breath);
+    ctx.quadraticCurveTo(shoulderW, -35 + breath, hipW, 0);
+    ctx.fill();
+
+    // Chest / Jiggle Physics volume representation
+    if (isGirl) {
+        let cSize = 10 * (cfg.chest || 1.0);
+        ctx.fillStyle = cfg.topColor || '#3b82f6';
+        ctx.beginPath(); ctx.ellipse(-7, -40 + breath, cSize, cSize*0.8, -0.1, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(7, -40 + breath, cSize, cSize*0.8, 0.1, 0, Math.PI*2); ctx.fill();
+    }
 
     // Arms & Sword Attack Animation
     ctx.fillStyle = cfg.skin || '#ffcc99';
     if (p.attackAnim > 0) {
         p.attackAnim--;
-        // Sword attack slash swing
+        // Sword slash swing
+        ctx.beginPath(); ctx.ellipse(shoulderW + 12, -45, 6, 25, -0.8, 0, Math.PI*2); ctx.fill();
         ctx.fillStyle = '#94a3b8';
-        ctx.fillRect(tW/2 + 4, -30, 4, 30);
-        ctx.fillStyle = '#ef4444';
-        ctx.fillRect(tW/2 + 2, -10, 10, 4);
+        ctx.fillRect(shoulderW + 15, -60, 6, 35);
     } else {
-        // Normal Arms
-        ctx.fillRect(-tW/2 - 10, -18, 8, 22);
-        ctx.fillRect(tW/2 + 2, -18, 8, 22);
+        // Normal arms curving down
+        ctx.beginPath(); ctx.ellipse(-shoulderW - 5, -35 + breath, 6, 22, 0.2, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(shoulderW + 5, -35 + breath, 6, 22, -0.2, 0, Math.PI*2); ctx.fill();
     }
 
     // Head
     ctx.fillStyle = cfg.skin || '#ffcc99';
-    ctx.beginPath(); ctx.arc(0, -30, 14, 0, Math.PI*2); ctx.fill();
+    let headY = -70 + breath;
+    let faceW = 16 * (cfg.faceShape || 1.0);
+    ctx.beginPath(); ctx.ellipse(0, headY, faceW, 20, 0, 0, Math.PI*2); ctx.fill();
 
     // Eyes & Mouth
     ctx.fillStyle = '#000';
-    ctx.beginPath(); ctx.arc(-4, -33, cfg.eyes || 2, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(4, -33, cfg.eyes || 2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-5, headY - 2, cfg.eyes || 2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(5, headY - 2, cfg.eyes || 2, 0, Math.PI*2); ctx.fill();
     
-    // Mouth open if chatting
     ctx.fillStyle = p.chatBubble ? '#ef4444' : '#64748b';
-    ctx.beginPath(); ctx.arc(0, -23, p.chatBubble ? 3 : 2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, headY + 8, p.chatBubble ? 3 : 2, 0, Math.PI*2); ctx.fill();
 
     // Hair
     ctx.fillStyle = cfg.hair || '#1e293b';
     if(isGirl) {
-        ctx.beginPath(); ctx.arc(0, -36, 15, Math.PI, Math.PI*2); ctx.fill();
-        ctx.fillRect(-14, -38, 6, 18); ctx.fillRect(8, -38, 6, 18);
+        ctx.beginPath(); ctx.ellipse(0, headY - 12, faceW + 3, 12, 0, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(0, headY - 22, 10, 8, 0, 0, Math.PI*2); ctx.fill(); // Bun
     } else {
-        ctx.beginPath(); ctx.arc(0, -36, 14, Math.PI*1.1, Math.PI*1.9); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(0, headY - 12, faceW, 9, 0, Math.PI, Math.PI*2); ctx.fill();
     }
 
     ctx.restore();
@@ -378,4 +397,3 @@ function renderMinimap() {
         minimapContainer.innerHTML = minimapHtml;
     }
 }
-
