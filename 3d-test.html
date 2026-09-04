@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Character Engine - Live Test</title>
+    <title>True 3D Character Engine</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #32b2e8; font-family: 'Segoe UI', sans-serif; }
         canvas { display: block; }
-        .loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-weight: bold; font-size: 20px; text-shadow: 2px 2px 5px rgba(0,0,0,0.5); display: none; z-index: 100; }
+        .loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-weight: bold; font-size: 24px; text-shadow: 2px 2px 5px rgba(0,0,0,0.5); display: none; z-index: 100; }
         
         /* Premium UI Controls */
         .ui-panel { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 15px; backdrop-filter: blur(5px); z-index: 100; }
@@ -19,7 +19,7 @@
 </head>
 <body>
 
-    <div id="loading-text" class="loading">Loading Character... Please wait</div>
+    <div id="loading-text" class="loading">Loading 3D Model...</div>
 
     <!-- UI Buttons to switch characters -->
     <div class="ui-panel">
@@ -42,75 +42,71 @@
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-        // 1. Scene & Camera Setup
+        // 1. Scene Setup
         const scene = new THREE.Scene();
         scene.background = new THREE.Color('#32b2e8'); 
-        
-        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-        camera.position.set(0, 1.2, 3.5); // Camera set in front of character
 
-        // 2. Renderer Setup
+        // 2. Camera Setup
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 1.5, 4); 
+
+        // 3. Renderer Setup
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.shadowMap.enabled = true; 
         document.body.appendChild(renderer.domElement);
 
-        // 3. Premium Lighting Setup (For realistic shadows and skin glow)
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); 
+        // 4. Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); 
         scene.add(ambientLight);
 
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2); 
-        directionalLight.position.set(2, 5, 3);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5); 
+        directionalLight.position.set(5, 5, 5);
         directionalLight.castShadow = true;
         scene.add(directionalLight);
 
-        const fillLight = new THREE.DirectionalLight(0xe0eaff, 0.6); 
-        fillLight.position.set(-5, 2, -5);
+        const fillLight = new THREE.DirectionalLight(0xe0eaff, 0.5); 
+        fillLight.position.set(-5, 3, -5);
         scene.add(fillLight);
 
-        // 4. Mouse Controls
+        // 5. Controls
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
-        controls.target.set(0, 1, 0); // Focus on waist/chest
-        controls.minDistance = 1;     // Zoom in limit
-        controls.maxDistance = 6;     // Zoom out limit
-        controls.maxPolarAngle = Math.PI / 1.5; // Prevent camera from going under the floor
+        controls.target.set(0, 1, 0); 
+        controls.minDistance = 1;
+        controls.maxDistance = 6;
+        controls.maxPolarAngle = Math.PI / 1.5;
 
-        // 5. Model Loader System (With Live Internet Links)
+        // 6. Model Loader System (Updated with 100% working GitHub links)
         const loader = new GLTFLoader();
         let currentModel = null;
 
-        // 🔥 Live CDN Links for High-Quality 3D Models
+        // 🔥 Ultra-Reliable Direct Links for Testing
         const models = {
-            boy: 'https://models.readyplayer.me/64babcc2b0126957a2bd9a87.glb',
-            girl: 'https://models.readyplayer.me/64babc88b0126957a2bd9a69.glb'
+            boy: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/CesiumMan/glTF-Binary/CesiumMan.glb', // 3D Man in a suit
+            girl: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/BrainStem/glTF-Binary/BrainStem.glb' // 3D Robot
         };
 
-        // Global function so buttons can access it
         window.loadCharacter = function(type) {
             document.getElementById('loading-text').style.display = 'block';
 
-            // Remove old model if it exists
             if(currentModel) {
                 scene.remove(currentModel);
             }
 
-            // Load new model
             loader.load(
                 models[type],
                 function (gltf) {
                     currentModel = gltf.scene;
-                    
-                    // Center positioning
                     currentModel.position.set(0, 0, 0);
+                    currentModel.scale.set(1, 1, 1);
                     
-                    // Enable shadows for the model
                     currentModel.traverse((node) => {
                         if (node.isMesh) {
                             node.castShadow = true;
                             node.receiveShadow = true;
-                            if(node.material) node.material.roughness = 0.6; // Better skin reflection
+                            if(node.material) node.material.roughness = 0.6;
                         }
                     });
 
@@ -118,20 +114,19 @@
                     document.getElementById('loading-text').style.display = 'none';
                 },
                 function (xhr) {
-                    // Optional loading progress log
                     // console.log((xhr.loaded / xhr.total * 100) + '% loaded');
                 },
                 function (error) {
                     console.error('Error loading model:', error);
-                    document.getElementById('loading-text').innerText = "Failed to load character! Check internet connection.";
+                    document.getElementById('loading-text').innerText = "Model load fail ho gaya. Internet connection check karein!";
                 }
             );
         };
 
-        // Load Default Character (Boy) automatically on start
+        // Load Default
         window.loadCharacter('boy');
 
-        // 6. Animation Loop
+        // 7. Animation Loop
         function animate() {
             requestAnimationFrame(animate);
             controls.update(); 
@@ -139,12 +134,13 @@
         }
         animate();
 
-        // 7. Window Resize Handler
-        window.addEventListener('resize', () => {
+        // 8. Window Resize Handler
+        window.addEventListener('resize', onWindowResize, false);
+        function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
-        });
+        }
     </script>
 </body>
 </html>
