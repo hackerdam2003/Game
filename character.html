@@ -2,112 +2,68 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Racing Universe | Ultra-Realistic Body Foundry</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultra-Realistic 3D Body Foundry</title>
     <style>
-        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { margin: 0; background: #030712; color: #f3f4f6; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { margin: 0; background: #000; color: white; display: flex; height: 100vh; overflow: hidden; }
         
-        header { background: #0f172a; padding: 12px 20px; text-align: center; font-size: 15px; font-weight: 900; border-bottom: 2px solid #3b82f6; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center; letter-spacing: 1px;}
-        .coin-display { background: linear-gradient(135deg, #fbbf24, #d97706); color: #000; padding: 4px 12px; border-radius: 20px; font-weight: 900; font-size: 12px; box-shadow: 0 0 10px rgba(251,191,36,0.4); }
+        /* Left: 3D Render Area */
+        #render-container { flex: 1.5; position: relative; background: radial-gradient(circle, #1e293b 0%, #000 100%); }
         
-        .main-container { display: flex; flex: 1; overflow: hidden; flex-direction: row; }
-        @media (max-width: 768px) { .main-container { flex-direction: column; } }
+        /* Right: 3D Blendshape Controls */
+        .controls-box { flex: 1; padding: 20px; background: #0b0f19; overflow-y: auto; border-left: 1px solid #1f2937; }
+        h3 { color: #38bdf8; font-size: 12px; text-transform: uppercase; border-bottom: 1px solid #1f2937; padding-bottom: 5px; }
+        .slider-row { display: flex; align-items: center; margin-bottom: 15px; font-size: 12px; font-weight: bold; }
+        .slider-row span { width: 120px; color: #9ca3af; }
+        .slider-row input[type=range] { flex: 1; accent-color: #3b82f6; }
         
-        /* Left: Ultra 3D-Illusion Preview Box */
-        .preview-box { flex: 1.2; display: flex; justify-content: center; align-items: center; background: radial-gradient(circle at center, #1e293b 0%, #030712 100%); border-right: 1px solid #1f2937; position: relative; overflow: hidden; }
-        .preview-box::before { content: ''; position: absolute; width: 300px; height: 300px; background: rgba(59, 130, 246, 0.08); border-radius: 50%; filter: blur(60px); pointer-events: none; }
-        canvas { filter: drop-shadow(0px 25px 35px rgba(0,0,0,0.9)); z-index: 2; }
-        
-        .age-toggle { position: absolute; top: 15px; display: flex; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(10px); border-radius: 12px; border: 1px solid #334155; overflow: hidden; z-index: 10; padding: 3px; }
-        .age-btn { padding: 8px 18px; cursor: pointer; font-weight: bold; color: #94a3b8; font-size: 11px; transition: 0.3s; border-radius: 8px; }
-        .age-btn.active { background: #3b82f6; color: white; box-shadow: 0 0 10px rgba(59,130,246,0.5); }
-
-        /* Right: Comprehensive Controls */
-        .controls-box { flex: 1.2; padding: 15px; overflow-y: auto; background: #0b0f19; display: flex; flex-direction: column; gap: 12px; }
-        
-        .control-section { background: #111827; padding: 12px 15px; border-radius: 12px; border: 1px solid #1f2937; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2); }
-        .control-section h3 { margin: 0 0 10px 0; color: #38bdf8; font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; border-bottom: 1px solid #1f2937; padding-bottom: 5px; display: flex; justify-content: space-between; align-items: center;}
-        
-        .slider-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 11px; font-weight: bold; color: #9ca3af; }
-        .slider-row span:first-child { width: 125px; }
-        .slider-row input[type=range] { flex: 1; margin: 0 10px; accent-color: #3b82f6; height: 5px; background: #374151; border-radius: 3px; outline: none; }
-        .slider-val { width: 35px; text-align: right; color: #38bdf8; font-family: monospace; font-size: 11px; }
-        .slider-row input[type=color] { border: none; width: 30px; height: 26px; cursor: pointer; border-radius: 6px; background: transparent; }
-
-        .btn-save { background: linear-gradient(90deg, #10b981, #059669); color: white; border: none; padding: 15px; width: 100%; border-radius: 10px; font-size: 14px; font-weight: 900; cursor: pointer; text-transform: uppercase; box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4); transition: 0.2s; letter-spacing: 1px; margin-top: 5px; }
-        .btn-save:active { transform: scale(0.98); }
-        .hidden { display: none !important; }
+        .loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 20px; font-weight: bold; color: #3b82f6; z-index: 10; pointer-events: none; }
+        .btn-save { background: #10b981; color: white; border: none; padding: 15px; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 20px; }
     </style>
 </head>
 <body>
 
-    <header>
-        <span id="dna-lock" style="font-size: 11px; color: #94a3b8; font-weight: bold;">DNA: Loading...</span>
-        <span>🧬 Ultra-Realistic Body Foundry</span>
-        <div class="coin-display">1500 🪙</div>
-    </header>
-
-    <div class="main-container">
-        <!-- Live Preview -->
-        <div class="preview-box">
-            <div class="age-toggle">
-                <div class="age-btn active" id="btn-adult" onclick="setAge('adult')">ADULT</div>
-                <div class="age-btn" id="btn-kid" onclick="setAge('kid')">KID</div>
-            </div>
-            <canvas id="char-preview" width="400" height="550"></canvas>
-        </div>
-
-        <!-- Comprehensive Customization Sliders -->
-        <div class="controls-box">
-            
-            <!-- 1. Color Palette & Genetics -->
-            <div class="control-section">
-                <h3>🎨 Skin, Hair & Eyes Palette</h3>
-                <div class="slider-row"><span>Skin Tone</span><input type="color" id="val-skin" value="#ffcc99"><span class="slider-val" id="disp-skin">HEX</span></div>
-                <div class="slider-row"><span>Eye Color</span><input type="color" id="val-eyeColor" value="#0ea5e9"><span class="slider-val" id="disp-eyeColor">HEX</span></div>
-                <div class="slider-row"><span>Hair Color</span><input type="color" id="val-hair" value="#27272a"><span class="slider-val" id="disp-hair">HEX</span></div>
-            </div>
-
-            <!-- 2. Facial Features & Head Morphology -->
-            <div class="control-section">
-                <h3>👤 Facial Proportions & Head</h3>
-                <div class="slider-row"><span>Head Size</span><input type="range" id="val-headSize" min="0.8" max="1.4" step="0.05" value="1.0"><span class="slider-val" id="disp-headSize">1.0</span></div>
-                <div class="slider-row"><span>Face Shape (Width)</span><input type="range" id="val-faceShape" min="0.7" max="1.3" step="0.05" value="1.0"><span class="slider-val" id="disp-faceShape">1.0</span></div>
-                <div class="slider-row"><span>Jawline & Chin</span><input type="range" id="val-jaw" min="0.7" max="1.4" step="0.05" value="1.0"><span class="slider-val" id="disp-jaw">1.0</span></div>
-                <div class="slider-row"><span>Lip Fullness</span><input type="range" id="val-lips" min="0.5" max="2.0" step="0.1" value="1.0"><span class="slider-val" id="disp-lips">1.0</span></div>
-                <div class="slider-row"><span>Hairstyle Style</span><input type="range" id="val-hairStyle" min="1" max="3" step="1" value="1"><span class="slider-val" id="disp-hairStyle">1</span></div>
-            </div>
-
-            <!-- 3. Torso, Chest, & Bust Physics Sliders -->
-            <div class="control-section">
-                <h3>🎽 Upper Body & Core (Torso)</h3>
-                <div class="slider-row"><span>Total Height</span><input type="range" id="val-height" min="0.8" max="1.2" step="0.02" value="1.0"><span class="slider-val" id="disp-height">1.0</span></div>
-                <div class="slider-row"><span>Shoulder Width</span><input type="range" id="val-torso" min="0.7" max="1.5" step="0.05" value="1.0"><span class="slider-val" id="disp-torso">1.0</span></div>
-                <div class="slider-row"><span>Waist / Kamar Width</span><input type="range" id="val-waist" min="0.5" max="1.4" step="0.05" value="0.85"><span class="slider-val" id="disp-waist">0.85</span></div>
-                
-                <!-- Girl Specific Chest/Breast Slider -->
-                <div class="slider-row hidden" id="girl-chest"><span>Breast / Bust Size</span><input type="range" id="val-chest" min="0.5" max="2.2" step="0.05" value="1.2"><span class="slider-val" id="disp-chest">1.2</span></div>
-            </div>
-
-            <!-- 4. Lower Body (Pelvis, Hips, Thighs/Legs) -->
-            <div class="control-section">
-                <h3>👖 Lower Body (Hips, Pelvis & Legs)</h3>
-                <div class="slider-row"><span>Pelvis & Hip Width</span><input type="range" id="val-pelvis" min="0.7" max="1.8" step="0.05" value="1.2"><span class="slider-val" id="disp-pelvis">1.2</span></div>
-                <div class="slider-row"><span>Thigh & Leg Volume</span><input type="range" id="val-limbs" min="0.7" max="1.6" step="0.05" value="1.1"><span class="slider-val" id="disp-limbs">1.1</span></div>
-            </div>
-
-            <!-- 5. Outfit Customization -->
-            <div class="control-section">
-                <h3>👔 Wardrobe / Outfits</h3>
-                <div class="slider-row"><span>Top Color</span><input type="color" id="val-topColor" value="#3b82f6"><span class="slider-val" id="disp-topColor">HEX</span></div>
-                <div class="slider-row"><span>Bottom Color</span><input type="color" id="val-bottomColor" value="#0f172a"><span class="slider-val" id="disp-bottomColor">HEX</span></div>
-            </div>
-
-            <button class="btn-save" onclick="saveCharacter()">💾 Save DNA & Enter World</button>
-        </div>
+    <div id="render-container">
+        <div id="loading-text" class="loading">Loading Ultra 3D Core...</div>
+        <!-- 3D Canvas will be injected here by Three.js -->
     </div>
 
+    <div class="controls-box">
+        <h3>🧬 3D Anatomy Morphing</h3>
+        <p style="font-size: 10px; color: #ef4444;">*Requires 3D .glb model with Blendshapes</p>
+        
+        <div class="slider-row">
+            <span>Chest / Bust Volume</span>
+            <input type="range" id="morph-chest" min="0" max="1" step="0.01" value="0.5">
+        </div>
+        <div class="slider-row">
+            <span>Waist Narrowing</span>
+            <input type="range" id="morph-waist" min="0" max="1" step="0.01" value="0.5">
+        </div>
+        <div class="slider-row">
+            <span>Hip / Glute Size</span>
+            <input type="range" id="morph-hips" min="0" max="1" step="0.01" value="0.5">
+        </div>
+        
+        <h3>🎨 Advanced Texturing</h3>
+        <div class="slider-row">
+            <span>Skin Tone (Albedo)</span>
+            <input type="color" id="color-skin" value="#d28965">
+        </div>
+
+        <button class="btn-save" onclick="save3DDNA()">💾 Save 3D DNA & Enter World</button>
+    </div>
+
+    <!-- Three.js Library Import -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
     <script type="module" src="js/character-editor.js"></script>
 </body>
 </html>
