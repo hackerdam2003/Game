@@ -1,9 +1,14 @@
 // js/voice.js
-console.log("🎙️ [Voice Chat] Pro Live Communication Module Loaded!");
+console.log("🎙️ [Voice Chat] WebRTC Peer-to-Peer Module Loaded!");
 
 window.isMicActive = false;
-let mediaRecorder;
-let audioStream = null; // 🛑 NAYA: Mic ko hardware level par band karne ke liye
+window.localAudioStream = null;
+window.peerConnections = {}; // Track all active calls in the squad
+
+// Google's Free STUN servers for WebRTC connection
+const rtcConfig = {
+    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+};
 
 window.toggleVoiceChat = async function() {
     const micBtn = document.getElementById('btn-mic-toggle');
@@ -12,85 +17,147 @@ window.toggleVoiceChat = async function() {
     if (window.isMicActive) {
         window.isMicActive = false;
         
-        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-            mediaRecorder.stop();
-        }
-        
-        // 🛑 CRITICAL FIX: Mic permission aur hardware ko poori tarah band karo
-        if (audioStream) {
-            audioStream.getTracks().forEach(track => track.stop());
-            audioStream = null;
+        // Stop Audio Hardware
+        if (window.localAudioStream) {
+            window.localAudioStream.getTracks().forEach(track => track.stop());
+            window.localAudioStream = null;
         }
 
-        if (micBtn) { 
-            micBtn.innerText = '🔇'; 
-            micBtn.style.background = '#1e293b'; 
+        // Drop all peer connections
+        for (let uid in window.peerConnections) {
+            window.peerConnections[uid].close();
+            delete window.peerConnections[uid];
         }
-        console.log("Mic OFF - Hardware Released");
+
+        if (micBtn) { micBtn.innerText = '🔇'; micBtn.style.background = '#1e293b'; }
+        console.log("🎙️ Mic OFF - Hardware Released");
+        
+        if (window.socket) window.socket.emit('voice-disconnected'); 
         return;
     }
 
     // --- TURN MIC ON ---
     try {
-        audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(audioStream);
+        // High Quality Audio Settings (Echo & Noise Cancellation)
+        window.localAudioStream = await navigator.mediaDevices.getUserMedia({ 
+            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
+        });
         
-        mediaRecorder.ondataavailable = (event) => {
-            if (event.data.size > 0 && window.socket && window.currentRoomId) {
-                const reader = new FileReader();
-                reader.readAsDataURL(event.data);
-                reader.onloadend = function() {
-                    window.socket.emit('voiceStream', { audioData: reader.result });
-                }
-            }
-        };
-
-        // 🛑 NAYA: 1000ms ki jagah 500ms kiya hai taaki aawaz me delay kam ho (Fast Live Feel)
-        mediaRecorder.start(500); 
         window.isMicActive = true;
-        
-        if (micBtn) { 
-            micBtn.innerText = '🎙️'; 
-            micBtn.style.background = '#10b981'; 
-        }
-        console.log("Mic ON - Transmitting Live...");
+        if (micBtn) { micBtn.innerText = '🎙️'; micBtn.style.background = '#10b981'; }
+        console.log("🎙️ Mic ON - WebRTC Broadcasting...");
+
+        // Alert others in the lobby to connect to me
+        if (window.socket) window.socket.emit('voice-ready'); 
 
     } catch (err) {
         console.error(err);
-        alert("❌ Microphone permission denied! Please allow Mic access in browser settings.");
+        alert("❌ Microphone permission denied! Please check browser settings.");
     }
 };
 
 window.initVoiceSystem = function() {
-    if (window.socket) {
-        // 🛑 CRITICAL FIX: Audio Playback Queue System (Walkie-Talkie Style)
-        // Aawaz overlap na ho, uske liye audio line me lagakar chalega
-        let audioQueue = [];
-        let isPlaying = false;
+    if (!window.socket) return;
 
-        function playNextAudio() {
-            if (audioQueue.length === 0) {
-                isPlaying = false;
-                return;
-            }
-            
-            isPlaying = true;
-            const audioData = audioQueue.shift();
-            const audio = new Audio(audioData);
-            
-            audio.onended = playNextAudio; // Jab ek tukda khatam ho, tabhi agla chale
-            
-            audio.play().catch(e => {
-                console.error("Audio Play Error (Browser Auto-play Blocked):", e);
-                playNextAudio(); // Agar error aaye toh skip karke agla chalao
-            });
+    // 1. KISI DUSRE DOST NE MIC ON KIYA (Make an Offer to them)
+    window.socket.on('voice-ready', async (data) => {
+        const senderUid = data.uid;
+        if (senderUid === window.localUser.uid) return;
+
+        // Reset connection for fresh handshake
+        if (window.peerConnections[senderUid]) {
+            window.peerConnections[senderUid].close();
         }
 
-        window.socket.on('receiveVoiceStream', (data) => {
-            audioQueue.push(data.audioData);
-            if (!isPlaying) {
-                playNextAudio();
-            }
+        const peer = createPeerConnection(senderUid);
+        
+        // Agar mera mic bhi on hai, toh apni aawaz bhi bhej do
+        if (window.localAudioStream) {
+            window.localAudioStream.getTracks().forEach(track => peer.addTrack(track, window.localAudioStream));
+        }
+
+        // Send Offer
+        const offer = await peer.createOffer();
+        await peer.setLocalDescription(offer);
+        
+        window.socket.emit('webrtc-signal', {
+            targetUid: senderUid,
+            senderUid: window.localUser.uid,
+            signalData: { type: 'offer', sdp: offer }
         });
-    }
+    });
+
+    // 2. CONNECTING THE CALL (Handling Offer/Answer/ICE)
+    window.socket.on('webrtc-signal', async (data) => {
+        const { senderUid, signalData } = data;
+        
+        let peer = window.peerConnections[senderUid];
+        if (!peer) {
+            peer = createPeerConnection(senderUid);
+            if (window.localAudioStream) {
+                window.localAudioStream.getTracks().forEach(track => peer.addTrack(track, window.localAudioStream));
+            }
+        }
+
+        if (signalData.type === 'offer') {
+            await peer.setRemoteDescription(new RTCSessionDescription(signalData.sdp));
+            const answer = await peer.createAnswer();
+            await peer.setLocalDescription(answer);
+            window.socket.emit('webrtc-signal', {
+                targetUid: senderUid,
+                senderUid: window.localUser.uid,
+                signalData: { type: 'answer', sdp: answer }
+            });
+        } else if (signalData.type === 'answer') {
+            await peer.setRemoteDescription(new RTCSessionDescription(signalData.sdp));
+        } else if (signalData.type === 'candidate') {
+            await peer.addIceCandidate(new RTCIceCandidate(signalData.candidate));
+        }
+    });
+
+    // 3. DOST NE MIC OFF KIYA
+    window.socket.on('voice-disconnected', (data) => {
+        const uid = data.uid;
+        if (window.peerConnections[uid]) {
+            window.peerConnections[uid].close();
+            delete window.peerConnections[uid];
+        }
+        const audioEl = document.getElementById(`audio-${uid}`);
+        if (audioEl) audioEl.remove();
+    });
 };
+
+// HELPER: CREATE PEER & PLAY AUDIO
+function createPeerConnection(targetUid) {
+    const peer = new RTCPeerConnection(rtcConfig);
+    window.peerConnections[targetUid] = peer;
+
+    // Send connection details (ICE Candidates)
+    peer.onicecandidate = (event) => {
+        if (event.candidate) {
+            window.socket.emit('webrtc-signal', {
+                targetUid: targetUid,
+                senderUid: window.localUser.uid,
+                signalData: { type: 'candidate', candidate: event.candidate }
+            });
+        }
+    };
+
+    // JAISE HI AAWAZ AAYE, USKO PLAY KARO
+    peer.ontrack = (event) => {
+        console.log(`🎵 Real-Time Audio connected for UID: ${targetUid}`);
+        let audioEl = document.getElementById(`audio-${targetUid}`);
+        
+        if (!audioEl) {
+            audioEl = document.createElement('audio');
+            audioEl.id = `audio-${targetUid}`;
+            audioEl.autoplay = true;
+            audioEl.style.display = 'none';
+            document.body.appendChild(audioEl);
+        }
+        
+        audioEl.srcObject = event.streams[0];
+    };
+
+    return peer;
+}
