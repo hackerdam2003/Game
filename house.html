@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape">
-    <title>Racing Universe | House Demo Test with Proxy</title>
+    <title>Racing Universe | New Home Test</title>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #0f172a; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
@@ -22,7 +22,7 @@
     <button class="back-btn" onclick="window.location.href='game.html'">⬅ Back to World</button>
     
     <div id="status-text" class="status-hud">
-        ⏳ Loading Home.glb via CORS Proxy... Please wait.
+        ⏳ Loading newhome.glb... Please wait.
     </div>
 
     <!-- 3D Canvas -->
@@ -74,10 +74,9 @@
         grid.position.y = -0.01;
         scene.add(grid);
 
-        // 🏠 Load Home.glb via CORS Proxy to prevent blocking
+        // 🏠 Load newhome.glb directly without broken proxy
         const gltfLoader = new GLTFLoader();
-        const rawUrl = 'https://raw.githubusercontent.com/hackerdam2003/Game/main/Home.glb';
-        const houseUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(rawUrl);
+        const houseUrl = './newhome.glb'; // Agar file ka naam alag ho toh yahan change kar lena
         
         gltfLoader.load(
             houseUrl, 
@@ -94,19 +93,19 @@
                 });
 
                 scene.add(model);
-                statusEl.innerHTML = "✅ Home.glb Loaded Successfully in Demo!";
+                statusEl.innerHTML = "✅ newhome.glb Loaded Successfully!";
                 statusEl.style.color = "#10b981";
-                console.log("✅ Home.glb loaded successfully via proxy!");
+                console.log("✅ newhome.glb loaded successfully!");
             }, 
             (xhr) => {
                 if (xhr.lengthComputable) {
                     const percent = Math.floor((xhr.loaded / xhr.total) * 100);
-                    statusEl.innerHTML = `📦 Downloading Home.glb: ${percent}%`;
+                    statusEl.innerHTML = `📦 Downloading newhome.glb: ${percent}%`;
                 }
             }, 
             (error) => {
-                console.error("❌ Failed to load Home.glb:", error);
-                statusEl.innerHTML = "❌ Error: Failed to load via Proxy.";
+                console.error("❌ Failed to load newhome.glb:", error);
+                statusEl.innerHTML = "❌ Error: Failed to load newhome.glb. Check filename!";
                 statusEl.style.color = "#ef4444";
             }
         );
@@ -129,3 +128,4 @@
 
 </body>
 </html>
+
