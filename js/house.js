@@ -3,6 +3,24 @@ import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 
 console.log("🏠 [House Engine] Interior Loaded!");
 
+// --- 📱 FORCE LANDSCAPE & FULLSCREEN ON FIRST TAP ---
+async function forceLandscape() {
+    try {
+        if (document.documentElement.requestFullscreen) {
+            await document.documentElement.requestFullscreen();
+        }
+        if (screen.orientation && screen.orientation.lock) {
+            await screen.orientation.lock('landscape').catch(() => {});
+        }
+    } catch (err) { 
+        console.warn("Fullscreen/Landscape lock skipped by browser"); 
+    }
+}
+// Browser security ke liye pehle touch par landscape trigger hoga
+document.body.addEventListener('touchstart', forceLandscape, { once: true });
+document.body.addEventListener('click', forceLandscape, { once: true });
+// ----------------------------------------------------
+
 let scene, camera, renderer, clock;
 let my3DCharacter = null;
 let mixer = null;
@@ -30,7 +48,7 @@ setupInteractions();
 function initInterior() {
     const canvas = document.getElementById('game-canvas');
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x1e293b); // Darker indoor vibe
+    scene.background = new THREE.Color(0x1e293b); 
     clock = new THREE.Clock();
 
     camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -46,19 +64,16 @@ function initInterior() {
     pointLight.position.set(0, 4, 0);
     scene.add(pointLight);
 
-    // Floor (Temp Floor until you add a House.fbx)
     const floorGeo = new THREE.PlaneGeometry(15, 15);
     const floorMat = new THREE.MeshStandardMaterial({ color: 0x64748b });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
     scene.add(floor);
 
-    // Temp Chair Marker (Blue)
     const chairMesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0x3b82f6 }));
     chairMesh.position.set(CHAIR_POS.x, 0.5, CHAIR_POS.z);
     scene.add(chairMesh);
 
-    // Temp Bed Marker (Red)
     const bedMesh = new THREE.Mesh(new THREE.BoxGeometry(2, 0.5, 4), new THREE.MeshStandardMaterial({ color: 0xef4444 }));
     bedMesh.position.set(BED_POS.x, 0.25, BED_POS.z);
     scene.add(bedMesh);
@@ -70,7 +85,6 @@ function initInterior() {
 function loadCharacter() {
     const fbxLoader = new FBXLoader();
     
-    // Load Man Character as default
     fbxLoader.load('./Man.fbx', (object) => {
         my3DCharacter = object;
         my3DCharacter.scale.set(0.01, 0.01, 0.01);
@@ -92,7 +106,6 @@ function loadCharacter() {
 
 function loadAnimations(fbxLoader) {
     fbxLoader.load('./Running.fbx', (anim) => { actions.run = mixer.clipAction(anim.animations[0]); });
-    // Dhyan rakhein: Mixamo se Sitting.fbx aur Sleeping.fbx download karke folder me rakhein
     fbxLoader.load('./Sitting.fbx', (anim) => { actions.sit = mixer.clipAction(anim.animations[0]); });
     fbxLoader.load('./Sleeping.fbx', (anim) => { actions.sleep = mixer.clipAction(anim.animations[0]); });
 }
@@ -107,22 +120,41 @@ function playAnim(animName) {
 function setupInteractions() {
     btnSit.addEventListener('touchstart', () => {
         isBusy = true;
-        my3DCharacter.position.set(CHAIR_POS.x, 0.5, CHAIR_POS.z); // Snap to chair
+        my3DCharacter.position.set(CHAIR_POS.x, 0.5, CHAIR_POS.z); 
+        playAnim('sit');
+        updateActionUI('stand');
+    });
+    btnSit.addEventListener('click', () => {
+        isBusy = true;
+        my3DCharacter.position.set(CHAIR_POS.x, 0.5, CHAIR_POS.z); 
         playAnim('sit');
         updateActionUI('stand');
     });
 
     btnSleep.addEventListener('touchstart', () => {
         isBusy = true;
-        my3DCharacter.position.set(BED_POS.x, 0.5, BED_POS.z); // Snap to bed
-        my3DCharacter.rotation.y = Math.PI / 2; // Lie down flat
+        my3DCharacter.position.set(BED_POS.x, 0.5, BED_POS.z); 
+        my3DCharacter.rotation.y = Math.PI / 2; 
+        playAnim('sleep');
+        updateActionUI('stand');
+    });
+    btnSleep.addEventListener('click', () => {
+        isBusy = true;
+        my3DCharacter.position.set(BED_POS.x, 0.5, BED_POS.z); 
+        my3DCharacter.rotation.y = Math.PI / 2; 
         playAnim('sleep');
         updateActionUI('stand');
     });
 
     btnStand.addEventListener('touchstart', () => {
         isBusy = false;
-        my3DCharacter.position.set(0, 0, 0); // Step away to center
+        my3DCharacter.position.set(0, 0, 0); 
+        playAnim('idle');
+        updateActionUI('none');
+    });
+    btnStand.addEventListener('click', () => {
+        isBusy = false;
+        my3DCharacter.position.set(0, 0, 0); 
         playAnim('idle');
         updateActionUI('none');
     });
@@ -142,7 +174,7 @@ function setupJoystick() {
     let isDragging = false, center = { x: 0, y: 0 };
 
     base.addEventListener('touchstart', (e) => {
-        if(isBusy) return; // Baithne ya sone par joystick disable
+        if(isBusy) return; 
         isDragging = true;
         const rect = base.getBoundingClientRect();
         center = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
@@ -174,14 +206,12 @@ function renderLoop() {
     if (mixer) mixer.update(delta);
 
     if (my3DCharacter && !isBusy) {
-        // Handle Movement
         if (moveVector.x !== 0 || moveVector.y !== 0) {
             my3DCharacter.position.x += moveVector.x * speed;
             my3DCharacter.position.z += moveVector.y * speed;
             my3DCharacter.rotation.y = Math.atan2(moveVector.x, moveVector.y);
         }
 
-        // Distance Check for Interactions
         const distToChair = Math.hypot(my3DCharacter.position.x - CHAIR_POS.x, my3DCharacter.position.z - CHAIR_POS.z);
         const distToBed = Math.hypot(my3DCharacter.position.x - BED_POS.x, my3DCharacter.position.z - BED_POS.z);
 
@@ -190,7 +220,6 @@ function renderLoop() {
         else updateActionUI('none');
     }
 
-    // Camera follow
     if(my3DCharacter) {
         camera.position.x = my3DCharacter.position.x;
         camera.position.z = my3DCharacter.position.z + 3.0;
@@ -199,3 +228,12 @@ function renderLoop() {
 
     if (renderer && scene && camera) renderer.render(scene, camera);
 }
+
+window.addEventListener('resize', () => {
+    if(camera && renderer) {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+});
+
