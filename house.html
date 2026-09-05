@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape">
-    <title>Racing Universe | New Home unpkg Test</title>
+    <title>Racing Universe | Smart Error Detector</title>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #0f172a; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
         
         #house-canvas { display: block; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 0; }
         .back-btn { position: absolute; top: 20px; left: 20px; background: #ef4444; color: white; border: none; padding: 10px 20px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-        .status-hud { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); color: #38bdf8; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: bold; z-index: 1000; border: 1px solid #3b82f6; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.7); }
+        .status-hud { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); color: #38bdf8; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: bold; z-index: 1000; border: 1px solid #3b82f6; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.7); max-width: 90%; word-wrap: break-word; }
     </style>
 </head>
 <body>
@@ -18,7 +18,7 @@
     <button class="back-btn" onclick="window.location.href='game.html'">⬅ Back to World</button>
     
     <div id="status-text" class="status-hud">
-        ⏳ Connecting to unpkg CDN... Please wait.
+        ⏳ Testing newhome.glb... Please wait.
     </div>
 
     <canvas id="house-canvas"></canvas>
@@ -48,56 +48,47 @@
 
         const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true;
-
+        
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
 
         const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
         scene.add(ambientLight);
 
-        const dirLight = new THREE.DirectionalLight(0xffffff, 2);
-        dirLight.position.set(5, 10, 5);
-        dirLight.castShadow = true;
-        scene.add(dirLight);
-
-        const grid = new THREE.GridHelper(30, 30, 0x3b82f6, 0x1e293b);
-        grid.position.y = -0.01;
-        scene.add(grid);
-
-        // 🏠 unpkg CDN Link (Syncs instantly with GitHub repository)
         const gltfLoader = new GLTFLoader();
-        const houseUrl = 'https://unpkg.com/hackerdam2003/Game@main/newhome.glb';
+        
+        // GitHub Pages Link
+        const houseUrl = 'https://hackerdam2003.github.io/Game/newhome.glb';
         
         gltfLoader.load(
             houseUrl, 
             (gltf) => {
-                const model = gtf.scene; // wait, gltf.scene
                 const houseModel = gltf.scene;
-                houseModel.scale.set(1, 1, 1);
-                houseModel.position.set(0, 0, 0);
-                
-                houseModel.traverse((node) => {
-                    if (node.isMesh) {
-                        node.castShadow = true;
-                        node.receiveShadow = true;
-                    }
-                });
-
                 scene.add(houseModel);
-                statusEl.innerHTML = "✅ newhome.glb Loaded Successfully!";
+                statusEl.innerHTML = "✅ SUCCESS: File is perfect and loaded!";
                 statusEl.style.color = "#10b981";
-                console.log("✅ newhome.glb loaded via unpkg!");
             }, 
             (xhr) => {
                 if (xhr.lengthComputable) {
                     const percent = Math.floor((xhr.loaded / xhr.total) * 100);
-                    statusEl.innerHTML = `📦 Downloading newhome.glb: ${percent}%`;
+                    statusEl.innerHTML = `📦 Downloading: ${percent}%`;
                 }
             }, 
             (error) => {
-                console.error("❌ Failed to load via unpkg:", error);
-                statusEl.innerHTML = "❌ Error: unpkg load failed.";
+                console.error("Exact Error:", error);
+                
+                // Smart Error Detection
+                let errorMsg = error.message || "Unknown Network Error";
+                
+                if (errorMsg.includes("Unexpected token '<'")) {
+                    statusEl.innerHTML = "❌ ERROR: File Not Found (404). GitHub Pages par update nahi hua hai ya naam galat hai.";
+                } 
+                else if (errorMsg.includes("Unexpected magic") || errorMsg.includes("glTF")) {
+                    statusEl.innerHTML = "❌ ERROR: File Corrupt hai ya asli GLB nahi hai! Ise dobara GLB format me convert karke download karo.";
+                } 
+                else {
+                    statusEl.innerHTML = `❌ ERROR: ${errorMsg}`;
+                }
                 statusEl.style.color = "#ef4444";
             }
         );
@@ -108,13 +99,7 @@
             renderer.render(scene, camera);
         }
         animate();
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
     </script>
-
 </body>
 </html>
+
