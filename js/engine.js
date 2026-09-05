@@ -17,7 +17,7 @@ const app = initializeApp(engineConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-console.log("🎮 [Game Engine] Genshin Impact 360 Movement Active!");
+console.log("🎮 [Game Engine] Normal Controls Restored & Blank Screen Fixed!");
 
 const gameSocket = io(); 
 
@@ -27,7 +27,7 @@ let speed = 0.08;
 let moveVector = { x: 0, y: 0 };
 
 let currentEnvironment = "world";
-let scene, camera, renderer, clock, controls;
+let scene, camera, renderer, clock;
 let worldGroup, houseGroup; 
 
 let my3DCharacter = null;
@@ -46,9 +46,8 @@ let doorMesh = null, exitDoorMesh = null;
 let enterHouseBtn = null, actionUI = null, playerListUI = null;
 let isBusy = false; 
 
-// 🏠 Ghar ko kitna neeche dhasana hai (Taaki Yellow Patti par player chale)
-// Agar thoda aur neeche karna ho toh isko -2.0 ya -2.5 kar dena
-const HOUSE_Y_OFFSET = -1.8; 
+// 🏠 Ghar ko zameen me kitna neeche dhasana hai taaki player yellow patti ke upar chale
+const HOUSE_Y_OFFSET = -3.2; 
 
 const CHAIR_POS = { x: -3, z: -2 };
 const BED_POS = { x: 3, z: -4 };
@@ -133,20 +132,13 @@ function init3DWorld() {
     scene.background = new THREE.Color(0x0f172a); 
     clock = new THREE.Clock();
 
+    // 🎥 Normal Follow Camera
     camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 3, 6); 
+    camera.position.set(0, 1.4, 3.2); 
 
     renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
-
-    // 📸 Genshin Style Free Camera
-    controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.maxPolarAngle = Math.PI / 2 - 0.05; // Zameen ke neeche na jaye
-    controls.minDistance = 2;
-    controls.maxDistance = 15;
 
     worldGroup = new THREE.Group();
     houseGroup = new THREE.Group();
@@ -159,20 +151,21 @@ function init3DWorld() {
     dirLightW.position.set(5, 10, 5);
     worldGroup.add(ambientW);
     worldGroup.add(dirLightW);
-    worldGroup.add(new THREE.GridHelper(50, 50, 0x3b82f6, 0x1e293b));
+    worldGroup.add(new THREE.GridHelper(100, 100, 0x3b82f6, 0x1e293b));
 
-    // House Lighting (Jab andar jayenge)
+    // House Lighting (Interior)
     const ambientH = new THREE.AmbientLight(0xffffff, 1.5);
     const pointLightH = new THREE.PointLight(0xffddaa, 2, 30);
     pointLightH.position.set(0, 5, 0);
     houseGroup.add(ambientH);
     houseGroup.add(pointLightH);
     
+    // Load Real Model
     loadAsliGhar();
 
     // Invisible Exit Door Trigger
     exitDoorMesh = new THREE.Mesh(new THREE.BoxGeometry(4, 4, 4), new THREE.MeshBasicMaterial({ visible: false }));
-    exitDoorMesh.position.set(0, 1, 6); // Andar se bahar aane ki position
+    exitDoorMesh.position.set(0, 1, 6); 
     houseGroup.add(exitDoorMesh);
 
     houseGroup.visible = false;
@@ -182,7 +175,7 @@ function init3DWorld() {
     requestAnimationFrame(renderLoop);
 }
 
-// 🏠 Asli Ghar Loader
+// 🏠 Ghar Loader (Yellow Patti Fix Included)
 function loadAsliGhar() {
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/');
@@ -200,7 +193,7 @@ function loadAsliGhar() {
         
         const maxDim = Math.max(size.x, size.y, size.z);
         if (maxDim > 0) {
-            const scaleFactor = 35 / maxDim; // Real life size
+            const scaleFactor = 30 / maxDim; // Real scale size
             originalHouse.scale.set(scaleFactor, scaleFactor, scaleFactor);
         }
 
@@ -213,15 +206,15 @@ function loadAsliGhar() {
                 node.receiveShadow = true;
                 if (node.material) {
                     node.material.side = THREE.DoubleSide;
-                    node.material.alphaTest = 0.3;
+                    node.material.alphaTest = 0.3; // Leaves transparency
                 }
             }
         });
 
-        // 1. Bahar Wala Ghar
+        // 1. Bahar Ka Ghar (World)
         const worldHouse = originalHouse.clone();
         worldHouse.position.x = 2 - center.x;
-        // 🚀 Yellow Patti ko fix karne ke liye HOUSE_Y_OFFSET lagaya
+        // 🚀 Yellow patti ko ground level par laane ke liye offset
         worldHouse.position.y = -scaledBox.min.y + HOUSE_Y_OFFSET; 
         worldHouse.position.z = -10 - center.z; 
         worldGroup.add(worldHouse);
@@ -231,13 +224,16 @@ function loadAsliGhar() {
         doorMesh.position.set(2, 1.5, -4); 
         worldGroup.add(doorMesh);
 
-        // 2. Andar Wala Ghar
+        // 2. Andar Ka Ghar (Interior)
         const interiorHouse = originalHouse.clone();
         interiorHouse.position.x = -center.x;
         interiorHouse.position.y = -scaledBox.min.y + HOUSE_Y_OFFSET; 
         interiorHouse.position.z = -center.z;
         houseGroup.add(interiorHouse);
 
+        console.log("✅ Home loaded without blank screen error!");
+    }, undefined, (err) => {
+        console.error("Ghar load error:", err);
     });
 }
 
@@ -336,7 +332,6 @@ function setupMultiplayer() {
             remotePlayers[data.uid].targetPos = new THREE.Vector3(data.x, data.y, data.z);
             remotePlayers[data.uid].targetRot = data.rot;
             remotePlayers[data.uid].env = data.env;
-            
             if(remotePlayers[data.uid].mixer && remotePlayers[data.uid].actions[data.action]) {
                 const actionToPlay = remotePlayers[data.uid].actions[data.action];
                 if(remotePlayers[data.uid].currentAction !== data.action) {
@@ -425,16 +420,24 @@ function showChatBubble(uid, msg) {
     }
 }
 
-// 🕹️ Joystick Setup (Camera ko lock karne ka fix bhi hai)
+// 🕹️ Original Joystick Control (Ekdum Smooth)
 function setupJoystick() {
     const base = document.getElementById('joystick-base'), knob = document.getElementById('joystick-knob');
     if(!base || !knob) return;
     let isDragging = false, center = {x:0, y:0};
 
-    // 🚀 StopPropagation se camera rotate nahi hoga jab joystick touch karoge
-    base.addEventListener('touchstart', (e) => { e.stopPropagation(); if(isBusy) return; isDragging = true; const rect = base.getBoundingClientRect(); center = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; handleTouch(e); });
-    base.addEventListener('touchmove', (e) => { e.stopPropagation(); if(isDragging) handleTouch(e); });
-    base.addEventListener('touchend', (e) => { e.stopPropagation(); isDragging = false; knob.style.transform = `translate(0, 0)`; moveVector = { x: 0, y: 0 }; if(!isBusy) playAnim('idle'); });
+    base.addEventListener('touchstart', (e) => {
+        if(isBusy) return;
+        isDragging = true;
+        const rect = base.getBoundingClientRect();
+        center = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+        handleTouch(e);
+    });
+    base.addEventListener('touchmove', (e) => { if(isDragging) handleTouch(e); });
+    base.addEventListener('touchend', () => {
+        isDragging = false; knob.style.transform = `translate(0, 0)`; moveVector = { x: 0, y: 0 };
+        if(!isBusy) playAnim('idle'); 
+    });
 
     function handleTouch(e) {
         let dx = e.touches[0].clientX - center.x, dy = e.touches[0].clientY - center.y;
@@ -471,40 +474,20 @@ function renderLoop() {
         if (monsterMixer) monsterMixer.update(delta);
 
         if (my3DCharacter) {
-            
-            // ⚔️ GENSHIN IMPACT STYLE 360 MOVEMENT
+            // 🕹️ Original Smooth Character Movement
             if (!isBusy && (moveVector.x !== 0 || moveVector.y !== 0)) {
-                const moveX = moveVector.x;
-                const moveZ = moveVector.y; 
-                
-                const move3D = new THREE.Vector3(moveX, 0, moveZ);
-                const camEuler = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
-                
-                // Camera jis taraf dekh raha hai, player wahi direction me jayega
-                move3D.applyAxisAngle(new THREE.Vector3(0, 1, 0), camEuler.y);
-                move3D.normalize();
-
-                // Player ko us direction me face karwao
-                my3DCharacter.rotation.y = Math.atan2(move3D.x, move3D.z);
-
-                const currentSpeed = Math.min(Math.sqrt(moveX*moveX + moveZ*moveZ), 1) * speed;
-                my3DCharacter.position.x += move3D.x * currentSpeed;
-                my3DCharacter.position.z += move3D.z * currentSpeed;
+                my3DCharacter.position.x += moveVector.x * speed;
+                my3DCharacter.position.z += moveVector.y * speed;
+                my3DCharacter.rotation.y = Math.atan2(moveVector.x, moveVector.y);
                 
                 allPlayersData[myUid] = { x: my3DCharacter.position.x, y: my3DCharacter.position.z };
                 gameSocket.emit('player-moved', { uid: myUid, x: my3DCharacter.position.x, y: my3DCharacter.position.y, z: my3DCharacter.position.z, rot: my3DCharacter.rotation.y, action: currentAction, env: currentEnvironment });
                 renderMinimap(allPlayersData, myUid);
             }
 
-            // 📸 CRASH-FREE CAMERA FOLLOW LOGIC
-            if(controls) {
-                const charTarget = new THREE.Vector3(my3DCharacter.position.x, my3DCharacter.position.y + 1.5, my3DCharacter.position.z);
-                const posDelta = charTarget.clone().sub(controls.target);
-                
-                controls.target.add(posDelta);
-                camera.position.add(posDelta);
-                controls.update(); 
-            }
+            // 🎥 Rock-Solid 3rd Person Follow Camera
+            camera.position.set(my3DCharacter.position.x, my3DCharacter.position.y + 1.6, my3DCharacter.position.z + 3.5);
+            camera.lookAt(my3DCharacter.position.x, my3DCharacter.position.y + 0.9, my3DCharacter.position.z);
 
             // 🏠 Door Interaction
             if (currentEnvironment === "world" && doorMesh) {
@@ -536,6 +519,7 @@ function renderLoop() {
                 }
             }
 
+            // Floating Name Label
             const myLabel = document.getElementById('my-label');
             if(myLabel && myLabel.innerHTML !== "") {
                 const pos = my3DCharacter.position.clone();
@@ -577,5 +561,8 @@ window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
+        const canvas = renderer.domElement;
+        canvas.style.width = '100vw'; canvas.style.height = '100vh';
     }
 });
+
