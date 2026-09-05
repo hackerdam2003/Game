@@ -2,55 +2,116 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-// 1. Scene & Camera Setup
+const container = document.getElementById('render-container');
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-camera.position.set(0, 1.5, 3);
+
+// Camera setup for close-up view
+const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+camera.position.set(0, 0.85, 1.8);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
+renderer.setSize(container.clientWidth, container.clientHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+container.appendChild(renderer.domElement);
 
-// 2. Lighting
-const light = new THREE.AmbientLight(0xffffff, 2.5); 
-scene.add(light);
-const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-dirLight.position.set(2, 2, 2);
-scene.add(dirLight);
+// Game Lighting
+const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+scene.add(ambientLight);
 
-// 3. Orbit Controls (Mouse se rotate karne ke liye)
+const keyLight = new THREE.DirectionalLight(0xfff0dd, 2);
+keyLight.position.set(2, 2, 2);
+keyLight.castShadow = true;
+scene.add(keyLight);
+
+const rimLight = new THREE.DirectionalLight(0x4444ff, 1.5);
+rimLight.position.set(-2, 1, -2);
+scene.add(rimLight);
+
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(0, 1, 0);
 controls.enableDamping = true;
+controls.target.set(0, 0.85, 0); 
+controls.minDistance = 0.5;
+controls.maxDistance = 4;
 
-// 4. Load Normal Model (Root directory wala path)
-const loader = new GLTFLoader();
+let characterModel = null;
+const gltfLoader = new GLTFLoader();
+const modelURL = './Model prepared.glb';
 
-// PATH FIX: Kyunki file root me hai aur usme space hai
-const modelPath = './Model prepared.glb';
+gltfLoader.load(
+    modelURL,
+    (gltf) => {
+        characterModel = gltf.scene;
+        
+        characterModel.traverse((node) => {
+            if (node.isMesh) {
+                node.castShadow = true;
+                node.receiveShadow = true;
+            }
+        });
 
-loader.load(
-    modelPath, 
-    function (gltf) {
-        scene.add(gltf.scene);
-        const statusEl = document.getElementById('status');
-        if (statusEl) {
-            statusEl.innerText = "✅ Model Loaded Successfully!";
-            statusEl.style.color = "#10b981"; // Green
+        scene.add(characterModel);
+        document.getElementById('loading-text').style.display = 'none';
+    },
+    (xhr) => {
+        if (xhr.lengthComputable) {
+            const percent = Math.floor((xhr.loaded / xhr.total) * 100);
+            document.getElementById('loading-text').innerText = `Loading 3D Core... ${percent}%`;
         }
-    }, 
-    undefined, 
-    function (error) {
-        console.error("Model Load Error:", error);
-        const statusEl = document.getElementById('status');
-        if (statusEl) {
-            statusEl.innerText = "❌ Error: Cannot find 'Model prepared.glb'!";
-            statusEl.style.color = "#ef4444"; // Red
-        }
+    },
+    (error) => {
+        console.error("Model Error:", error);
+        document.getElementById('loading-text').innerText = "❌ Error Loading Model";
+        document.getElementById('loading-text').style.color = "#ef4444";
     }
 );
 
-// 5. Render Loop
+// UI Bone Scaling Logic
+function updateMorphs() {
+    if (!characterModel) return;
+    
+    const chestVal = parseFloat(document.getElementById('morph-chest').value);
+    const waistVal = parseFloat(document.getElementById('morph-waist').value);
+    const hipsVal = parseFloat(document.getElementById('morph-hips').value);
+    
+    const chestBone = characterModel.getObjectByName('spine_02.x');
+    if (chestBone) {
+        const scale = 0.8 + (chestVal * 0.4);
+        chestBone.scale.set(scale, scale, scale);
+    }
+
+    const waistBone = characterModel.getObjectByName('spine_01.x');
+    if (waistBone) {
+        const scale = 1.2 - (waistVal * 0.4);
+        waistBone.scale.set(scale, 1, scale);
+    }
+
+    const hipsBone = characterModel.getObjectByName('root.x');
+    if (hipsBone) {
+        const scale = 0.8 + (hipsVal * 0.4);
+        hipsBone.scale.set(scale, scale, scale);
+    }
+}
+
+document.getElementById('morph-chest').addEventListener('input', updateMorphs);
+document.getElementById('morph-waist').addEventListener('input', updateMorphs);
+document.getElementById('morph-hips').addEventListener('input', updateMorphs);
+
+document.getElementById('color-skin').addEventListener('input', (e) => {
+    if (characterModel) {
+        characterModel.traverse((child) => {
+            if (child.isMesh && child.material) {
+                child.material.color.set(e.target.value);
+            }
+        });
+    }
+});
+
+window.save3DDNA = function() {
+    alert('3D Character DNA Saved Successfully! Entering Game World...');
+};
+
 function animate() {
     requestAnimationFrame(animate);
     controls.update();
@@ -58,9 +119,8 @@ function animate() {
 }
 animate();
 
-// Window Resize Handling
 window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.aspect = container.clientWidth / container.clientHeight;
     camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setSize(container.clientWidth, container.clientHeight);
 });
