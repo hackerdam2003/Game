@@ -1,148 +1,85 @@
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Basic 3D Viewer</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #111; color: white; font-family: sans-serif; }
+        #status { position: absolute; top: 20px; width: 100%; text-align: center; font-size: 20px; font-weight: bold; color: #3b82f6; z-index: 10; }
+    </style>
+</head>
+<body>
 
-const container = document.getElementById('render-container');
-const scene = new THREE.Scene();
+    <div id="status">Loading Model...</div>
 
-const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
-camera.position.set(0, 1.2, 3);
-
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-renderer.setSize(container.clientWidth, container.clientHeight);
-renderer.setPixelRatio(window.devicePixelRatio);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-container.appendChild(renderer.domElement);
-
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-scene.add(ambientLight);
-
-const keyLight = new THREE.DirectionalLight(0xffedd5, 1.5);
-keyLight.position.set(2, 3, 2);
-keyLight.castShadow = true;
-scene.add(keyLight);
-
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.target.set(0, 0.9, 0);
-
-let characterModel = null;
-let mixer = null;
-const clock = new THREE.Clock();
-
-const gltfLoader = new GLTFLoader();
-const fbxLoader = new FBXLoader();
-
-// 100% Working Raw Links (Niche wale duplicates hata diye gaye hain)
-const modelURL = 'https://raw.githubusercontent.com/hackerdam2003/Game/main/assets/ee654438-4e51-4637-a703-1e2188cea38e_model_prepared.glb';
-const idleAnimURL = 'https://raw.githubusercontent.com/hackerdam2003/Game/main/assets/ee654438-4e51-4637-a703-1e2188cea38e_Idle_bouncing_fight.fbx';
-
-document.getElementById('loading-text').innerText = "Downloading Model...";
-
-gltfLoader.load(
-    modelURL,
-    (gltf) => {
-        characterModel = gltf.scene;
-        
-        characterModel.traverse((node) => {
-            if (node.isMesh) {
-                node.castShadow = true;
-                node.receiveShadow = true;
-                if (node.material) {
-                    node.material.roughness = 0.4;
-                    node.material.metalness = 0.1;
-                }
+    <!-- Three.js Import Map -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
             }
-        });
-
-        scene.add(characterModel);
-        
-        document.getElementById('loading-text').style.display = 'none';
-
-        fbxLoader.load(idleAnimURL, (object) => {
-            if (object.animations && object.animations.length > 0) {
-                mixer = new THREE.AnimationMixer(characterModel);
-                const action = mixer.clipAction(object.animations[0]);
-                action.play();
-            }
-        }, undefined, (err) => {
-            console.warn("Animation skipped due to load issue, but model is safe:", err);
-        });
-    },
-    (xhr) => {
-        if (xhr.lengthComputable) {
-            const percent = Math.floor((xhr.loaded / xhr.total) * 100);
-            document.getElementById('loading-text').innerText = `Loading... ${percent}%`;
-        } else {
-            const mb = (xhr.loaded / (1024 * 1024)).toFixed(1);
-            document.getElementById('loading-text').innerText = `Downloading... (${mb} MB)`;
         }
-    },
-    (error) => {
-        console.error("Model Error:", error);
-        document.getElementById('loading-text').innerText = "Error: " + error.message;
-        document.getElementById('loading-text').style.color = "#ef4444";
-    }
-);
+    </script>
 
-function updateMorphs() {
-    if (!characterModel) return;
-    
-    const chestVal = parseFloat(document.getElementById('morph-chest').value);
-    const waistVal = parseFloat(document.getElementById('morph-waist').value);
-    const hipsVal = parseFloat(document.getElementById('morph-hips').value);
-    
-    const chestBone = characterModel.getObjectByName('spine_02.x');
-    if (chestBone) {
-        const scale = 0.8 + (chestVal * 0.4);
-        chestBone.scale.set(scale, scale, scale);
-    }
+    <!-- Basic 3D Logic -->
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-    const waistBone = characterModel.getObjectByName('spine_01.x');
-    if (waistBone) {
-        const scale = 1.2 - (waistVal * 0.4);
-        waistBone.scale.x = scale;
-        waistBone.scale.z = scale;
-    }
+        // 1. Scene & Camera
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 1.5, 3);
 
-    const hipsBone = characterModel.getObjectByName('root.x');
-    if (hipsBone) {
-        const scale = 0.8 + (hipsVal * 0.4);
-        hipsBone.scale.set(scale, scale, scale);
-    }
-}
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
 
-document.getElementById('morph-chest').addEventListener('input', updateMorphs);
-document.getElementById('morph-waist').addEventListener('input', updateMorphs);
-document.getElementById('morph-hips').addEventListener('input', updateMorphs);
+        // 2. Lights
+        const light = new THREE.AmbientLight(0xffffff, 2.5); 
+        scene.add(light);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(2, 2, 2);
+        scene.add(dirLight);
 
-document.getElementById('color-skin').addEventListener('input', (e) => {
-    if (characterModel) {
-        characterModel.traverse((child) => {
-            if (child.isMesh && child.material) {
-                child.material.color.set(e.target.value);
+        // 3. Controls (Mouse se ghumane ke liye)
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 1, 0);
+        controls.update();
+
+        // 4. Load Normal Model (Simple Path)
+        const loader = new GLTFLoader();
+        
+        loader.load('./assets/model.glb', 
+            function (gltf) {
+                scene.add(gltf.scene);
+                document.getElementById('status').innerText = "✅ Model Loaded Successfully!";
+                document.getElementById('status').style.color = "#10b981";
+            }, 
+            undefined, 
+            function (error) {
+                console.error(error);
+                document.getElementById('status').innerText = "❌ Error: Model not found in /assets/ folder!";
+                document.getElementById('status').style.color = "#ef4444";
             }
+        );
+
+        // 5. Render Loop
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Window Resize Handle
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
         });
-    }
-});
-
-window.save3DDNA = function() {
-    alert('3D Character DNA Saved Successfully! Entering Game World...');
-};
-
-function animate() {
-    requestAnimationFrame(animate);
-    const delta = clock.getDelta();
-    if (mixer) mixer.update(delta);
-    controls.update();
-    renderer.render(scene, camera);
-}
-animate();
-
-window.addEventListener('resize', () => {
-    camera.aspect = container.clientWidth / container.clientHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(container.clientWidth, container.clientHeight);
-});
+    </script>
+</body>
+</html>
