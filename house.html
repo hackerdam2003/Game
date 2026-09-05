@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape">
-    <title>Racing Universe | New Home Raw Test</title>
+    <title>Racing Universe | New Home CDN Test</title>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #0f172a; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
@@ -18,7 +18,7 @@
     <button class="back-btn" onclick="window.location.href='game.html'">⬅ Back to World</button>
     
     <div id="status-text" class="status-hud">
-        ⏳ Downloading newhome.glb from GitHub... Please wait.
+        ⏳ Downloading newhome.glb via CDN... Please wait.
     </div>
 
     <canvas id="house-canvas"></canvas>
@@ -65,9 +65,9 @@
         grid.position.y = -0.01;
         scene.add(grid);
 
-        // 🏠 Direct GitHub Raw URL (Bypasses Render server limits & routing issues)
+        // 🏠 Free CDN Link for newhome.glb (Bypasses CORS & Server Limits)
         const gltfLoader = new GLTFLoader();
-        const houseUrl = 'https://raw.githubusercontent.com/hackerdam2003/Game/main/newhome.glb';
+        const houseUrl = 'https://cdn.jsdelivr.net/gh/hackerdam2003/Game@main/newhome.glb';
         
         gltfLoader.load(
             houseUrl, 
@@ -86,7 +86,7 @@
                 scene.add(model);
                 statusEl.innerHTML = "✅ newhome.glb Loaded Successfully!";
                 statusEl.style.color = "#10b981";
-                console.log("✅ newhome.glb loaded successfully via raw URL!");
+                console.log("✅ newhome.glb loaded successfully via CDN!");
             }, 
             (xhr) => {
                 if (xhr.lengthComputable) {
@@ -96,7 +96,7 @@
             }, 
             (error) => {
                 console.error("❌ Failed to load newhome.glb:", error);
-                statusEl.innerHTML = "❌ Error: Direct fetch failed. Check console!";
+                statusEl.innerHTML = "❌ Error: CDN load failed. Check console!";
                 statusEl.style.color = "#ef4444";
             }
         );
@@ -117,4 +117,3 @@
 
 </body>
 </html>
-
