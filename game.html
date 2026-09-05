@@ -53,6 +53,7 @@
         <button class="enter-btn" onclick="enterWorld()">Tap to Enter World</button>
     </div>
 
+    <!-- 3D Canvas Injection Target -->
     <canvas id="game-canvas"></canvas>
 
     <div id="hud">
@@ -92,12 +93,25 @@
         </div>
     </div>
 
-    <!-- Socket and Core Modules -->
+    <!-- Socket.io library -->
     <script src="/socket.io/socket.io.js"></script>
     <script>
         window.socket = io(); // Default pipeline for Voice & Chat
         window.gameSocket = io('/world'); // Dedicated pipeline for Game World movement
     </script>
+
+    <!-- Three.js Import Map for 3D Game World -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "fflate": "https://unpkg.com/three@0.160.0/examples/jsm/libs/fflate.module.js"
+            }
+        }
+    </script>
+
+    <!-- Game Scripts -->
     <script type="module" src="js/voice.js"></script> 
     <script type="module" src="js/engine.js"></script> 
 
@@ -112,7 +126,6 @@
             const input = document.getElementById('game-chat-input');
             const msg = input.value.trim();
             if(msg !== '') {
-                // Emit to server so room members receive it
                 if(window.gameSocket) {
                     window.gameSocket.emit('world-chat', { message: msg });
                 }
@@ -123,7 +136,6 @@
             }
         }
 
-        // Listen for incoming world chat from other players
         window.addEventListener('load', () => {
             setTimeout(() => {
                 if(window.gameSocket) {
@@ -144,4 +156,3 @@
     </script>
 </body>
 </html>
-
