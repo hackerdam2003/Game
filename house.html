@@ -3,13 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape">
-    <title>Racing Universe | Full House Centered</title>
+    <title>Racing Universe | Model Switcher</title>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #0f172a; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
         
         #house-canvas { display: block; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 0; }
+        
         .back-btn { position: absolute; top: 20px; left: 20px; background: #ef4444; color: white; border: none; padding: 10px 20px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        
+        /* 🎛️ Switch Buttons CSS */
+        .switch-container { position: absolute; top: 70px; left: 20px; z-index: 1000; display: flex; gap: 10px; }
+        .switch-btn { background: #3b82f6; color: white; border: none; padding: 10px 15px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5); transition: 0.2s; }
+        .switch-btn:active { transform: scale(0.95); }
+        .switch-btn.active { background: #10b981; }
+
         .status-hud { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); color: #38bdf8; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: bold; z-index: 1000; border: 1px solid #3b82f6; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.7); max-width: 90%; word-wrap: break-word; }
     </style>
 </head>
@@ -17,8 +25,14 @@
 
     <button class="back-btn" onclick="window.location.href='game.html'">⬅ Back to World</button>
     
+    <!-- 🎛️ Naya Switcher Panel -->
+    <div class="switch-container">
+        <button id="btn-home" class="switch-btn">🏠 Load Home.glb</button>
+        <button id="btn-newhome" class="switch-btn">🏡 Load newhome.glb</button>
+    </div>
+
     <div id="status-text" class="status-hud">
-        ⏳ Loading & Centering newhome.glb...
+        Select a model to load...
     </div>
 
     <canvas id="house-canvas"></canvas>
@@ -44,9 +58,8 @@
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x0f172a); 
 
-        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-        // Camera ko pehle se hi thoda upar aur door rakha hai
-        camera.position.set(0, 10, 25);
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 10000); // 10000 tak duri set ki hai
+        camera.position.set(0, 10, 30); // Default camera position
 
         const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -59,74 +72,101 @@
         scene.add(ambientLight);
         
         const dirLight = new THREE.DirectionalLight(0xffffff, 2.5);
-        dirLight.position.set(10, 15, 10);
+        dirLight.position.set(10, 20, 10);
         scene.add(dirLight);
 
-        // DRACO Decoder Setup
+        // Ground Grid (Refrence ke liye taaki size ka andaza lage)
+        const grid = new THREE.GridHelper(100, 100, 0x3b82f6, 0x1e293b);
+        scene.add(grid);
+
         const dracoLoader = new DRACOLoader();
         dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/');
 
         const gltfLoader = new GLTFLoader();
         gltfLoader.setDRACOLoader(dracoLoader); 
-        
-        // GitHub Pages Link
-        const houseUrl = 'https://hackerdam2003.github.io/Game/newhome.glb';
-        
-        gltfLoader.load(
-            houseUrl, 
-            (gltf) => {
-                const houseModel = gltf.scene;
 
-                // 1. Model ka exact size aur center nikalo
-                const box = new THREE.Box3().setFromObject(houseModel);
-                const center = box.getCenter(new THREE.Vector3());
-                const size = box.getSize(new THREE.Vector3());
+        let currentModel = null; // Purane model ko hatane ke liye variable
 
-                // 2. Model ko screen ke center me shift karo
-                houseModel.position.x = -center.x;
-                houseModel.position.y = -center.y;
-                houseModel.position.z = -center.z;
-
-                // 3. Size bada hai toh shrink karo taaki screen me fit ho
-                const maxDim = Math.max(size.x, size.y, size.z);
-                if (maxDim > 0) {
-                    const scaleFactor = 15 / maxDim; 
-                    houseModel.scale.set(scaleFactor, scaleFactor, scaleFactor);
-                }
-
-                // 4. Black borders (transparency) fix karo
-                houseModel.traverse((node) => {
-                    if (node.isMesh) {
-                        node.castShadow = true;
-                        node.receiveShadow = true;
-                        if (node.material) {
-                            node.material.side = THREE.DoubleSide;
-                            node.material.alphaTest = 0.3; // Leaves ko transparent banayega
-                        }
-                    }
-                });
-
-                // Wrapper group banaya taaki center position barkarar rahe
-                const wrapper = new THREE.Group();
-                wrapper.add(houseModel);
-                scene.add(wrapper);
-                
-                statusEl.innerHTML = "✅ SUCCESS: Full House Centered & Loaded!";
-                statusEl.style.color = "#10b981";
-            }, 
-            (xhr) => {
-                if (xhr.lengthComputable) {
-                    const percent = Math.floor((xhr.loaded / xhr.total) * 100);
-                    statusEl.innerHTML = `📦 Downloading & Processing: ${percent}%`;
-                }
-            }, 
-            (error) => {
-                console.error("Exact Error:", error);
-                statusEl.innerHTML = `❌ ERROR: ${error.message}`;
-                statusEl.style.color = "#ef4444";
+        // 🔄 Model Load Karne Ka Main Function
+        window.loadModel = function(filename) {
+            // Agar pehle se koi model hai toh usko scene se hata do
+            if (currentModel) {
+                scene.remove(currentModel);
+                currentModel = null;
             }
-        );
 
+            statusEl.innerHTML = `⏳ Loading ${filename}...`;
+            statusEl.style.color = "#38bdf8";
+
+            const url = `https://hackerdam2003.github.io/Game/${filename}`;
+            
+            gltfLoader.load(
+                url, 
+                (gltf) => {
+                    currentModel = gltf.scene;
+
+                    // 1. Model ko Center me laao aur Ground par rakho (Shrink kiye bina)
+                    const box = new THREE.Box3().setFromObject(currentModel);
+                    const center = box.getCenter(new THREE.Vector3());
+
+                    currentModel.position.x = -center.x;
+                    currentModel.position.y = -box.min.y; // Zameen (0) par touch karega
+                    currentModel.position.z = -center.z;
+
+                    // 2. Black borders aur transparency fix karo
+                    currentModel.traverse((node) => {
+                        if (node.isMesh) {
+                            node.castShadow = true;
+                            node.receiveShadow = true;
+                            if (node.material) {
+                                node.material.side = THREE.DoubleSide;
+                                node.material.alphaTest = 0.3; 
+                            }
+                        }
+                    });
+
+                    scene.add(currentModel);
+                    
+                    // 3. Camera ko model ke size ke hisaab se adjust karo
+                    const size = box.getSize(new THREE.Vector3());
+                    const maxDim = Math.max(size.x, size.y, size.z);
+                    const camDistance = maxDim > 0 ? maxDim * 1.5 : 30; // Model jitna bada, camera utna peeche
+
+                    camera.position.set(0, maxDim * 0.5, camDistance);
+                    controls.target.set(0, maxDim * 0.2, 0);
+                    controls.update();
+
+                    statusEl.innerHTML = `✅ SUCCESS: ${filename} Loaded Properly!`;
+                    statusEl.style.color = "#10b981";
+                }, 
+                (xhr) => {
+                    if (xhr.lengthComputable) {
+                        const percent = Math.floor((xhr.loaded / xhr.total) * 100);
+                        statusEl.innerHTML = `📦 Decoding ${filename}: ${percent}%`;
+                    }
+                }, 
+                (error) => {
+                    console.error("Exact Error:", error);
+                    statusEl.innerHTML = `❌ ERROR in ${filename}: ${error.message || 'File Not Found'}`;
+                    statusEl.style.color = "#ef4444";
+                }
+            );
+        };
+
+        // Button Clicks
+        document.getElementById('btn-home').addEventListener('click', (e) => {
+            document.querySelectorAll('.switch-btn').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            window.loadModel('Home.glb');
+        });
+
+        document.getElementById('btn-newhome').addEventListener('click', (e) => {
+            document.querySelectorAll('.switch-btn').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            window.loadModel('newhome.glb');
+        });
+
+        // Start animation loop
         function animate() {
             requestAnimationFrame(animate);
             controls.update();
@@ -139,6 +179,9 @@
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
+
+        // Automatically pehli file test karne ke liye (Optional)
+        // window.loadModel('newhome.glb');
     </script>
 </body>
 </html>
