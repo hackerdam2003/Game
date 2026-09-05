@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js'; // 🛑 Added FBXLoader back
 
 const container = document.getElementById('render-container');
 const scene = new THREE.Scene();
@@ -36,8 +37,15 @@ controls.minDistance = 0.5;
 controls.maxDistance = 4;
 
 let characterModel = null;
+let mixer = null; // 🛑 Mixer for Animation
+const clock = new THREE.Clock();
+
 const gltfLoader = new GLTFLoader();
+const fbxLoader = new FBXLoader();
+
+// Correct Paths based on your GitHub Root
 const modelURL = './Model prepared.glb';
+const idleAnimURL = './bouncing fight.fbx';
 
 gltfLoader.load(
     modelURL,
@@ -53,6 +61,15 @@ gltfLoader.load(
 
         scene.add(characterModel);
         document.getElementById('loading-text').style.display = 'none';
+
+        // 🛑 Load & Apply FBX Animation directly to the GLB Model
+        fbxLoader.load(idleAnimURL, (animObj) => {
+            if (animObj.animations && animObj.animations.length > 0) {
+                mixer = new THREE.AnimationMixer(characterModel);
+                const idleAction = mixer.clipAction(animObj.animations[0]);
+                idleAction.play();
+            }
+        }, undefined, (err) => console.warn("Animation skipped:", err));
     },
     (xhr) => {
         if (xhr.lengthComputable) {
@@ -110,10 +127,16 @@ document.getElementById('color-skin').addEventListener('input', (e) => {
 
 window.save3DDNA = function() {
     alert('3D Character DNA Saved Successfully! Entering Game World...');
+    // Future integration: window.location.href = "game.html";
 };
 
 function animate() {
     requestAnimationFrame(animate);
+    
+    // 🛑 Update Animation Frame
+    const delta = clock.getDelta();
+    if (mixer) mixer.update(delta);
+    
     controls.update();
     renderer.render(scene, camera);
 }
