@@ -2,6 +2,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+// Local paths hata kar yeh Direct Raw Links daal do
+const modelURL = 'https://raw.githubusercontent.com/hackerdam2003/Game/main/assets/ee654438-4e51-4637-a703-1e2188cea38e_model_prepared.glb';
+const idleAnimURL = 'https://raw.githubusercontent.com/hackerdam2003/Game/main/assets/ee654438-4e51-4637-a703-1e2188cea38e_Idle_bouncing_fight.fbx';
 
 const container = document.getElementById('render-container');
 const scene = new THREE.Scene();
