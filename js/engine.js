@@ -4,6 +4,7 @@ import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebas
 import * as THREE from 'three';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js'; // 🚀 Naya Draco Loader import kiya
 import { renderMinimap } from './minimap.js';
 
 // Setup Firebase
@@ -147,7 +148,7 @@ function init3DWorld() {
     worldGroup.add(dirLightW);
     worldGroup.add(new THREE.GridHelper(50, 50, 0x3b82f6, 0x1e293b));
 
-    // 🏠 Load Home.glb Model into World Map
+    // 🏠 Load Advanced newhome.glb with Draco Loader
     loadWorldHome();
 
     const ambientH = new THREE.AmbientLight(0xffffff, 1.2);
@@ -179,19 +180,47 @@ function init3DWorld() {
     requestAnimationFrame(renderLoop);
 }
 
-// 🏠 Home.glb Loader
+// 🏠 Advanced Home.glb Loader
 function loadWorldHome() {
-    const gltfLoader = new GLTFLoader();
-    
-    gltfLoader.load('./Home.glb', (gltf) => {
-        const house = gltf.scene;
-        house.scale.set(1.5, 1.5, 1.5); 
-        house.position.set(2, 0, -3); 
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/');
 
+    const gltfLoader = new GLTFLoader();
+    gltfLoader.setDRACOLoader(dracoLoader);
+    
+    // GitHub Pages raw link to prevent cache/CORS errors
+    const houseUrl = 'https://hackerdam2003.github.io/Game/newhome.glb';
+
+    gltfLoader.load(houseUrl, (gltf) => {
+        const house = gltf.scene;
+        
+        // Size aur Scale ko game world ke hisaab se fit karna
+        const box = new THREE.Box3().setFromObject(house);
+        const size = box.getSize(new THREE.Vector3());
+        
+        const maxDim = Math.max(size.x, size.y, size.z);
+        if (maxDim > 0) {
+            const scaleFactor = 10 / maxDim; // Game scale multiplier
+            house.scale.set(scaleFactor, scaleFactor, scaleFactor);
+        }
+
+        // Zameen par theek se set karna aur Entry coordinates match karna
+        const scaledBox = new THREE.Box3().setFromObject(house);
+        const center = scaledBox.getCenter(new THREE.Vector3());
+        
+        house.position.x = 2 - center.x;
+        house.position.y = -scaledBox.min.y; // Zameen par touch
+        house.position.z = -3 - center.z;
+
+        // Patto ka transparent material fix
         house.traverse((node) => {
             if (node.isMesh) {
                 node.castShadow = true;
                 node.receiveShadow = true;
+                if (node.material) {
+                    node.material.side = THREE.DoubleSide;
+                    node.material.alphaTest = 0.3;
+                }
             }
         });
 
@@ -200,10 +229,10 @@ function loadWorldHome() {
         }
 
         worldGroup.add(house);
-        doorMesh = house; 
-        console.log("✅ [World] Home.glb Loaded Successfully!");
+        doorMesh = house; // Ye mesh button ko trigger karega
+        console.log("✅ [World] newhome.glb Loaded & Set Successfully!");
     }, undefined, (error) => {
-        console.error("❌ Error loading Home.glb, using fallback box:", error);
+        console.error("❌ Error loading newhome.glb, using fallback box:", error);
         if (!doorMesh) {
             const geometry = new THREE.BoxGeometry(2, 3, 2);
             const material = new THREE.MeshStandardMaterial({ color: 0xf59e0b });
