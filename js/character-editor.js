@@ -1,12 +1,12 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { FBXLoader } from 'three/addons/loaders/FBXLoader.js'; // 🛑 Added FBXLoader back
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 
 const container = document.getElementById('render-container');
 const scene = new THREE.Scene();
 
-// Camera setup for close-up view
+// Camera setup for close-up view of the character
 const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
 camera.position.set(0, 0.85, 1.8);
 
@@ -37,15 +37,14 @@ controls.minDistance = 0.5;
 controls.maxDistance = 4;
 
 let characterModel = null;
-let mixer = null; // 🛑 Mixer for Animation
+let mixer = null;
 const clock = new THREE.Clock();
 
 const gltfLoader = new GLTFLoader();
 const fbxLoader = new FBXLoader();
 
-// Correct Paths based on your GitHub Root
 const modelURL = './Model prepared.glb';
-const idleAnimURL = './bouncing fight.fbx';
+const idleAnimURL = './bouncing%20fight.fbx'; // Space handled safely with %20
 
 gltfLoader.load(
     modelURL,
@@ -60,31 +59,38 @@ gltfLoader.load(
         });
 
         scene.add(characterModel);
-        document.getElementById('loading-text').style.display = 'none';
+        
+        // Hide loading text once model is visible
+        const loadingEl = document.getElementById('loading-text');
+        if(loadingEl) loadingEl.style.display = 'none';
 
-        // 🛑 Load & Apply FBX Animation directly to the GLB Model
+        // Load FBX Animation safely
         fbxLoader.load(idleAnimURL, (animObj) => {
             if (animObj.animations && animObj.animations.length > 0) {
                 mixer = new THREE.AnimationMixer(characterModel);
                 const idleAction = mixer.clipAction(animObj.animations[0]);
                 idleAction.play();
             }
-        }, undefined, (err) => console.warn("Animation skipped:", err));
+        }, undefined, (err) => console.warn("Animation mix warning:", err));
     },
     (xhr) => {
         if (xhr.lengthComputable) {
             const percent = Math.floor((xhr.loaded / xhr.total) * 100);
-            document.getElementById('loading-text').innerText = `Loading 3D Core... ${percent}%`;
+            const loadingEl = document.getElementById('loading-text');
+            if(loadingEl) loadingEl.innerText = `Loading 3D Core... ${percent}%`;
         }
     },
     (error) => {
         console.error("Model Error:", error);
-        document.getElementById('loading-text').innerText = "❌ Error Loading Model";
-        document.getElementById('loading-text').style.color = "#ef4444";
+        const loadingEl = document.getElementById('loading-text');
+        if(loadingEl) {
+            loadingEl.innerText = "❌ Error Loading Model";
+            loadingEl.style.color = "#ef4444";
+        }
     }
 );
 
-// UI Bone Scaling Logic
+// UI Bone Scaling Logic (Morphing)
 function updateMorphs() {
     if (!characterModel) return;
     
@@ -125,17 +131,26 @@ document.getElementById('color-skin').addEventListener('input', (e) => {
     }
 });
 
+// Save 3D DNA and redirect to game world
 window.save3DDNA = function() {
     alert('3D Character DNA Saved Successfully! Entering Game World...');
-    // Future integration: window.location.href = "game.html";
+    window.location.href = "game.html"; // Redirects to multiplayer game world
 };
 
 function animate() {
     requestAnimationFrame(animate);
     
-    // 🛑 Update Animation Frame
     const delta = clock.getDelta();
     if (mixer) mixer.update(delta);
+
+    // Procedural Breathing Fallback for Editor view so model feels alive
+    if (characterModel) {
+        let time = Date.now() * 0.005;
+        const chestBone = characterModel.getObjectByName('spine_02.x');
+        if (chestBone) {
+            chestBone.rotation.x = Math.sin(time) * 0.05; // Gentle breathing motion
+        }
+    }
     
     controls.update();
     renderer.render(scene, camera);
@@ -147,3 +162,4 @@ window.addEventListener('resize', () => {
     camera.updateProjectionMatrix();
     renderer.setSize(container.clientWidth, container.clientHeight);
 });
+
