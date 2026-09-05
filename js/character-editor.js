@@ -6,7 +6,6 @@ import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 const container = document.getElementById('render-container');
 const scene = new THREE.Scene();
 
-// Camera setup for close-up view of the character
 const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
 camera.position.set(0, 0.85, 1.8);
 
@@ -17,7 +16,6 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 container.appendChild(renderer.domElement);
 
-// Game Lighting
 const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
 scene.add(ambientLight);
 
@@ -44,7 +42,7 @@ const gltfLoader = new GLTFLoader();
 const fbxLoader = new FBXLoader();
 
 const modelURL = './Model prepared.glb';
-const idleAnimURL = './bouncing%20fight.fbx'; // Space handled safely with %20
+const danceAnimURL = './Hip%20Hop%20Dancing.fbx';
 
 gltfLoader.load(
     modelURL,
@@ -60,18 +58,16 @@ gltfLoader.load(
 
         scene.add(characterModel);
         
-        // Hide loading text once model is visible
         const loadingEl = document.getElementById('loading-text');
         if(loadingEl) loadingEl.style.display = 'none';
 
-        // Load FBX Animation safely
-        fbxLoader.load(idleAnimURL, (animObj) => {
+        fbxLoader.load(danceAnimURL, (animObj) => {
             if (animObj.animations && animObj.animations.length > 0) {
                 mixer = new THREE.AnimationMixer(characterModel);
-                const idleAction = mixer.clipAction(animObj.animations[0]);
-                idleAction.play();
+                const action = mixer.clipAction(animObj.animations[0]);
+                action.play();
             }
-        }, undefined, (err) => console.warn("Animation mix warning:", err));
+        }, undefined, (err) => console.warn("Editor animation warning:", err));
     },
     (xhr) => {
         if (xhr.lengthComputable) {
@@ -90,7 +86,6 @@ gltfLoader.load(
     }
 );
 
-// UI Bone Scaling Logic (Morphing)
 function updateMorphs() {
     if (!characterModel) return;
     
@@ -131,10 +126,9 @@ document.getElementById('color-skin').addEventListener('input', (e) => {
     }
 });
 
-// Save 3D DNA and redirect to game world
 window.save3DDNA = function() {
     alert('3D Character DNA Saved Successfully! Entering Game World...');
-    window.location.href = "game.html"; // Redirects to multiplayer game world
+    window.location.href = "game.html";
 };
 
 function animate() {
@@ -143,12 +137,11 @@ function animate() {
     const delta = clock.getDelta();
     if (mixer) mixer.update(delta);
 
-    // Procedural Breathing Fallback for Editor view so model feels alive
     if (characterModel) {
         let time = Date.now() * 0.005;
         const chestBone = characterModel.getObjectByName('spine_02.x');
         if (chestBone) {
-            chestBone.rotation.x = Math.sin(time) * 0.05; // Gentle breathing motion
+            chestBone.rotation.x = Math.sin(time) * 0.05;
         }
     }
     
@@ -162,4 +155,3 @@ window.addEventListener('resize', () => {
     camera.updateProjectionMatrix();
     renderer.setSize(container.clientWidth, container.clientHeight);
 });
-
