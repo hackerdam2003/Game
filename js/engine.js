@@ -14,7 +14,7 @@ const app = initializeApp(engineConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-console.log("🎮 [Game Engine] Fixed 3D Open World Loaded!");
+console.log("🎮 [Game Engine] 3D Engine with Mobile Debugger Loaded!");
 
 const gameSocket = io('/world'); 
 let myUid = "UID_" + Math.floor(Math.random()*9999);
@@ -29,37 +29,54 @@ let mixer = null;
 let actions = {}; 
 let currentAction = 'idle';
 
+// UI Debugger element for mobile screen
+let debugDiv = null;
+
 window.enterWorld = async function() {
     const overlay = document.getElementById('enter-overlay');
     const hud = document.getElementById('hud');
     
-    // Force Landscape / Horizontal orientation attempt
     try {
         if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
         if (screen.orientation && screen.orientation.lock) {
             await screen.orientation.lock('landscape').catch(() => {});
         }
-    } catch (err) { console.warn("Fullscreen/Orientation locked skipped"); }
+    } catch (err) { console.warn("Fullscreen locked skipped"); }
 
     if(overlay) overlay.style.display = 'none';
     if(hud) hud.style.display = 'block';
 
+    createMobileDebugger();
     init3DWorld(); 
     setupJoystick();
     
     gameSocket.emit('join-world', { gameRoomId: "GLOBAL-ROOM", uid: myUid, name: myName });
 };
 
-// 🛑 3D WORLD SETUP WITH FIXED CAMERA & ZOOM 🛑
+function createMobileDebugger() {
+    debugDiv = document.createElement('div');
+    debugDiv.style.cssText = 'position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.85); color: #38bdf8; font-size: 10px; padding: 8px; z-index: 99999; border-radius: 6px; max-width: 220px; pointer-events: none; line-height: 1.3;';
+    debugDiv.innerHTML = "<b>3D Engine Status:</b><br>Initializing...";
+    document.body.appendChild(debugDiv);
+}
+
+function updateDebug(msg) {
+    if(debugDiv) {
+        debugDiv.innerHTML = "<b>3D Engine Status:</b><br>" + msg;
+    }
+    console.log(msg);
+}
+
+// 🛑 3D WORLD SETUP 🛑
 function init3DWorld() {
     const canvas = document.getElementById('game-canvas');
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0f172a); 
     clock = new THREE.Clock();
 
-    // 🚀 FIX 1: Camera ko character ke bilkul paas set kiya hai taaki bada dikhe
+    // Camera close-up setting
     camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 1.5, 3.5); 
+    camera.position.set(0, 1.4, 3.2); 
 
     renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -85,7 +102,8 @@ function loadMyCharacter() {
     const gltfLoader = new GLTFLoader();
     const fbxLoader = new FBXLoader();
 
-    // Load Base Model
+    updateDebug("Downloading Model (.glb)...");
+
     gltfLoader.load('./Model prepared.glb', (gltf) => {
         my3DCharacter = gltf.scene;
         my3DCharacter.scale.set(1, 1, 1);
@@ -93,25 +111,36 @@ function loadMyCharacter() {
         scene.add(my3DCharacter);
         
         mixer = new THREE.AnimationMixer(my3DCharacter);
+        updateDebug("✅ Model Loaded!<br>Loading Animations (.fbx)...");
 
-        // Load Idle / Bouncing Fight Animation (Space ko %20 se handle kiya hai)
-        fbxLoader.load('./bouncing%20fight.fbx', (anim) => {
+        // Load Bouncing Fight Animation
+        fbxLoader.load('./bouncing fight.fbx', (anim) => {
             if(anim.animations && anim.animations.length > 0) {
                 actions.idle = mixer.clipAction(anim.animations[0]);
                 actions.idle.play();
                 currentAction = 'idle';
+                updateDebug("✅ Fight/Idle Anim Active!");
+            } else {
+                updateDebug("⚠️ Fight Anim empty!");
             }
-        }, undefined, (err) => console.warn("Idle anim load error:", err));
+        }, undefined, (err) => {
+            updateDebug("❌ Fight Anim Error: " + err.message);
+        });
 
         // Load Running Animation
         fbxLoader.load('./Running.fbx', (anim) => {
             if(anim.animations && anim.animations.length > 0) {
                 actions.run = mixer.clipAction(anim.animations[0]);
+                updateDebug("✅ Running Anim Loaded!");
+            } else {
+                updateDebug("⚠️ Run Anim empty!");
             }
-        }, undefined, (err) => console.warn("Run anim load error:", err));
+        }, undefined, (err) => {
+            updateDebug("❌ Run Anim Error: " + err.message);
+        });
 
     }, undefined, (err) => {
-        console.error("Model load failed:", err);
+        updateDebug("❌ Model Load Failed: " + err.message);
     });
 }
 
@@ -145,7 +174,7 @@ function setupJoystick() {
         isDragging = false;
         knob.style.transform = `translate(0px, 0px)`;
         moveVector = { x: 0, y: 0 };
-        playAnim('idle'); // Stop running, back to idle/fight
+        playAnim('idle'); 
     });
 
     function handleTouch(e) {
@@ -159,7 +188,7 @@ function setupJoystick() {
         knob.style.transform = `translate(${dx}px, ${dy}px)`;
         moveVector = { x: dx/maxDist, y: dy/maxDist };
         
-        if (dist > 5) playAnim('run'); // Play running animation
+        if (dist > 5) playAnim('run'); 
     }
 }
 
@@ -168,7 +197,6 @@ const btnAttack = document.getElementById('btn-attack');
 if(btnAttack) {
     btnAttack.addEventListener('touchstart', () => {
         gameSocket.emit('action', { action: 'attack' });
-        // Quick reaction jump/attack simulation
         if(my3DCharacter) {
             my3DCharacter.position.y += 0.2;
             setTimeout(() => { if(my3DCharacter) my3DCharacter.position.y = 0; }, 150);
@@ -188,14 +216,13 @@ function renderLoop() {
             my3DCharacter.position.x += moveVector.x * speed;
             my3DCharacter.position.z += moveVector.y * speed;
             
-            // Rotate character smoothly toward movement direction
             const targetRotation = Math.atan2(moveVector.x, moveVector.y);
             my3DCharacter.rotation.y = targetRotation;
 
             gameSocket.emit('move', { x: my3DCharacter.position.x, y: my3DCharacter.position.z });
         }
 
-        // 🚀 FIX 2: Camera close-up follow behind the character
+        // Camera follow behind character
         camera.position.x = my3DCharacter.position.x;
         camera.position.z = my3DCharacter.position.z + 2.5; 
         camera.position.y = my3DCharacter.position.y + 1.2;
@@ -214,3 +241,4 @@ window.addEventListener('resize', () => {
         renderer.setSize(window.innerWidth, window.innerHeight);
     }
 });
+
