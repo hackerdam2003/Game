@@ -4,7 +4,7 @@ import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebas
 import * as THREE from 'three';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js'; // 🚀 Naya Draco Loader import kiya
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { renderMinimap } from './minimap.js';
 
 // Setup Firebase
@@ -46,6 +46,7 @@ let doorMesh = null, exitDoorMesh = null;
 let enterHouseBtn = null, actionUI = null, playerListUI = null;
 let isBusy = false; 
 
+// Invisible zones for Sit/Sleep actions inside the real house
 const CHAIR_POS = { x: -3, z: -2 };
 const BED_POS = { x: 3, z: -4 };
 
@@ -141,36 +142,27 @@ function init3DWorld() {
     scene.add(worldGroup);
     scene.add(houseGroup);
 
+    // World Lighting
     const ambientW = new THREE.AmbientLight(0xffffff, 1.5);
     const dirLightW = new THREE.DirectionalLight(0xfff0dd, 2);
     dirLightW.position.set(5, 10, 5);
     worldGroup.add(ambientW);
     worldGroup.add(dirLightW);
-    worldGroup.add(new THREE.GridHelper(50, 50, 0x3b82f6, 0x1e293b));
+    worldGroup.add(new THREE.GridHelper(100, 100, 0x3b82f6, 0x1e293b)); // Grid size badha di
 
-    // 🏠 Load Advanced newhome.glb with Draco Loader
-    loadWorldHome();
-
-    const ambientH = new THREE.AmbientLight(0xffffff, 1.2);
-    const pointLightH = new THREE.PointLight(0xffddaa, 1.5, 20);
-    pointLightH.position.set(0, 4, 0);
+    // House Lighting (Jab andar jayenge)
+    const ambientH = new THREE.AmbientLight(0xffffff, 1.5);
+    const pointLightH = new THREE.PointLight(0xffddaa, 2, 30);
+    pointLightH.position.set(0, 5, 0);
     houseGroup.add(ambientH);
     houseGroup.add(pointLightH);
+    
+    // 🏠 Load ASLI Home Model in BOTH Environments (No fake boxes)
+    loadAsliGhar();
 
-    const houseFloor = new THREE.Mesh(new THREE.PlaneGeometry(15, 15), new THREE.MeshStandardMaterial({ color: 0x64748b }));
-    houseFloor.rotation.x = -Math.PI / 2;
-    houseGroup.add(houseFloor);
-
-    const chairMesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0x3b82f6 }));
-    chairMesh.position.set(CHAIR_POS.x, 0.5, CHAIR_POS.z);
-    houseGroup.add(chairMesh);
-
-    const bedMesh = new THREE.Mesh(new THREE.BoxGeometry(2, 0.5, 4), new THREE.MeshStandardMaterial({ color: 0xef4444 }));
-    bedMesh.position.set(BED_POS.x, 0.25, BED_POS.z);
-    houseGroup.add(bedMesh);
-
-    exitDoorMesh = new THREE.Mesh(new THREE.BoxGeometry(1.5, 2.5, 0.5), new THREE.MeshStandardMaterial({ color: 0x10b981, transparent: true, opacity: 0.8 }));
-    exitDoorMesh.position.set(0, 1.25, 6);
+    // Invisible Exit Door Trigger (Taki wapas bahar aa sako)
+    exitDoorMesh = new THREE.Mesh(new THREE.BoxGeometry(4, 4, 4), new THREE.MeshBasicMaterial({ visible: false }));
+    exitDoorMesh.position.set(0, 1, 6); // Andar se bahar aane ki position
     houseGroup.add(exitDoorMesh);
 
     houseGroup.visible = false;
@@ -180,40 +172,34 @@ function init3DWorld() {
     requestAnimationFrame(renderLoop);
 }
 
-// 🏠 Advanced Home.glb Loader
-function loadWorldHome() {
+// 🏠 Asli Ghar Loader (Size Bada Kiya & Dono jagah lagaya)
+function loadAsliGhar() {
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/');
 
     const gltfLoader = new GLTFLoader();
     gltfLoader.setDRACOLoader(dracoLoader);
     
-    // GitHub Pages raw link to prevent cache/CORS errors
     const houseUrl = 'https://hackerdam2003.github.io/Game/newhome.glb';
 
     gltfLoader.load(houseUrl, (gltf) => {
-        const house = gltf.scene;
+        const originalHouse = gltf.scene;
         
-        // Size aur Scale ko game world ke hisaab se fit karna
-        const box = new THREE.Box3().setFromObject(house);
+        const box = new THREE.Box3().setFromObject(originalHouse);
         const size = box.getSize(new THREE.Vector3());
         
+        // 🚀 SIZE FIX: Scale ko 35 kar diya taaki ghar bahut bada aur real lage!
         const maxDim = Math.max(size.x, size.y, size.z);
         if (maxDim > 0) {
-            const scaleFactor = 10 / maxDim; // Game scale multiplier
-            house.scale.set(scaleFactor, scaleFactor, scaleFactor);
+            const scaleFactor = 35 / maxDim; // Huge scale for real life feeling
+            originalHouse.scale.set(scaleFactor, scaleFactor, scaleFactor);
         }
 
-        // Zameen par theek se set karna aur Entry coordinates match karna
-        const scaledBox = new THREE.Box3().setFromObject(house);
+        const scaledBox = new THREE.Box3().setFromObject(originalHouse);
         const center = scaledBox.getCenter(new THREE.Vector3());
         
-        house.position.x = 2 - center.x;
-        house.position.y = -scaledBox.min.y; // Zameen par touch
-        house.position.z = -3 - center.z;
-
-        // Patto ka transparent material fix
-        house.traverse((node) => {
+        // Materials (Transparancy fix patto ke liye)
+        originalHouse.traverse((node) => {
             if (node.isMesh) {
                 node.castShadow = true;
                 node.receiveShadow = true;
@@ -224,22 +210,28 @@ function loadWorldHome() {
             }
         });
 
-        if (doorMesh && doorMesh.parent) {
-            worldGroup.remove(doorMesh);
-        }
+        // 1. Bahar Wala Ghar (World Group me)
+        const worldHouse = originalHouse.clone();
+        worldHouse.position.x = 2 - center.x;
+        worldHouse.position.y = -scaledBox.min.y; 
+        worldHouse.position.z = -10 - center.z; // Thoda aur peeche rakha bade size ki wajah se
+        worldGroup.add(worldHouse);
+        
+        // Invisible Entry Door Trigger (Bada kar diya taaki easily click ho)
+        doorMesh = new THREE.Mesh(new THREE.BoxGeometry(4, 4, 4), new THREE.MeshBasicMaterial({ visible: false }));
+        doorMesh.position.set(2, 1.5, -4); // Ghar ke aage ka trigger point
+        worldGroup.add(doorMesh);
 
-        worldGroup.add(house);
-        doorMesh = house; // Ye mesh button ko trigger karega
-        console.log("✅ [World] newhome.glb Loaded & Set Successfully!");
+        // 2. Andar Wala Ghar (House Group me) - FAKE BOXES HATA DIYE GAYE HAIN!
+        const interiorHouse = originalHouse.clone();
+        interiorHouse.position.x = -center.x;
+        interiorHouse.position.y = -scaledBox.min.y; 
+        interiorHouse.position.z = -center.z;
+        houseGroup.add(interiorHouse);
+
+        console.log("✅ [World] Real Home Loaded, Fake Boxes Deleted!");
     }, undefined, (error) => {
-        console.error("❌ Error loading newhome.glb, using fallback box:", error);
-        if (!doorMesh) {
-            const geometry = new THREE.BoxGeometry(2, 3, 2);
-            const material = new THREE.MeshStandardMaterial({ color: 0xf59e0b });
-            doorMesh = new THREE.Mesh(geometry, material);
-            doorMesh.position.set(2, 1.5, -3);
-            worldGroup.add(doorMesh);
-        }
+        console.error("❌ Error loading Home:", error);
     });
 }
 
@@ -251,13 +243,13 @@ function switchEnvironment(targetEnv) {
         worldGroup.visible = false;
         houseGroup.visible = true;
         scene.background = new THREE.Color(0x1e293b); 
-        my3DCharacter.position.set(0, 0, 4); 
+        my3DCharacter.position.set(0, 0, 4); // Andar enter hone par spawn position
         enterHouseBtn.style.display = "none";
     } else {
         worldGroup.visible = true;
         houseGroup.visible = false;
         scene.background = new THREE.Color(0x0f172a); 
-        my3DCharacter.position.set(2, 0, -1); 
+        my3DCharacter.position.set(2, 0, 0); // Bahar nikalne ki spawn position
         enterHouseBtn.style.display = "none";
     }
     
@@ -312,7 +304,7 @@ function loadMonster() {
     new FBXLoader().load('./Mpc%20Skeletonzombie.fbx', (object) => {
         monsterCharacter = object;
         monsterCharacter.scale.set(0.01, 0.01, 0.01);
-        monsterCharacter.position.set(-3, 0, -5);
+        monsterCharacter.position.set(-5, 0, -5);
         worldGroup.add(monsterCharacter); 
         monsterMixer = new THREE.AnimationMixer(monsterCharacter);
         if (object.animations.length > 0) monsterMixer.clipAction(object.animations[0]).play();
@@ -566,8 +558,9 @@ function renderLoop() {
                 renderMinimap(allPlayersData, myUid);
             }
 
+            // 🏠 Door Interaction Logic
             if (currentEnvironment === "world" && doorMesh) {
-                if (my3DCharacter.position.distanceTo(doorMesh.position) < 4.0) {
+                if (my3DCharacter.position.distanceTo(doorMesh.position) < 5.0) { // Distance badha di
                     enterHouseBtn.style.display = "block";
                     enterHouseBtn.innerHTML = "🏠 Enter House";
                     enterHouseBtn.onclick = () => switchEnvironment("house");
@@ -575,8 +568,8 @@ function renderLoop() {
                     enterHouseBtn.style.display = "none";
                 }
             } 
-            else if (currentEnvironment === "house") {
-                if (my3DCharacter.position.distanceTo(exitDoorMesh.position) < 2.0) {
+            else if (currentEnvironment === "house" && exitDoorMesh) {
+                if (my3DCharacter.position.distanceTo(exitDoorMesh.position) < 5.0) { // Distance badha di
                     enterHouseBtn.style.display = "block";
                     enterHouseBtn.innerHTML = "🚪 Exit House";
                     enterHouseBtn.onclick = () => switchEnvironment("world");
@@ -657,4 +650,3 @@ window.addEventListener('resize', () => {
         canvas.style.height = '100vh';
     }
 });
-
