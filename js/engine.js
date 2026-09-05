@@ -15,13 +15,13 @@ const app = initializeApp(engineConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-console.log("🎮 [Game Engine] Smooth Single-Page Multiplayer Loaded with Real Names & Chat!");
+console.log("🎮 [Game Engine] Original Characters & Real Names Loaded!");
 
 const gameSocket = io(); 
 
-// 🚨 FIX 1: Real Name aur UID LocalStorage se lenge (Fake name hataya)
-let myUid = localStorage.getItem('playerUID') || "UID_" + Math.floor(Math.random()*9999);
-let myName = localStorage.getItem('playerName') || "Racer";
+// 🚨 FIX 1: Real Name Fetching - Lobby se sahi naam uthayega, warna Guest banayega, sabka same nahi hoga.
+let myUid = localStorage.getItem('playerUID') || "UID_" + Math.floor(Math.random()*99999);
+let myName = localStorage.getItem('gameName') || localStorage.getItem('playerName') || "Guest_" + Math.floor(Math.random()*999);
 let speed = 0.08; 
 let moveVector = { x: 0, y: 0 };
 
@@ -53,8 +53,11 @@ let isBusy = false;
 const CHAIR_POS = { x: -3, z: -2 };
 const BED_POS = { x: 3, z: -4 };
 
+// ✅ Make sure ye files tumhare server par maujood hain
 const characterFiles = { 'man': './Man.fbx', 'girl': './Peasant%20Girl.fbx' };
-let currentSelectedChar = 'man';
+
+// Agar localStorage me char save hai toh wo lo, warna default 'man'
+let currentSelectedChar = localStorage.getItem('selectedCharacter') || 'man';
 
 window.enterWorld = async function() {
     const overlay = document.getElementById('enter-overlay');
@@ -72,14 +75,14 @@ window.enterWorld = async function() {
     init3DWorld(); 
     setupJoystick();
     setupActionButtons();
-    setupChatAndVoice(); // 🚨 FIX 2: Mic & Chat system start
+    setupChatAndVoice(); 
     setupMultiplayer();
     
     gameSocket.emit('join-world', { 
         gameRoomId: "GLOBAL-ROOM", 
         uid: myUid, 
         name: myName, 
-        char: currentSelectedChar,
+        char: currentSelectedChar, // ✅ Asli character ID server ko bhej rahe hain
         env: currentEnvironment
     });
 };
@@ -88,26 +91,20 @@ window.enterWorld = async function() {
 // 1. UI SETUP 
 // ==========================================
 function createUIElements() {
-    // Top HUD
     const hudBar = document.createElement('div');
     hudBar.style.cssText = 'position: fixed; top: 10px; left: 10px; z-index: 9999; pointer-events: none;';
     hudBar.innerHTML = `<div style="background: rgba(0,0,0,0.7); color: #fff; font-size: 11px; padding: 10px; border-radius: 8px; border: 1px solid #3b82f6;"><b>❤️ HP:</b> <span id='p-hp'>100</span> | <b>🧟 Boss:</b> <span id='m-hp'>100</span></div>`;
     document.body.appendChild(hudBar);
 
-    // Player List UI
     playerListUI = document.createElement('div');
     playerListUI.style.cssText = 'position: fixed; top: 60px; left: 10px; background: rgba(0,0,0,0.7); color: #fff; font-size: 11px; padding: 10px; z-index: 99999; border-radius: 8px; min-width: 120px; border: 1px solid #3b82f6;';
     document.body.appendChild(playerListUI);
     updatePlayerListUI();
 
-    // 🚨 Duplicate Chat code removed. HTML buttons are used now.
-
-    // Enter/Exit House Button
     enterHouseBtn = document.createElement('button');
     enterHouseBtn.style.cssText = "position: fixed; top: 20%; left: 50%; transform: translateX(-50%); padding: 12px 24px; font-size: 16px; font-weight: bold; background: #10b981; color: white; border: none; border-radius: 8px; display: none; z-index: 10000; box-shadow: 0px 4px 10px rgba(0,0,0,0.5); cursor: pointer;";
     document.body.appendChild(enterHouseBtn);
 
-    // Furniture Actions UI
     actionUI = document.createElement('div');
     actionUI.style.cssText = 'position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); display: none; gap: 10px; z-index: 10000;';
     actionUI.innerHTML = `
@@ -139,7 +136,7 @@ function init3DWorld() {
     canvas.style.position = 'absolute';
     canvas.style.top = '0';
     canvas.style.left = '0';
-    canvas.style.zIndex = '0'; // Black screen fix
+    canvas.style.zIndex = '0';
 
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0f172a); 
@@ -225,22 +222,23 @@ function loadCharacter(charKey) {
     const fbxLoader = new FBXLoader();
     if (my3DCharacter) scene.remove(my3DCharacter);
     
-    fbxLoader.load(characterFiles[charKey], (object) => {
+    fbxLoader.load(characterFiles[charKey] || characterFiles['man'], (object) => {
         my3DCharacter = object;
         my3DCharacter.scale.set(0.01, 0.01, 0.01);
         my3DCharacter.position.set(0, 0, 0);
         scene.add(my3DCharacter);
         mixer = new THREE.AnimationMixer(my3DCharacter);
         if (object.animations.length > 0) { actions.idle = mixer.clipAction(object.animations[0]); actions.idle.play(); }
-        loadAnimations(fbxLoader);
+        loadAnimations(fbxLoader, mixer, actions);
     });
 }
 
-function loadAnimations(fbxLoader) {
-    fbxLoader.load('./Running.fbx', (anim) => { if(anim.animations.length) actions.run = mixer.clipAction(anim.animations[0]); });
-    fbxLoader.load('./Punching.fbx', (anim) => { if(anim.animations.length) { actions.punch = mixer.clipAction(anim.animations[0]); actions.punch.setLoop(THREE.LoopOnce); }});
-    fbxLoader.load('./Sitting.fbx', (anim) => { if(anim.animations.length) actions.sit = mixer.clipAction(anim.animations[0]); });
-    fbxLoader.load('./Sleeping.fbx', (anim) => { if(anim.animations.length) actions.sleep = mixer.clipAction(anim.animations[0]); });
+// Reusable animation loader (khud ke aur dusre player ke liye)
+function loadAnimations(fbxLoader, targetMixer, targetActions) {
+    fbxLoader.load('./Running.fbx', (anim) => { if(anim.animations.length) targetActions.run = targetMixer.clipAction(anim.animations[0]); });
+    fbxLoader.load('./Punching.fbx', (anim) => { if(anim.animations.length) { targetActions.punch = targetMixer.clipAction(anim.animations[0]); targetActions.punch.setLoop(THREE.LoopOnce); }});
+    fbxLoader.load('./Sitting.fbx', (anim) => { if(anim.animations.length) targetActions.sit = targetMixer.clipAction(anim.animations[0]); });
+    fbxLoader.load('./Sleeping.fbx', (anim) => { if(anim.animations.length) targetActions.sleep = targetMixer.clipAction(anim.animations[0]); });
 }
 
 function playAnim(animName) {
@@ -287,6 +285,7 @@ function setupMultiplayer() {
             remotePlayers[data.uid].targetRot = data.rot;
             remotePlayers[data.uid].env = data.env;
             
+            // 🚨 Remote Player ki Animation Trigger
             if(remotePlayers[data.uid].mixer && remotePlayers[data.uid].actions[data.action]) {
                 const actionToPlay = remotePlayers[data.uid].actions[data.action];
                 if(remotePlayers[data.uid].currentAction !== data.action) {
@@ -303,12 +302,12 @@ function setupMultiplayer() {
 
     gameSocket.on('chat-message', (data) => {
         showChatBubble(data.uid, data.msg);
-        appendChatUI(data.name, data.msg, '#10b981'); // 🚨 FIX: Sync to chat box
+        appendChatUI(data.name, data.msg, '#10b981'); 
     });
 
     gameSocket.on('player-left', (uid) => {
         if(remotePlayers[uid]) {
-            scene.remove(remotePlayers[uid].mesh);
+            scene.remove(remotePlayers[uid].group); // 🚨 Group remove kar rahe hain (asli character)
             if(remotePlayers[uid].label) remotePlayers[uid].label.remove();
             delete remotePlayers[uid];
             updatePlayerListUI();
@@ -318,33 +317,51 @@ function setupMultiplayer() {
     });
 }
 
+// 🚨 FIX 2: Fake Capsule Hataya! Asli FBX Model Load Hoga
 function addRemotePlayer(data) {
-    const geometry = new THREE.CapsuleGeometry(0.3, 1, 4, 8);
-    const material = new THREE.MeshStandardMaterial({ color: Math.random() * 0xffffff });
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(data.x || 0, 0.8, data.z || 0);
-    scene.add(mesh);
+    const fbxLoader = new FBXLoader();
+    const group = new THREE.Group(); // Character ko group me rakhenge taaki move karna asaan ho
+    group.position.set(data.x || 0, 0, data.z || 0); // Y position 0 kardi taaki zameen par rahe
+    scene.add(group);
 
     const label = document.createElement('div');
     label.style.cssText = 'position: absolute; color: white; background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; transform: translate(-50%, -100%); pointer-events: none;';
     label.innerText = data.name;
     floatingLabels.appendChild(label);
 
-    remotePlayers[data.uid] = { 
-        mesh: mesh, 
+    const rp = { 
+        group: group, 
         label: label,
-        targetPos: mesh.position.clone(), 
+        targetPos: group.position.clone(), 
         targetRot: 0,
         env: data.env || 'world',
         name: data.name,
         currentAction: 'idle',
+        mixer: null,
         actions: {},
         chatTimeout: null
     };
+    remotePlayers[data.uid] = rp;
+
+    // Asli 3D Model load kar rahe hain doosre player ka
+    const charKey = data.char || 'man';
+    fbxLoader.load(characterFiles[charKey] || characterFiles['man'], (object) => {
+        object.scale.set(0.01, 0.01, 0.01);
+        object.position.set(0, 0, 0);
+        group.add(object);
+        
+        rp.mixer = new THREE.AnimationMixer(object);
+        if (object.animations.length > 0) { 
+            rp.actions.idle = rp.mixer.clipAction(object.animations[0]); 
+            rp.actions.idle.play(); 
+        }
+        // Unki animations load karo
+        loadAnimations(fbxLoader, rp.mixer, rp.actions);
+    });
+
     updatePlayerListUI();
 }
 
-// 🚨 FIX 3: HTML Chat UI Connection
 function setupChatAndVoice() {
     const chatToggle = document.getElementById('btn-chat-toggle');
     const chatBox = document.getElementById('game-chat-box');
@@ -482,7 +499,7 @@ function setupActionButtons() {
 }
 
 // ==========================================
-// 6. RENDER LOOP & RESIZE FIX
+// 6. RENDER LOOP
 // ==========================================
 function renderLoop() {
     requestAnimationFrame(renderLoop);
@@ -547,15 +564,19 @@ function renderLoop() {
         }
     }
 
+    // 🚨 REMOTE PLAYERS FIX: Asli mesh rotate aur move karegi
     for(let uid in remotePlayers) {
         const rp = remotePlayers[uid];
+        
+        if(rp.mixer) rp.mixer.update(delta); // Remote player ki animation chalne ke liye
+
         if(rp.env === currentEnvironment) {
-            rp.mesh.visible = true;
-            rp.mesh.position.lerp(rp.targetPos, 0.1);
-            rp.mesh.rotation.y = rp.targetRot;
+            rp.group.visible = true;
+            rp.group.position.lerp(rp.targetPos, 0.1);
+            rp.group.rotation.y = rp.targetRot;
             
             if(rp.label) {
-                const pos = rp.mesh.position.clone();
+                const pos = rp.group.position.clone();
                 pos.y += 1.8; pos.project(camera);
                 if(pos.z < 1) {
                     rp.label.style.display = 'block';
@@ -566,7 +587,7 @@ function renderLoop() {
                 }
             }
         } else {
-            rp.mesh.visible = false;
+            rp.group.visible = false;
             if(rp.label) rp.label.style.display = 'none';
         }
     }
@@ -585,4 +606,3 @@ window.addEventListener('resize', () => {
         canvas.style.height = '100vh';
     }
 });
-
