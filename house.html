@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Inside House - Racing Universe</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #0f172a; touch-action: none; font-family: sans-serif; }
+        #game-canvas { display: block; width: 100vw; height: 100vh; }
+        
+        /* Loading Screen */
+        #loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0f172a; display: flex; justify-content: center; align-items: center; color: white; font-size: 20px; z-index: 1000; font-weight: bold; }
+        
+        /* Exit Button */
+        #btn-exit { position: fixed; top: 20px; left: 20px; padding: 10px 15px; background: #ef4444; color: white; border: none; border-radius: 8px; font-weight: bold; z-index: 100; cursor: pointer; }
+        
+        /* Action Buttons (Hidden by default, show near Bed/Chair) */
+        #action-ui { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: none; gap: 10px; z-index: 100; }
+        .action-btn { padding: 12px 24px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); cursor: pointer; }
+        
+        /* Mobile Joystick */
+        #joystick-base { position: fixed; bottom: 30px; left: 30px; width: 100px; height: 100px; background: rgba(255,255,255,0.2); border-radius: 50%; z-index: 10; border: 2px solid rgba(255,255,255,0.4); }
+        #joystick-knob { position: absolute; top: 25px; left: 25px; width: 50px; height: 50px; background: rgba(255,255,255,0.7); border-radius: 50%; }
+    </style>
+</head>
+<body>
+
+    <div id="loading">Loading House Interior...</div>
+    <button id="btn-exit" onclick="window.location.href='game.html'">🚪 Exit House</button>
+    
+    <div id="action-ui">
+        <button id="btn-sit" class="action-btn" style="display:none;">🪑 Sit</button>
+        <button id="btn-sleep" class="action-btn" style="display:none;">🛏️ Sleep</button>
+        <button id="btn-stand" class="action-btn" style="display:none; background:#f59e0b;">🧍 Stand Up</button>
+    </div>
+
+    <div id="joystick-base"><div id="joystick-knob"></div></div>
+    
+    <canvas id="game-canvas"></canvas>
+
+    <!-- Use Import Maps for Three.js -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module" src="./js/house.js"></script>
+</body>
+</html>
