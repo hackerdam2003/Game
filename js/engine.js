@@ -17,7 +17,7 @@ const app = initializeApp(engineConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-console.log("🎮 [Game Engine] Fully Ready & Loaded!");
+console.log("🎮 [Game Engine] 360 Movement & House Fix Ready!");
 
 const gameSocket = io(); 
 
@@ -27,7 +27,7 @@ let speed = 0.08;
 let moveVector = { x: 0, y: 0 };
 
 let currentEnvironment = "world";
-let scene, camera, renderer, clock;
+let scene, camera, renderer, clock, controls;
 let worldGroup, houseGroup; 
 
 let my3DCharacter = null;
@@ -46,7 +46,9 @@ let doorMesh = null, exitDoorMesh = null;
 let enterHouseBtn = null, actionUI = null, playerListUI = null;
 let isBusy = false; 
 
-// Invisible zones for Sit/Sleep actions inside the real house
+// 🏠 Ghar ko zameen me kitna niche dhasana hai (Adjust it if needed)
+const HOUSE_Y_OFFSET = -2.5; 
+
 const CHAIR_POS = { x: -3, z: -2 };
 const BED_POS = { x: 3, z: -4 };
 
@@ -131,11 +133,19 @@ function init3DWorld() {
     clock = new THREE.Clock();
 
     camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 1.4, 3.2); 
+    camera.position.set(0, 3, 6); 
 
     renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
+
+    // 📸 360 Degree Camera Setup
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.maxPolarAngle = Math.PI / 2 - 0.05; // Camera ko zameen ke neeche jaane se rokega
+    controls.minDistance = 2;
+    controls.maxDistance = 15;
 
     worldGroup = new THREE.Group();
     houseGroup = new THREE.Group();
@@ -148,21 +158,21 @@ function init3DWorld() {
     dirLightW.position.set(5, 10, 5);
     worldGroup.add(ambientW);
     worldGroup.add(dirLightW);
-    worldGroup.add(new THREE.GridHelper(100, 100, 0x3b82f6, 0x1e293b)); // Grid size badha di
+    worldGroup.add(new THREE.GridHelper(100, 100, 0x3b82f6, 0x1e293b));
 
-    // House Lighting (Jab andar jayenge)
+    // House Lighting
     const ambientH = new THREE.AmbientLight(0xffffff, 1.5);
     const pointLightH = new THREE.PointLight(0xffddaa, 2, 30);
     pointLightH.position.set(0, 5, 0);
     houseGroup.add(ambientH);
     houseGroup.add(pointLightH);
     
-    // 🏠 Load ASLI Home Model in BOTH Environments (No fake boxes)
+    // Load Model
     loadAsliGhar();
 
-    // Invisible Exit Door Trigger (Taki wapas bahar aa sako)
+    // Invisible Exit Door Trigger
     exitDoorMesh = new THREE.Mesh(new THREE.BoxGeometry(4, 4, 4), new THREE.MeshBasicMaterial({ visible: false }));
-    exitDoorMesh.position.set(0, 1, 6); // Andar se bahar aane ki position
+    exitDoorMesh.position.set(0, 1, 6); 
     houseGroup.add(exitDoorMesh);
 
     houseGroup.visible = false;
@@ -172,7 +182,7 @@ function init3DWorld() {
     requestAnimationFrame(renderLoop);
 }
 
-// 🏠 Asli Ghar Loader (Size Bada Kiya & Dono jagah lagaya)
+// 🏠 Ghar Loader (Yellow patti issue fixed)
 function loadAsliGhar() {
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/');
@@ -188,17 +198,15 @@ function loadAsliGhar() {
         const box = new THREE.Box3().setFromObject(originalHouse);
         const size = box.getSize(new THREE.Vector3());
         
-        // 🚀 SIZE FIX: Scale ko 35 kar diya taaki ghar bahut bada aur real lage!
         const maxDim = Math.max(size.x, size.y, size.z);
         if (maxDim > 0) {
-            const scaleFactor = 35 / maxDim; // Huge scale for real life feeling
+            const scaleFactor = 35 / maxDim; // Huge Scale
             originalHouse.scale.set(scaleFactor, scaleFactor, scaleFactor);
         }
 
         const scaledBox = new THREE.Box3().setFromObject(originalHouse);
         const center = scaledBox.getCenter(new THREE.Vector3());
         
-        // Materials (Transparancy fix patto ke liye)
         originalHouse.traverse((node) => {
             if (node.isMesh) {
                 node.castShadow = true;
@@ -210,28 +218,27 @@ function loadAsliGhar() {
             }
         });
 
-        // 1. Bahar Wala Ghar (World Group me)
+        // 1. Bahar Wala Ghar
         const worldHouse = originalHouse.clone();
         worldHouse.position.x = 2 - center.x;
-        worldHouse.position.y = -scaledBox.min.y; 
-        worldHouse.position.z = -10 - center.z; // Thoda aur peeche rakha bade size ki wajah se
+        // 🚀 Yellow patti ko fix karne ke liye HOUSE_Y_OFFSET lagaya
+        worldHouse.position.y = -scaledBox.min.y + HOUSE_Y_OFFSET; 
+        worldHouse.position.z = -10 - center.z; 
         worldGroup.add(worldHouse);
         
-        // Invisible Entry Door Trigger (Bada kar diya taaki easily click ho)
+        // Door Trigger
         doorMesh = new THREE.Mesh(new THREE.BoxGeometry(4, 4, 4), new THREE.MeshBasicMaterial({ visible: false }));
-        doorMesh.position.set(2, 1.5, -4); // Ghar ke aage ka trigger point
+        doorMesh.position.set(2, 1.5, -4); 
         worldGroup.add(doorMesh);
 
-        // 2. Andar Wala Ghar (House Group me) - FAKE BOXES HATA DIYE GAYE HAIN!
+        // 2. Andar Wala Ghar
         const interiorHouse = originalHouse.clone();
         interiorHouse.position.x = -center.x;
-        interiorHouse.position.y = -scaledBox.min.y; 
+        interiorHouse.position.y = -scaledBox.min.y + HOUSE_Y_OFFSET; 
         interiorHouse.position.z = -center.z;
         houseGroup.add(interiorHouse);
 
-        console.log("✅ [World] Real Home Loaded, Fake Boxes Deleted!");
-    }, undefined, (error) => {
-        console.error("❌ Error loading Home:", error);
+        console.log("✅ Real Home Loaded with Y-Offset Fix!");
     });
 }
 
@@ -243,13 +250,13 @@ function switchEnvironment(targetEnv) {
         worldGroup.visible = false;
         houseGroup.visible = true;
         scene.background = new THREE.Color(0x1e293b); 
-        my3DCharacter.position.set(0, 0, 4); // Andar enter hone par spawn position
+        my3DCharacter.position.set(0, 0, 4); 
         enterHouseBtn.style.display = "none";
     } else {
         worldGroup.visible = true;
         houseGroup.visible = false;
         scene.background = new THREE.Color(0x0f172a); 
-        my3DCharacter.position.set(2, 0, 0); // Bahar nikalne ki spawn position
+        my3DCharacter.position.set(2, 0, 0); 
         enterHouseBtn.style.display = "none";
     }
     
@@ -319,20 +326,17 @@ function setupMultiplayer() {
         }
         renderMinimap(allPlayersData, myUid);
     });
-
     gameSocket.on('player-joined', (data) => {
         allPlayersData[data.uid] = data;
         if(data.uid !== myUid) addRemotePlayer(data);
         renderMinimap(allPlayersData, myUid);
     });
-
     gameSocket.on('player-moved', (data) => {
         allPlayersData[data.uid] = data;
         if(remotePlayers[data.uid]) {
             remotePlayers[data.uid].targetPos = new THREE.Vector3(data.x, data.y, data.z);
             remotePlayers[data.uid].targetRot = data.rot;
             remotePlayers[data.uid].env = data.env;
-            
             if(remotePlayers[data.uid].mixer && remotePlayers[data.uid].actions[data.action]) {
                 const actionToPlay = remotePlayers[data.uid].actions[data.action];
                 if(remotePlayers[data.uid].currentAction !== data.action) {
@@ -346,19 +350,9 @@ function setupMultiplayer() {
         }
         renderMinimap(allPlayersData, myUid);
     });
-
-    gameSocket.on('chat-message', (data) => {
-        showChatBubble(data.uid, data.msg);
-        appendChatUI(data.name, data.msg, '#10b981'); 
-    });
-
+    gameSocket.on('chat-message', (data) => { showChatBubble(data.uid, data.msg); appendChatUI(data.name, data.msg, '#10b981'); });
     gameSocket.on('player-left', (uid) => {
-        if(remotePlayers[uid]) {
-            scene.remove(remotePlayers[uid].group); 
-            if(remotePlayers[uid].label) remotePlayers[uid].label.remove();
-            delete remotePlayers[uid];
-            updatePlayerListUI();
-        }
+        if(remotePlayers[uid]) { scene.remove(remotePlayers[uid].group); if(remotePlayers[uid].label) remotePlayers[uid].label.remove(); delete remotePlayers[uid]; updatePlayerListUI(); }
         delete allPlayersData[uid];
         renderMinimap(allPlayersData, myUid);
     });
@@ -375,18 +369,7 @@ function addRemotePlayer(data) {
     label.innerText = data.name;
     floatingLabels.appendChild(label);
 
-    const rp = { 
-        group: group, 
-        label: label,
-        targetPos: group.position.clone(), 
-        targetRot: 0,
-        env: data.env || 'world',
-        name: data.name,
-        currentAction: 'idle',
-        mixer: null,
-        actions: {},
-        chatTimeout: null
-    };
+    const rp = { group: group, label: label, targetPos: group.position.clone(), targetRot: 0, env: data.env || 'world', name: data.name, currentAction: 'idle', mixer: null, actions: {}, chatTimeout: null };
     remotePlayers[data.uid] = rp;
 
     const charKey = data.char || 'man';
@@ -394,114 +377,75 @@ function addRemotePlayer(data) {
         object.scale.set(0.01, 0.01, 0.01);
         object.position.set(0, 0, 0);
         group.add(object);
-        
         rp.mixer = new THREE.AnimationMixer(object);
-        if (object.animations.length > 0) { 
-            rp.actions.idle = rp.mixer.clipAction(object.animations[0]); 
-            rp.actions.idle.play(); 
-        }
+        if (object.animations.length > 0) { rp.actions.idle = rp.mixer.clipAction(object.animations[0]); rp.actions.idle.play(); }
         loadAnimations(fbxLoader, rp.mixer, rp.actions);
     });
-
     updatePlayerListUI();
 }
 
 function setupChatAndVoice() {
-    const chatToggle = document.getElementById('btn-chat-toggle');
-    const chatBox = document.getElementById('game-chat-box');
-    const sendBtn = document.getElementById('btn-send-chat');
-    const input = document.getElementById('game-chat-input');
-    const micToggle = document.getElementById('btn-mic-toggle');
+    const chatToggle = document.getElementById('btn-chat-toggle'), chatBox = document.getElementById('game-chat-box'), sendBtn = document.getElementById('btn-send-chat'), input = document.getElementById('game-chat-input'), micToggle = document.getElementById('btn-mic-toggle');
 
-    if(chatToggle && chatBox) {
-        const toggleBox = () => { chatBox.style.display = chatBox.style.display === 'flex' ? 'none' : 'flex'; };
-        chatToggle.addEventListener('click', toggleBox);
-        chatToggle.addEventListener('touchstart', toggleBox, {passive: true});
-    }
+    if(chatToggle && chatBox) { const toggleBox = () => { chatBox.style.display = chatBox.style.display === 'flex' ? 'none' : 'flex'; }; chatToggle.addEventListener('click', toggleBox); chatToggle.addEventListener('touchstart', toggleBox, {passive: true}); }
 
     const sendChatMsg = () => {
         if(!input) return;
         const msg = input.value.trim();
         if(msg !== "") {
             gameSocket.emit('chat-message', { uid: myUid, name: myName, msg: msg });
-            showChatBubble(myUid, msg); 
-            appendChatUI('You', msg, '#3b82f6'); 
-            input.value = "";
+            showChatBubble(myUid, msg); appendChatUI('You', msg, '#3b82f6'); input.value = "";
         }
     };
-
-    if(sendBtn) {
-        sendBtn.addEventListener('click', sendChatMsg);
-        sendBtn.addEventListener('touchstart', sendChatMsg, {passive: true});
-    }
+    if(sendBtn) { sendBtn.addEventListener('click', sendChatMsg); sendBtn.addEventListener('touchstart', sendChatMsg, {passive: true}); }
     if(input) input.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendChatMsg(); });
 
     let isMicOn = false;
     if(micToggle) {
         const toggleMic = async () => {
-            if(!isMicOn) {
-                try {
-                    await navigator.mediaDevices.getUserMedia({ audio: true });
-                    micToggle.innerText = '🎙️';
-                    micToggle.style.background = 'rgba(16, 185, 129, 0.8)';
-                    isMicOn = true;
-                } catch(err) {
-                    alert("Mic permission denied!");
-                }
-            } else {
-                micToggle.innerText = '🔇';
-                micToggle.style.background = 'rgba(30,41,59,0.8)';
-                isMicOn = false;
-            }
+            if(!isMicOn) { try { await navigator.mediaDevices.getUserMedia({ audio: true }); micToggle.innerText = '🎙️'; micToggle.style.background = 'rgba(16, 185, 129, 0.8)'; isMicOn = true; } catch(err) { alert("Mic permission denied!"); }
+            } else { micToggle.innerText = '🔇'; micToggle.style.background = 'rgba(30,41,59,0.8)'; isMicOn = false; }
         };
-        micToggle.addEventListener('click', toggleMic);
-        micToggle.addEventListener('touchstart', toggleMic, {passive: true});
+        micToggle.addEventListener('click', toggleMic); micToggle.addEventListener('touchstart', toggleMic, {passive: true});
     }
 }
 
-function appendChatUI(name, msg, color) {
-    const chatBox = document.getElementById('in-game-msgs');
-    if(chatBox) {
-        chatBox.innerHTML += `<div><b style="color:${color}">${name}:</b> ${msg}</div>`;
-        chatBox.scrollTop = chatBox.scrollHeight;
-    }
-}
+function appendChatUI(name, msg, color) { const chatBox = document.getElementById('in-game-msgs'); if(chatBox) { chatBox.innerHTML += `<div><b style="color:${color}">${name}:</b> ${msg}</div>`; chatBox.scrollTop = chatBox.scrollHeight; } }
 
 function showChatBubble(uid, msg) {
     let targetLabel = uid === myUid ? document.getElementById('my-label') : (remotePlayers[uid] ? remotePlayers[uid].label : null);
-    
     if(!targetLabel && uid === myUid) {
-        targetLabel = document.createElement('div');
-        targetLabel.id = 'my-label';
+        targetLabel = document.createElement('div'); targetLabel.id = 'my-label';
         targetLabel.style.cssText = 'position: absolute; color: #3b82f6; background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; transform: translate(-50%, -100%); pointer-events: none; transition: 0.1s;';
         floatingLabels.appendChild(targetLabel);
     }
-
     if(targetLabel) {
         targetLabel.innerHTML = `${uid === myUid ? 'You' : remotePlayers[uid].name}: <span style="color:#fff;">${msg}</span>`;
-        if(uid !== myUid) {
-            clearTimeout(remotePlayers[uid].chatTimeout);
-            remotePlayers[uid].chatTimeout = setTimeout(() => { targetLabel.innerText = remotePlayers[uid].name; }, 5000);
-        } else {
-            setTimeout(() => { targetLabel.innerHTML = ''; }, 5000);
-        }
+        if(uid !== myUid) { clearTimeout(remotePlayers[uid].chatTimeout); remotePlayers[uid].chatTimeout = setTimeout(() => { targetLabel.innerText = remotePlayers[uid].name; }, 5000);
+        } else { setTimeout(() => { targetLabel.innerHTML = ''; }, 5000); }
     }
 }
 
+// 🕹️ Joystick Setup (Camera interfere fix included)
 function setupJoystick() {
     const base = document.getElementById('joystick-base'), knob = document.getElementById('joystick-knob');
     if(!base || !knob) return;
     let isDragging = false, center = {x:0, y:0};
 
     base.addEventListener('touchstart', (e) => {
+        e.stopPropagation(); // 🚀 Joystick chune par camera rotate nahi hoga
         if(isBusy) return;
         isDragging = true;
         const rect = base.getBoundingClientRect();
         center = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
         handleTouch(e);
     });
-    base.addEventListener('touchmove', (e) => { if(isDragging) handleTouch(e); });
-    base.addEventListener('touchend', () => {
+    base.addEventListener('touchmove', (e) => { 
+        e.stopPropagation(); // 🚀 Prevent camera rotation
+        if(isDragging) handleTouch(e); 
+    });
+    base.addEventListener('touchend', (e) => {
+        e.stopPropagation();
         isDragging = false; knob.style.transform = `translate(0, 0)`; moveVector = { x: 0, y: 0 };
         if(!isBusy) playAnim('idle'); 
     });
@@ -520,7 +464,6 @@ function setupActionButtons() {
     document.getElementById('btn-attack')?.addEventListener('touchstart', () => {
         if(currentEnvironment !== 'world' || isBusy) return;
         if(actions.punch) { actions.punch.reset().fadeIn(0.1).play(); currentAction = 'punch'; }
-        
         if (monsterCharacter && !isMonsterDead && my3DCharacter.position.distanceTo(monsterCharacter.position) < 3.5) { 
             monsterHP -= 20;
             if (monsterHP <= 0) { isMonsterDead = true; worldGroup.remove(monsterCharacter); alert("🏆 Monster Defeated!"); }
@@ -528,15 +471,9 @@ function setupActionButtons() {
         }
     });
 
-    document.getElementById('btn-sit').addEventListener('touchstart', () => {
-        isBusy = true; my3DCharacter.position.set(CHAIR_POS.x, 0.5, CHAIR_POS.z); playAnim('sit');
-    });
-    document.getElementById('btn-sleep').addEventListener('touchstart', () => {
-        isBusy = true; my3DCharacter.position.set(BED_POS.x, 0.5, BED_POS.z); my3DCharacter.rotation.y = Math.PI / 2; playAnim('sleep');
-    });
-    document.getElementById('btn-stand').addEventListener('touchstart', () => {
-        isBusy = false; my3DCharacter.position.set(0, 0, 0); playAnim('idle');
-    });
+    document.getElementById('btn-sit').addEventListener('touchstart', () => { isBusy = true; my3DCharacter.position.set(CHAIR_POS.x, 0.5, CHAIR_POS.z); playAnim('sit'); });
+    document.getElementById('btn-sleep').addEventListener('touchstart', () => { isBusy = true; my3DCharacter.position.set(BED_POS.x, 0.5, BED_POS.z); my3DCharacter.rotation.y = Math.PI / 2; playAnim('sleep'); });
+    document.getElementById('btn-stand').addEventListener('touchstart', () => { isBusy = false; my3DCharacter.position.set(0, 0, 0); playAnim('idle'); });
 }
 
 function renderLoop() {
@@ -548,39 +485,55 @@ function renderLoop() {
         if (monsterMixer) monsterMixer.update(delta);
 
         if (my3DCharacter) {
+            // 🔄 360 Degree Movement Logic (Camera Oriented)
             if (!isBusy && (moveVector.x !== 0 || moveVector.y !== 0)) {
-                my3DCharacter.position.x += moveVector.x * speed;
-                my3DCharacter.position.z += moveVector.y * speed;
-                my3DCharacter.rotation.y = Math.atan2(moveVector.x, moveVector.y);
+                
+                // Camera kis taraf dekh raha hai wo angle nikalo
+                const camAngle = Math.atan2(camera.position.x - my3DCharacter.position.x, camera.position.z - my3DCharacter.position.z);
+                // Joystick kis taraf hai wo angle nikalo
+                const moveAngle = Math.atan2(moveVector.x, moveVector.y);
+                
+                // Dono angles ko milakar character ka final direction nikalo
+                const targetRotation = camAngle + moveAngle; 
+                my3DCharacter.rotation.y = targetRotation;
+
+                // Character ko aage badhao
+                const moveSpeed = Math.sqrt(moveVector.x*moveVector.x + moveVector.y*moveVector.y) * speed;
+                my3DCharacter.position.x += Math.sin(targetRotation) * moveSpeed;
+                my3DCharacter.position.z += Math.cos(targetRotation) * moveSpeed;
                 
                 allPlayersData[myUid] = { x: my3DCharacter.position.x, y: my3DCharacter.position.z };
                 gameSocket.emit('player-moved', { uid: myUid, x: my3DCharacter.position.x, y: my3DCharacter.position.y, z: my3DCharacter.position.z, rot: my3DCharacter.rotation.y, action: currentAction, env: currentEnvironment });
                 renderMinimap(allPlayersData, myUid);
             }
 
-            // 🏠 Door Interaction Logic
+            // 📸 360 Degree Camera Follow Logic
+            if(controls) {
+                const targetPos = new THREE.Vector3(my3DCharacter.position.x, my3DCharacter.position.y + 1.0, my3DCharacter.position.z);
+                const offset = camera.position.clone().sub(controls.target);
+                controls.target.copy(targetPos);
+                camera.position.copy(targetPos).add(offset);
+                controls.update(); // Update orbit controls
+            }
+
+            // 🏠 Door Interaction
             if (currentEnvironment === "world" && doorMesh) {
-                if (my3DCharacter.position.distanceTo(doorMesh.position) < 5.0) { // Distance badha di
+                if (my3DCharacter.position.distanceTo(doorMesh.position) < 5.0) { 
                     enterHouseBtn.style.display = "block";
                     enterHouseBtn.innerHTML = "🏠 Enter House";
                     enterHouseBtn.onclick = () => switchEnvironment("house");
-                } else {
-                    enterHouseBtn.style.display = "none";
-                }
+                } else { enterHouseBtn.style.display = "none"; }
             } 
             else if (currentEnvironment === "house" && exitDoorMesh) {
-                if (my3DCharacter.position.distanceTo(exitDoorMesh.position) < 5.0) { // Distance badha di
+                if (my3DCharacter.position.distanceTo(exitDoorMesh.position) < 5.0) { 
                     enterHouseBtn.style.display = "block";
                     enterHouseBtn.innerHTML = "🚪 Exit House";
                     enterHouseBtn.onclick = () => switchEnvironment("world");
-                } else {
-                    enterHouseBtn.style.display = "none";
-                }
+                } else { enterHouseBtn.style.display = "none"; }
 
                 if(!isBusy) {
                     const distToChair = Math.hypot(my3DCharacter.position.x - CHAIR_POS.x, my3DCharacter.position.z - CHAIR_POS.z);
                     const distToBed = Math.hypot(my3DCharacter.position.x - BED_POS.x, my3DCharacter.position.z - BED_POS.z);
-                    
                     actionUI.style.display = (distToChair < 1.5 || distToBed < 2.0) ? 'flex' : 'none';
                     document.getElementById('btn-sit').style.display = distToChair < 1.5 ? 'block' : 'none';
                     document.getElementById('btn-sleep').style.display = distToBed < 2.0 ? 'block' : 'none';
@@ -593,9 +546,7 @@ function renderLoop() {
                 }
             }
 
-            camera.position.set(my3DCharacter.position.x, my3DCharacter.position.y + 1.5, my3DCharacter.position.z + 3.0);
-            camera.lookAt(my3DCharacter.position.x, my3DCharacter.position.y + 0.8, my3DCharacter.position.z);
-            
+            // Player Labels Setup
             const myLabel = document.getElementById('my-label');
             if(myLabel && myLabel.innerHTML !== "") {
                 const pos = my3DCharacter.position.clone();
@@ -613,7 +564,6 @@ function renderLoop() {
                 rp.group.visible = true;
                 rp.group.position.lerp(rp.targetPos, 0.1);
                 rp.group.rotation.y = rp.targetRot;
-                
                 if(rp.label) {
                     const pos = rp.group.position.clone();
                     pos.y += 1.8; pos.project(camera);
@@ -621,9 +571,7 @@ function renderLoop() {
                         rp.label.style.display = 'block';
                         rp.label.style.left = `${(pos.x * .5 + .5) * window.innerWidth}px`;
                         rp.label.style.top = `${-(pos.y * .5 - .5) * window.innerHeight}px`;
-                    } else {
-                        rp.label.style.display = 'none';
-                    }
+                    } else { rp.label.style.display = 'none'; }
                 }
             } else if(rp && rp.group) {
                 rp.group.visible = false;
@@ -631,12 +579,8 @@ function renderLoop() {
             }
         }
 
-        if (renderer && scene && camera) {
-            renderer.render(scene, camera);
-        }
-    } catch (err) {
-        console.error("❌ Render Loop Error caught safely:", err);
-    }
+        if (renderer && scene && camera) { renderer.render(scene, camera); }
+    } catch (err) { console.error("❌ Render Loop Error caught safely:", err); }
 }
 
 window.addEventListener('resize', () => {
@@ -644,9 +588,7 @@ window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
-        
         const canvas = renderer.domElement;
-        canvas.style.width = '100vw';
-        canvas.style.height = '100vh';
+        canvas.style.width = '100vw'; canvas.style.height = '100vh';
     }
 });
