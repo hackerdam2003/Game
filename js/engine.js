@@ -17,7 +17,7 @@ const app = initializeApp(engineConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-console.log("🎮 [Game Engine] Normal Controls Restored & Blank Screen Fixed!");
+console.log("🎮 [Game Engine] Normal Controls & Floor Raycasting Active!");
 
 const gameSocket = io(); 
 
@@ -46,11 +46,17 @@ let doorMesh = null, exitDoorMesh = null;
 let enterHouseBtn = null, actionUI = null, playerListUI = null;
 let isBusy = false; 
 
-// 🏠 Ghar ko zameen me kitna neeche dhasana hai taaki player yellow patti ke upar chale
+// 🏠 Ghar Setup
 const HOUSE_Y_OFFSET = -3.2; 
-
 const CHAIR_POS = { x: -3, z: -2 };
 const BED_POS = { x: 3, z: -4 };
+
+// 🧗 Raycaster Setup (Zameen aur seedhiyon par chalne ke liye)
+const downRaycaster = new THREE.Raycaster();
+const downDirection = new THREE.Vector3(0, -1, 0);
+let worldHouseRef = null;
+let interiorHouseRef = null;
+let currentHouseCollider = null; // Jo ghar abhi screen par hai, uska floor check karega
 
 const characterFiles = { 'man': './Man.fbx', 'girl': './Peasant%20Girl.fbx' };
 let currentSelectedChar = localStorage.getItem('selectedCharacter') || 'man';
@@ -175,7 +181,7 @@ function init3DWorld() {
     requestAnimationFrame(renderLoop);
 }
 
-// 🏠 Ghar Loader (Yellow Patti Fix Included)
+// 🏠 Ghar Loader (Yellow Patti Fix & Scanner Included)
 function loadAsliGhar() {
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/');
@@ -202,6 +208,9 @@ function loadAsliGhar() {
         
         originalHouse.traverse((node) => {
             if (node.isMesh) {
+                // 🔍 DEBUG: Scanner Console me saare parts ke naam print karega
+                console.log("📦 Model Part Found:", node.name);
+                
                 node.castShadow = true;
                 node.receiveShadow = true;
                 if (node.material) {
@@ -212,26 +221,27 @@ function loadAsliGhar() {
         });
 
         // 1. Bahar Ka Ghar (World)
-        const worldHouse = originalHouse.clone();
-        worldHouse.position.x = 2 - center.x;
-        // 🚀 Yellow patti ko ground level par laane ke liye offset
-        worldHouse.position.y = -scaledBox.min.y + HOUSE_Y_OFFSET; 
-        worldHouse.position.z = -10 - center.z; 
-        worldGroup.add(worldHouse);
+        worldHouseRef = originalHouse.clone();
+        worldHouseRef.position.x = 2 - center.x;
+        worldHouseRef.position.y = -scaledBox.min.y + HOUSE_Y_OFFSET; 
+        worldHouseRef.position.z = -10 - center.z; 
+        worldGroup.add(worldHouseRef);
         
+        currentHouseCollider = worldHouseRef; // Raycast ab ispar lagega
+
         // Door Trigger
         doorMesh = new THREE.Mesh(new THREE.BoxGeometry(4, 4, 4), new THREE.MeshBasicMaterial({ visible: false }));
         doorMesh.position.set(2, 1.5, -4); 
         worldGroup.add(doorMesh);
 
         // 2. Andar Ka Ghar (Interior)
-        const interiorHouse = originalHouse.clone();
-        interiorHouse.position.x = -center.x;
-        interiorHouse.position.y = -scaledBox.min.y + HOUSE_Y_OFFSET; 
-        interiorHouse.position.z = -center.z;
-        houseGroup.add(interiorHouse);
+        interiorHouseRef = originalHouse.clone();
+        interiorHouseRef.position.x = -center.x;
+        interiorHouseRef.position.y = -scaledBox.min.y + HOUSE_Y_OFFSET; 
+        interiorHouseRef.position.z = -center.z;
+        houseGroup.add(interiorHouseRef);
 
-        console.log("✅ Home loaded without blank screen error!");
+        console.log("✅ Home loaded and Scanner is active!");
     }, undefined, (err) => {
         console.error("Ghar load error:", err);
     });
@@ -246,12 +256,14 @@ function switchEnvironment(targetEnv) {
         houseGroup.visible = true;
         scene.background = new THREE.Color(0x1e293b); 
         my3DCharacter.position.set(0, 0, 4); 
+        currentHouseCollider = interiorHouseRef; // Interior Floor collision active
         enterHouseBtn.style.display = "none";
     } else {
         worldGroup.visible = true;
         houseGroup.visible = false;
         scene.background = new THREE.Color(0x0f172a); 
         my3DCharacter.position.set(2, 0, 0); 
+        currentHouseCollider = worldHouseRef; // World Floor collision active
         enterHouseBtn.style.display = "none";
     }
     
@@ -485,6 +497,28 @@ function renderLoop() {
                 renderMinimap(allPlayersData, myUid);
             }
 
+            // 🧗 Floor & Stairs Detection (Raycasting)
+            if (currentHouseCollider && !isBusy) {
+                const rayOrigin = my3DCharacter.position.clone();
+                rayOrigin.y += 2.0; // Player ke sir ke thoda upar se check karega
+
+                downRaycaster.set(rayOrigin, downDirection);
+                const hits = downRaycaster.intersectObject(currentHouseCollider, true);
+
+                if (hits.length > 0) {
+                    const floorHeight = hits[0].point.y;
+                    // Agar agla step player ki height ke paas hai toh uspar chadega
+                    if (Math.abs(floorHeight - my3DCharacter.position.y) < 1.0) {
+                        my3DCharacter.position.y = floorHeight; 
+                    }
+                } else {
+                    // Agar ghar se bahar normal ground par hai
+                    if (my3DCharacter.position.y > 0) {
+                        my3DCharacter.position.y = Math.max(0, my3DCharacter.position.y - 0.1);
+                    }
+                }
+            }
+
             // 🎥 Rock-Solid 3rd Person Follow Camera
             camera.position.set(my3DCharacter.position.x, my3DCharacter.position.y + 1.6, my3DCharacter.position.z + 3.5);
             camera.lookAt(my3DCharacter.position.x, my3DCharacter.position.y + 0.9, my3DCharacter.position.z);
@@ -565,4 +599,3 @@ window.addEventListener('resize', () => {
         canvas.style.width = '100vw'; canvas.style.height = '100vh';
     }
 });
-
