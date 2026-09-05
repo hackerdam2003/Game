@@ -17,7 +17,7 @@ const app = initializeApp(engineConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-console.log("🎮 [Game Engine] 360 Movement & House Fix Ready!");
+console.log("🎮 [Game Engine] Genshin Impact 360 Movement Active!");
 
 const gameSocket = io(); 
 
@@ -46,8 +46,9 @@ let doorMesh = null, exitDoorMesh = null;
 let enterHouseBtn = null, actionUI = null, playerListUI = null;
 let isBusy = false; 
 
-// 🏠 Ghar ko zameen me kitna niche dhasana hai (Adjust it if needed)
-const HOUSE_Y_OFFSET = -2.5; 
+// 🏠 Ghar ko kitna neeche dhasana hai (Taaki Yellow Patti par player chale)
+// Agar thoda aur neeche karna ho toh isko -2.0 ya -2.5 kar dena
+const HOUSE_Y_OFFSET = -1.8; 
 
 const CHAIR_POS = { x: -3, z: -2 };
 const BED_POS = { x: 3, z: -4 };
@@ -139,11 +140,11 @@ function init3DWorld() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
 
-    // 📸 360 Degree Camera Setup
+    // 📸 Genshin Style Free Camera
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
-    controls.maxPolarAngle = Math.PI / 2 - 0.05; // Camera ko zameen ke neeche jaane se rokega
+    controls.maxPolarAngle = Math.PI / 2 - 0.05; // Zameen ke neeche na jaye
     controls.minDistance = 2;
     controls.maxDistance = 15;
 
@@ -158,21 +159,20 @@ function init3DWorld() {
     dirLightW.position.set(5, 10, 5);
     worldGroup.add(ambientW);
     worldGroup.add(dirLightW);
-    worldGroup.add(new THREE.GridHelper(100, 100, 0x3b82f6, 0x1e293b));
+    worldGroup.add(new THREE.GridHelper(50, 50, 0x3b82f6, 0x1e293b));
 
-    // House Lighting
+    // House Lighting (Jab andar jayenge)
     const ambientH = new THREE.AmbientLight(0xffffff, 1.5);
     const pointLightH = new THREE.PointLight(0xffddaa, 2, 30);
     pointLightH.position.set(0, 5, 0);
     houseGroup.add(ambientH);
     houseGroup.add(pointLightH);
     
-    // Load Model
     loadAsliGhar();
 
     // Invisible Exit Door Trigger
     exitDoorMesh = new THREE.Mesh(new THREE.BoxGeometry(4, 4, 4), new THREE.MeshBasicMaterial({ visible: false }));
-    exitDoorMesh.position.set(0, 1, 6); 
+    exitDoorMesh.position.set(0, 1, 6); // Andar se bahar aane ki position
     houseGroup.add(exitDoorMesh);
 
     houseGroup.visible = false;
@@ -182,7 +182,7 @@ function init3DWorld() {
     requestAnimationFrame(renderLoop);
 }
 
-// 🏠 Ghar Loader (Yellow patti issue fixed)
+// 🏠 Asli Ghar Loader
 function loadAsliGhar() {
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/');
@@ -200,7 +200,7 @@ function loadAsliGhar() {
         
         const maxDim = Math.max(size.x, size.y, size.z);
         if (maxDim > 0) {
-            const scaleFactor = 35 / maxDim; // Huge Scale
+            const scaleFactor = 35 / maxDim; // Real life size
             originalHouse.scale.set(scaleFactor, scaleFactor, scaleFactor);
         }
 
@@ -221,7 +221,7 @@ function loadAsliGhar() {
         // 1. Bahar Wala Ghar
         const worldHouse = originalHouse.clone();
         worldHouse.position.x = 2 - center.x;
-        // 🚀 Yellow patti ko fix karne ke liye HOUSE_Y_OFFSET lagaya
+        // 🚀 Yellow Patti ko fix karne ke liye HOUSE_Y_OFFSET lagaya
         worldHouse.position.y = -scaledBox.min.y + HOUSE_Y_OFFSET; 
         worldHouse.position.z = -10 - center.z; 
         worldGroup.add(worldHouse);
@@ -238,7 +238,6 @@ function loadAsliGhar() {
         interiorHouse.position.z = -center.z;
         houseGroup.add(interiorHouse);
 
-        console.log("✅ Real Home Loaded with Y-Offset Fix!");
     });
 }
 
@@ -337,6 +336,7 @@ function setupMultiplayer() {
             remotePlayers[data.uid].targetPos = new THREE.Vector3(data.x, data.y, data.z);
             remotePlayers[data.uid].targetRot = data.rot;
             remotePlayers[data.uid].env = data.env;
+            
             if(remotePlayers[data.uid].mixer && remotePlayers[data.uid].actions[data.action]) {
                 const actionToPlay = remotePlayers[data.uid].actions[data.action];
                 if(remotePlayers[data.uid].currentAction !== data.action) {
@@ -353,8 +353,7 @@ function setupMultiplayer() {
     gameSocket.on('chat-message', (data) => { showChatBubble(data.uid, data.msg); appendChatUI(data.name, data.msg, '#10b981'); });
     gameSocket.on('player-left', (uid) => {
         if(remotePlayers[uid]) { scene.remove(remotePlayers[uid].group); if(remotePlayers[uid].label) remotePlayers[uid].label.remove(); delete remotePlayers[uid]; updatePlayerListUI(); }
-        delete allPlayersData[uid];
-        renderMinimap(allPlayersData, myUid);
+        delete allPlayersData[uid]; renderMinimap(allPlayersData, myUid);
     });
 }
 
@@ -426,29 +425,16 @@ function showChatBubble(uid, msg) {
     }
 }
 
-// 🕹️ Joystick Setup (Camera interfere fix included)
+// 🕹️ Joystick Setup (Camera ko lock karne ka fix bhi hai)
 function setupJoystick() {
     const base = document.getElementById('joystick-base'), knob = document.getElementById('joystick-knob');
     if(!base || !knob) return;
     let isDragging = false, center = {x:0, y:0};
 
-    base.addEventListener('touchstart', (e) => {
-        e.stopPropagation(); // 🚀 Joystick chune par camera rotate nahi hoga
-        if(isBusy) return;
-        isDragging = true;
-        const rect = base.getBoundingClientRect();
-        center = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-        handleTouch(e);
-    });
-    base.addEventListener('touchmove', (e) => { 
-        e.stopPropagation(); // 🚀 Prevent camera rotation
-        if(isDragging) handleTouch(e); 
-    });
-    base.addEventListener('touchend', (e) => {
-        e.stopPropagation();
-        isDragging = false; knob.style.transform = `translate(0, 0)`; moveVector = { x: 0, y: 0 };
-        if(!isBusy) playAnim('idle'); 
-    });
+    // 🚀 StopPropagation se camera rotate nahi hoga jab joystick touch karoge
+    base.addEventListener('touchstart', (e) => { e.stopPropagation(); if(isBusy) return; isDragging = true; const rect = base.getBoundingClientRect(); center = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; handleTouch(e); });
+    base.addEventListener('touchmove', (e) => { e.stopPropagation(); if(isDragging) handleTouch(e); });
+    base.addEventListener('touchend', (e) => { e.stopPropagation(); isDragging = false; knob.style.transform = `translate(0, 0)`; moveVector = { x: 0, y: 0 }; if(!isBusy) playAnim('idle'); });
 
     function handleTouch(e) {
         let dx = e.touches[0].clientX - center.x, dy = e.touches[0].clientY - center.y;
@@ -485,35 +471,39 @@ function renderLoop() {
         if (monsterMixer) monsterMixer.update(delta);
 
         if (my3DCharacter) {
-            // 🔄 360 Degree Movement Logic (Camera Oriented)
+            
+            // ⚔️ GENSHIN IMPACT STYLE 360 MOVEMENT
             if (!isBusy && (moveVector.x !== 0 || moveVector.y !== 0)) {
+                const moveX = moveVector.x;
+                const moveZ = moveVector.y; 
                 
-                // Camera kis taraf dekh raha hai wo angle nikalo
-                const camAngle = Math.atan2(camera.position.x - my3DCharacter.position.x, camera.position.z - my3DCharacter.position.z);
-                // Joystick kis taraf hai wo angle nikalo
-                const moveAngle = Math.atan2(moveVector.x, moveVector.y);
+                const move3D = new THREE.Vector3(moveX, 0, moveZ);
+                const camEuler = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
                 
-                // Dono angles ko milakar character ka final direction nikalo
-                const targetRotation = camAngle + moveAngle; 
-                my3DCharacter.rotation.y = targetRotation;
+                // Camera jis taraf dekh raha hai, player wahi direction me jayega
+                move3D.applyAxisAngle(new THREE.Vector3(0, 1, 0), camEuler.y);
+                move3D.normalize();
 
-                // Character ko aage badhao
-                const moveSpeed = Math.sqrt(moveVector.x*moveVector.x + moveVector.y*moveVector.y) * speed;
-                my3DCharacter.position.x += Math.sin(targetRotation) * moveSpeed;
-                my3DCharacter.position.z += Math.cos(targetRotation) * moveSpeed;
+                // Player ko us direction me face karwao
+                my3DCharacter.rotation.y = Math.atan2(move3D.x, move3D.z);
+
+                const currentSpeed = Math.min(Math.sqrt(moveX*moveX + moveZ*moveZ), 1) * speed;
+                my3DCharacter.position.x += move3D.x * currentSpeed;
+                my3DCharacter.position.z += move3D.z * currentSpeed;
                 
                 allPlayersData[myUid] = { x: my3DCharacter.position.x, y: my3DCharacter.position.z };
                 gameSocket.emit('player-moved', { uid: myUid, x: my3DCharacter.position.x, y: my3DCharacter.position.y, z: my3DCharacter.position.z, rot: my3DCharacter.rotation.y, action: currentAction, env: currentEnvironment });
                 renderMinimap(allPlayersData, myUid);
             }
 
-            // 📸 360 Degree Camera Follow Logic
+            // 📸 CRASH-FREE CAMERA FOLLOW LOGIC
             if(controls) {
-                const targetPos = new THREE.Vector3(my3DCharacter.position.x, my3DCharacter.position.y + 1.0, my3DCharacter.position.z);
-                const offset = camera.position.clone().sub(controls.target);
-                controls.target.copy(targetPos);
-                camera.position.copy(targetPos).add(offset);
-                controls.update(); // Update orbit controls
+                const charTarget = new THREE.Vector3(my3DCharacter.position.x, my3DCharacter.position.y + 1.5, my3DCharacter.position.z);
+                const posDelta = charTarget.clone().sub(controls.target);
+                
+                controls.target.add(posDelta);
+                camera.position.add(posDelta);
+                controls.update(); 
             }
 
             // 🏠 Door Interaction
@@ -546,7 +536,6 @@ function renderLoop() {
                 }
             }
 
-            // Player Labels Setup
             const myLabel = document.getElementById('my-label');
             if(myLabel && myLabel.innerHTML !== "") {
                 const pos = my3DCharacter.position.clone();
@@ -588,7 +577,5 @@ window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
-        const canvas = renderer.domElement;
-        canvas.style.width = '100vw'; canvas.style.height = '100vh';
     }
 });
