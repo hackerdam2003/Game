@@ -3,29 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape">
-    <title>Racing Universe | House Interior Test</title>
+    <title>Racing Universe | Home.glb Direct Test</title>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #0f172a; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
         
         #house-canvas { display: block; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 0; }
 
         /* Back to World Button */
-        .back-btn { position: absolute; top: 20px; left: 20px; background: #ef4444; color: white; border: none; padding: 10px 20px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer; z-index: 1000; }
+        .back-btn { position: absolute; top: 20px; left: 20px; background: #ef4444; color: white; border: none; padding: 10px 20px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
         
-        /* Info Overlay */
-        .info-hud { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); color: white; padding: 10px 20px; border-radius: 8px; font-size: 14px; z-index: 1000; border: 1px solid #3b82f6; pointer-events: none; }
+        /* Status HUD */
+        .status-hud { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); color: #38bdf8; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: bold; z-index: 1000; border: 1px solid #3b82f6; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.7); }
     </style>
 </head>
 <body>
 
     <button class="back-btn" onclick="window.location.href='game.html'">⬅ Back to World</button>
     
-    <div class="info-hud">
-        🏡 <b>House Interior Test Mode</b> | Use Mouse / Touch to Look Around
+    <div id="status-text" class="status-hud">
+        ⏳ Connecting & Loading Home.glb (12.6 MB)... Please wait.
     </div>
 
-    <!-- 3D Canvas for House -->
+    <!-- 3D Canvas -->
     <canvas id="house-canvas"></canvas>
 
     <!-- Three.js Import Map -->
@@ -38,71 +38,78 @@
         }
     </script>
 
-    <!-- House Test Script -->
+    <!-- Direct GLB Test Script -->
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
         const canvas = document.getElementById('house-canvas');
+        const statusEl = document.getElementById('status-text');
+        
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x1e293b); // Dark indoor ambient color
+        scene.background = new THREE.Color(0x0f172a); 
 
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 3, 6);
+        camera.position.set(0, 5, 10);
 
         const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.shadowMap.enabled = true;
 
-        // Camera Controls for Testing
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
 
-        // Lighting Inside House
-        const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
         scene.add(ambientLight);
 
-        const pointLight = new THREE.PointLight(0xffddaa, 2, 20);
-        pointLight.position.set(0, 4, 0);
-        pointLight.castShadow = true;
-        scene.add(pointLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 2);
+        dirLight.position.set(5, 10, 5);
+        dirLight.castShadow = true;
+        scene.add(dirLight);
 
-        // House Floor
-        const houseFloor = new THREE.Mesh(
-            new THREE.PlaneGeometry(12, 12), 
-            new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.8 })
+        // Grid Helper taaki pata chale scene chal raha hai
+        const grid = new THREE.GridHelper(30, 30, 0x3b82f6, 0x1e293b);
+        grid.position.y = -0.01;
+        scene.add(grid);
+
+        // 🏠 Force Load Home.glb with Progress Tracker
+        const gltfLoader = new GLTFLoader();
+        
+        gltfLoader.load(
+            './Home.glb', 
+            (gltf) => {
+                const model = gltf.scene;
+                model.scale.set(1, 1, 1);
+                model.position.set(0, 0, 0);
+                
+                model.traverse((node) => {
+                    if (node.isMesh) {
+                        node.castShadow = true;
+                        node.receiveShadow = true;
+                    }
+                });
+
+                scene.add(model);
+                statusEl.innerHTML = "✅ Home.glb Loaded Successfully!";
+                statusEl.style.color = "#10b981";
+                console.log("✅ Home.glb loaded successfully in test viewer!");
+            }, 
+            (xhr) => {
+                if (xhr.lengthComputable) {
+                    const percent = Math.floor((xhr.loaded / xhr.total) * 100);
+                    statusEl.innerHTML = `📦 Loading Home.glb: ${percent}% Complete`;
+                }
+            }, 
+            (error) => {
+                console.error("❌ Failed to load Home.glb:", error);
+                statusEl.innerHTML = "❌ Error: Home.glb failed to load. Check file path!";
+                statusEl.style.color = "#ef4444";
+            }
         );
-        houseFloor.rotation.x = -Math.PI / 2;
-        houseFloor.receiveShadow = true;
-        scene.add(houseFloor);
 
-        // Furniture: Chair
-        const chairMesh = new THREE.Mesh(
-            new THREE.BoxGeometry(1, 1, 1), 
-            new THREE.MeshStandardMaterial({ color: 0x3b82f6 })
-        );
-        chairMesh.position.set(-3, 0.5, -2);
-        chairMesh.castShadow = true;
-        scene.add(chairMesh);
-
-        // Furniture: Bed
-        const bedMesh = new THREE.Mesh(
-            new THREE.BoxGeometry(2, 0.5, 4), 
-            new THREE.MeshStandardMaterial({ color: 0xef4444 })
-        );
-        bedMesh.position.set(3, 0.25, -4);
-        bedMesh.castShadow = true;
-        scene.add(bedMesh);
-
-        // Exit Door Marker
-        const exitDoor = new THREE.Mesh(
-            new THREE.BoxGeometry(1.5, 2.5, 0.5), 
-            new THREE.MeshStandardMaterial({ color: 0x10b981, transparent: true, opacity: 0.8 })
-        );
-        exitDoor.position.set(0, 1.25, 6);
-        scene.add(exitDoor);
-
-        // Render Loop
+        // Animation Loop
         function animate() {
             requestAnimationFrame(animate);
             controls.update();
