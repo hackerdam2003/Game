@@ -1,31 +1,30 @@
 // js/minimap.js
 
-// 🌍 Map Settings: Tumhara 3D world kitna bada hai? (-100 se 100 units tak)
-const WORLD_MIN = -100;
-const WORLD_MAX = 100;
+// 🌍 Map Settings: Scale chota kiya hai taaki movement fast aur live dikhe
+const WORLD_MIN = -50;
+const WORLD_MAX = 50;
 const WORLD_SIZE = WORLD_MAX - WORLD_MIN;
 
 // 🏢 Static Locations (Ghar, Bank, Mall)
-// Yahan tum apne naye buildings add kar sakte ho!
 const mapLocations = [
-    { id: 'my-house', name: 'House', x: 4, y: -4, color: '#f59e0b', icon: '🏠' },
-    { id: 'city-bank', name: 'Bank', x: 30, y: -20, color: '#eab308', icon: '🏦' },
-    { id: 'mega-mall', name: 'Mall', x: -40, y: 25, color: '#a855f7', icon: '🏬' }
+    { id: 'my-house', name: 'House', x: 4, y: -4, color: '#10b981', icon: '🏠' }, 
+    { id: 'city-bank', name: 'Bank', x: 20, y: -15, color: '#eab308', icon: '🏦' },
+    { id: 'mega-mall', name: 'Mall', x: -25, y: 20, color: '#a855f7', icon: '🏬' }
 ];
 
-// Helper: 3D coordinate ko minimap percentage (0% to 100%) me badalna
+// Coordinate ko Minimap ke andar lock karne ka function
 function getMapPercent(value) {
     let percent = ((value - WORLD_MIN) / WORLD_SIZE) * 100;
-    return Math.max(0, Math.min(100, percent)); // Map ke andar limit karo
+    return Math.max(0, Math.min(100, percent)); 
 }
 
 export function renderMinimap(players, myUid) {
     let minimapHtml = '';
 
-    // 1️⃣ Render Buildings / Landmarks (Ghar, Bank, etc.)
+    // 1️⃣ Render Buildings (Ghar, Bank)
     mapLocations.forEach(loc => {
         const leftPercent = getMapPercent(loc.x);
-        const topPercent = getMapPercent(loc.y); // y asal me 3D ka 'z' hai
+        const topPercent = getMapPercent(loc.y); 
         
         minimapHtml += `
             <div style="
@@ -34,11 +33,11 @@ export function renderMinimap(players, myUid) {
                 top: ${topPercent}%; 
                 transform: translate(-50%, -50%);
                 background: ${loc.color};
-                border: 2px solid white;
+                border: 1px solid white;
                 border-radius: 4px;
-                width: 20px; height: 20px;
+                width: 18px; height: 18px;
                 display: flex; align-items: center; justify-content: center;
-                font-size: 12px;
+                font-size: 10px;
                 box-shadow: 0 2px 4px rgba(0,0,0,0.5);
                 z-index: 10;
             " title="${loc.name}">
@@ -47,14 +46,14 @@ export function renderMinimap(players, myUid) {
         `;
     });
 
-    // 2️⃣ Render Live Players (1p, 2p, 3p)
+    // 2️⃣ Render Live Players
     let index = 1;
     for (const uid in players) {
         const p = players[uid];
         const isMe = uid === myUid;
         
         const leftPercent = getMapPercent(p.x);
-        const topPercent = getMapPercent(p.y);
+        const topPercent = getMapPercent(p.y); // y asal me 3D world ka z-axis hai
 
         minimapHtml += `
             <div style="
@@ -66,32 +65,37 @@ export function renderMinimap(players, myUid) {
                 color: white; 
                 font-size: 9px; 
                 font-weight: bold; 
-                width: 18px; 
-                height: 18px; 
+                width: ${isMe ? '22px' : '16px'}; 
+                height: ${isMe ? '22px' : '16px'}; 
                 border-radius: 50%; 
                 display: flex; 
                 align-items: center; 
                 justify-content: center; 
-                border: 2px solid white;
-                box-shadow: 0 0 6px rgba(0,0,0,0.8);
+                border: 2px solid ${isMe ? '#fff' : '#fca5a5'};
+                box-shadow: 0 0 8px ${isMe ? 'rgba(59, 130, 246, 0.8)' : 'rgba(239, 68, 68, 0.8)'};
                 z-index: 20;
             ">
-                ${index}p
+                ${isMe ? 'Me' : index + 'p'}
             </div>
         `;
         index++;
     }
     
-    // 3️⃣ Update Minimap Container
+    // 3️⃣ Update Minimap Container (Fix UI Scattering - Gol Radar Style)
     const minimapContainer = document.querySelector('.hud-minimap');
     if (minimapContainer) {
-        minimapContainer.style.position = 'relative';
-        minimapContainer.style.background = 'rgba(15, 23, 42, 0.7)'; // Dark map background
-        minimapContainer.style.border = '2px solid rgba(255,255,255,0.2)';
+        minimapContainer.style.position = 'fixed'; 
+        minimapContainer.style.top = '15px';
+        minimapContainer.style.left = '50%'; // Screen ke top center me
+        minimapContainer.style.transform = 'translateX(-50%)'; 
+        minimapContainer.style.background = 'rgba(15, 23, 42, 0.85)'; // Dark Glass effect
+        minimapContainer.style.border = '2px solid #38bdf8';
         minimapContainer.style.overflow = 'hidden';
-        minimapContainer.style.width = '120px'; // Bada GPS view
-        minimapContainer.style.height = '120px';
-        minimapContainer.style.borderRadius = '12px';
+        minimapContainer.style.width = '110px';
+        minimapContainer.style.height = '110px';
+        minimapContainer.style.borderRadius = '50%'; // 🟢 Gol (Round) Map
+        minimapContainer.style.boxShadow = '0 4px 10px rgba(0,0,0,0.6)';
+        minimapContainer.style.zIndex = '99999';
         minimapContainer.innerHTML = minimapHtml;
     }
 }
