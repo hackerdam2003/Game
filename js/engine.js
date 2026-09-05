@@ -16,7 +16,7 @@ const app = initializeApp(engineConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-console.log("🎮 [Game Engine] Complete System Loaded with Home.glb & Multiplayer!");
+console.log("🎮 [Game Engine] Complete System Loaded with Home.glb & Safe Render Loop!");
 
 const gameSocket = io(); 
 
@@ -176,7 +176,7 @@ function init3DWorld() {
     chairMesh.position.set(CHAIR_POS.x, 0.5, CHAIR_POS.z);
     houseGroup.add(chairMesh);
 
-    const bedMesh = new THREE.Mesh(new THREE.Mesh(new THREE.BoxGeometry(2, 0.5, 4), new THREE.MeshStandardMaterial({ color: 0xef4444 })));
+    const bedMesh = new THREE.Mesh(new THREE.BoxGeometry(2, 0.5, 4), new THREE.MeshStandardMaterial({ color: 0xef4444 }));
     bedMesh.position.set(BED_POS.x, 0.25, BED_POS.z);
     houseGroup.add(bedMesh);
 
@@ -554,98 +554,105 @@ function setupActionButtons() {
 }
 
 // ==========================================
-// 6. RENDER LOOP
+// 6. CRASH-PROOF RENDER LOOP
 // ==========================================
 function renderLoop() {
     requestAnimationFrame(renderLoop);
-    const delta = clock ? clock.getDelta() : 0;
-    if (mixer) mixer.update(delta);
-    if (monsterMixer) monsterMixer.update(delta);
+    
+    try {
+        const delta = clock ? clock.getDelta() : 0;
+        if (mixer) mixer.update(delta);
+        if (monsterMixer) monsterMixer.update(delta);
 
-    if (my3DCharacter) {
-        if (!isBusy && (moveVector.x !== 0 || moveVector.y !== 0)) {
-            my3DCharacter.position.x += moveVector.x * speed;
-            my3DCharacter.position.z += moveVector.y * speed;
-            my3DCharacter.rotation.y = Math.atan2(moveVector.x, moveVector.y);
-            
-            allPlayersData[myUid] = { x: my3DCharacter.position.x, y: my3DCharacter.position.z };
-            gameSocket.emit('player-moved', { uid: myUid, x: my3DCharacter.position.x, y: my3DCharacter.position.y, z: my3DCharacter.position.z, rot: my3DCharacter.rotation.y, action: currentAction, env: currentEnvironment });
-            renderMinimap(allPlayersData, myUid);
-        }
-
-        if (currentEnvironment === "world" && doorMesh) {
-            if (my3DCharacter.position.distanceTo(doorMesh.position) < 4.0) {
-                enterHouseBtn.style.display = "block";
-                enterHouseBtn.innerHTML = "🏠 Enter House";
-                enterHouseBtn.onclick = () => switchEnvironment("house");
-            } else {
-                enterHouseBtn.style.display = "none";
-            }
-        } 
-        else if (currentEnvironment === "house") {
-            if (my3DCharacter.position.distanceTo(exitDoorMesh.position) < 2.0) {
-                enterHouseBtn.style.display = "block";
-                enterHouseBtn.innerHTML = "🚪 Exit House";
-                enterHouseBtn.onclick = () => switchEnvironment("world");
-            } else {
-                enterHouseBtn.style.display = "none";
-            }
-
-            if(!isBusy) {
-                const distToChair = Math.hypot(my3DCharacter.position.x - CHAIR_POS.x, my3DCharacter.position.z - CHAIR_POS.z);
-                const distToBed = Math.hypot(my3DCharacter.position.x - BED_POS.x, my3DCharacter.position.z - BED_POS.z);
+        if (my3DCharacter) {
+            if (!isBusy && (moveVector.x !== 0 || moveVector.y !== 0)) {
+                my3DCharacter.position.x += moveVector.x * speed;
+                my3DCharacter.position.z += moveVector.y * speed;
+                my3DCharacter.rotation.y = Math.atan2(moveVector.x, moveVector.y);
                 
-                actionUI.style.display = (distToChair < 1.5 || distToBed < 2.0) ? 'flex' : 'none';
-                document.getElementById('btn-sit').style.display = distToChair < 1.5 ? 'block' : 'none';
-                document.getElementById('btn-sleep').style.display = distToBed < 2.0 ? 'block' : 'none';
-                document.getElementById('btn-stand').style.display = 'none';
-            } else {
-                actionUI.style.display = 'flex';
-                document.getElementById('btn-sit').style.display = 'none';
-                document.getElementById('btn-sleep').style.display = 'none';
-                document.getElementById('btn-stand').style.display = 'block';
+                allPlayersData[myUid] = { x: my3DCharacter.position.x, y: my3DCharacter.position.z };
+                gameSocket.emit('player-moved', { uid: myUid, x: my3DCharacter.position.x, y: my3DCharacter.position.y, z: my3DCharacter.position.z, rot: my3DCharacter.rotation.y, action: currentAction, env: currentEnvironment });
+                renderMinimap(allPlayersData, myUid);
             }
-        }
 
-        camera.position.set(my3DCharacter.position.x, my3DCharacter.position.y + 1.5, my3DCharacter.position.z + 3.0);
-        camera.lookAt(my3DCharacter.position.x, my3DCharacter.position.y + 0.8, my3DCharacter.position.z);
-        
-        const myLabel = document.getElementById('my-label');
-        if(myLabel && myLabel.innerHTML !== "") {
-            const pos = my3DCharacter.position.clone();
-            pos.y += 1.8; pos.project(camera);
-            myLabel.style.left = `${(pos.x * .5 + .5) * window.innerWidth}px`;
-            myLabel.style.top = `${-(pos.y * .5 - .5) * window.innerHeight}px`;
-        }
-    }
-
-    for(let uid in remotePlayers) {
-        const rp = remotePlayers[uid];
-        if(rp.mixer) rp.mixer.update(delta);
-
-        if(rp.env === currentEnvironment) {
-            rp.group.visible = true;
-            rp.group.position.lerp(rp.targetPos, 0.1);
-            rp.group.rotation.y = rp.targetRot;
-            
-            if(rp.label) {
-                const pos = rp.group.position.clone();
-                pos.y += 1.8; pos.project(camera);
-                if(pos.z < 1) {
-                    rp.label.style.display = 'block';
-                    rp.label.style.left = `${(pos.x * .5 + .5) * window.innerWidth}px`;
-                    rp.label.style.top = `${-(pos.y * .5 - .5) * window.innerHeight}px`;
+            if (currentEnvironment === "world" && doorMesh) {
+                if (my3DCharacter.position.distanceTo(doorMesh.position) < 4.0) {
+                    enterHouseBtn.style.display = "block";
+                    enterHouseBtn.innerHTML = "🏠 Enter House";
+                    enterHouseBtn.onclick = () => switchEnvironment("house");
                 } else {
-                    rp.label.style.display = 'none';
+                    enterHouseBtn.style.display = "none";
+                }
+            } 
+            else if (currentEnvironment === "house") {
+                if (my3DCharacter.position.distanceTo(exitDoorMesh.position) < 2.0) {
+                    enterHouseBtn.style.display = "block";
+                    enterHouseBtn.innerHTML = "🚪 Exit House";
+                    enterHouseBtn.onclick = () => switchEnvironment("world");
+                } else {
+                    enterHouseBtn.style.display = "none";
+                }
+
+                if(!isBusy) {
+                    const distToChair = Math.hypot(my3DCharacter.position.x - CHAIR_POS.x, my3DCharacter.position.z - CHAIR_POS.z);
+                    const distToBed = Math.hypot(my3DCharacter.position.x - BED_POS.x, my3DCharacter.position.z - BED_POS.z);
+                    
+                    actionUI.style.display = (distToChair < 1.5 || distToBed < 2.0) ? 'flex' : 'none';
+                    document.getElementById('btn-sit').style.display = distToChair < 1.5 ? 'block' : 'none';
+                    document.getElementById('btn-sleep').style.display = distToBed < 2.0 ? 'block' : 'none';
+                    document.getElementById('btn-stand').style.display = 'none';
+                } else {
+                    actionUI.style.display = 'flex';
+                    document.getElementById('btn-sit').style.display = 'none';
+                    document.getElementById('btn-sleep').style.display = 'none';
+                    document.getElementById('btn-stand').style.display = 'block';
                 }
             }
-        } else {
-            rp.group.visible = false;
-            if(rp.label) rp.label.style.display = 'none';
-        }
-    }
 
-    if (renderer && scene && camera) renderer.render(scene, camera);
+            camera.position.set(my3DCharacter.position.x, my3DCharacter.position.y + 1.5, my3DCharacter.position.z + 3.0);
+            camera.lookAt(my3DCharacter.position.x, my3DCharacter.position.y + 0.8, my3DCharacter.position.z);
+            
+            const myLabel = document.getElementById('my-label');
+            if(myLabel && myLabel.innerHTML !== "") {
+                const pos = my3DCharacter.position.clone();
+                pos.y += 1.8; pos.project(camera);
+                myLabel.style.left = `${(pos.x * .5 + .5) * window.innerWidth}px`;
+                myLabel.style.top = `${-(pos.y * .5 - .5) * window.innerHeight}px`;
+            }
+        }
+
+        for(let uid in remotePlayers) {
+            const rp = remotePlayers[uid];
+            if(rp && rp.mixer) rp.mixer.update(delta);
+
+            if(rp && rp.env === currentEnvironment && rp.group) {
+                rp.group.visible = true;
+                rp.group.position.lerp(rp.targetPos, 0.1);
+                rp.group.rotation.y = rp.targetRot;
+                
+                if(rp.label) {
+                    const pos = rp.group.position.clone();
+                    pos.y += 1.8; pos.project(camera);
+                    if(pos.z < 1) {
+                        rp.label.style.display = 'block';
+                        rp.label.style.left = `${(pos.x * .5 + .5) * window.innerWidth}px`;
+                        rp.label.style.top = `${-(pos.y * .5 - .5) * window.innerHeight}px`;
+                    } else {
+                        rp.label.style.display = 'none';
+                    }
+                }
+            } else if(rp && rp.group) {
+                rp.group.visible = false;
+                if(rp.label) rp.label.style.display = 'none';
+            }
+        }
+
+        if (renderer && scene && camera) {
+            renderer.render(scene, camera);
+        }
+    } catch (err) {
+        console.error("❌ Render Loop Error caught safely:", err);
+    }
 }
 
 window.addEventListener('resize', () => {
@@ -659,3 +666,4 @@ window.addEventListener('resize', () => {
         canvas.style.height = '100vh';
     }
 });
+
