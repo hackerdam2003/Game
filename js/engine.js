@@ -2,8 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js'; // Sirf FBXLoader chahiye ab!
 
 const engineConfig = {
     apiKey: "AIzaSyCuYPugV4qIsu9ZT9E5l63bFLgIbte_S8I",
@@ -14,12 +13,12 @@ const app = initializeApp(engineConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-console.log("🎮 [Game Engine] Full Multi-Animation 3D Engine Loaded!");
+console.log("🎮 [Game Engine] Pure FBX 3D Engine Loaded!");
 
 const gameSocket = io('/world'); 
 let myUid = "UID_" + Math.floor(Math.random()*9999);
 let myName = "Racer";
-let speed = 0.06; 
+let speed = 0.08; 
 let moveVector = { x: 0, y: 0 };
 
 let scene, camera, renderer, clock;
@@ -27,7 +26,6 @@ let my3DCharacter = null;
 let mixer = null;
 let actions = {}; 
 let currentAction = 'idle';
-
 let debugDiv = null;
 
 window.enterWorld = async function() {
@@ -55,7 +53,7 @@ window.enterWorld = async function() {
 function createMobileDebugger() {
     debugDiv = document.createElement('div');
     debugDiv.style.cssText = 'position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.85); color: #38bdf8; font-size: 10px; padding: 8px; z-index: 99999; border-radius: 6px; max-width: 220px; pointer-events: none; line-height: 1.3;';
-    debugDiv.innerHTML = "<b>3D Engine Status:</b><br>Loading Assets...";
+    debugDiv.innerHTML = "<b>3D Engine Status:</b><br>Loading FBX Assets...";
     document.body.appendChild(debugDiv);
 }
 
@@ -89,94 +87,101 @@ function init3DWorld() {
     const gridHelper = new THREE.GridHelper(50, 50, 0x3b82f6, 0x1e293b);
     scene.add(gridHelper);
 
-    loadMyCharacter();
+    loadFBXCharacter();
     requestAnimationFrame(renderLoop);
 }
 
-function loadMyCharacter() {
-    const gltfLoader = new GLTFLoader();
+// 🛑 Direct FBX Character & Animation Loader (No GLB needed!)
+function loadFBXCharacter() {
     const fbxLoader = new FBXLoader();
 
-    updateDebug("Downloading Model...");
+    updateDebug("Downloading FBX Model...");
 
-    gltfLoader.load('./Model prepared.glb', (gltf) => {
-        my3DCharacter = gltf.scene;
-        my3DCharacter.scale.set(1, 1, 1);
+    // Hum yahan main character file ke taur par Hip Hop Dancing ya Bouncing Fight wali FBX load karenge
+    fbxLoader.load('./Hip%20Hop%20Dancing.fbx', (object) => {
+        my3DCharacter = object;
+        
+        // Mixamo ki units centimeters me hoti hain, isliye scale down karke game size me laate hain
+        my3DCharacter.scale.set(0.01, 0.01, 0.01);
         my3DCharacter.position.set(0, 0, 0);
+
+        my3DCharacter.traverse((node) => {
+            if (node.isMesh) {
+                node.castShadow = true;
+                node.receiveShadow = true;
+            }
+        });
+
         scene.add(my3DCharacter);
         
         mixer = new THREE.AnimationMixer(my3DCharacter);
-        updateDebug("✅ Model Loaded!<br>Loading Animations...");
+        updateDebug("✅ FBX Model Loaded Successfully!");
 
-        // 1. Idle Animation
-        fbxLoader.load('./bouncing%20fight.fbx', (anim) => {
-            if(anim.animations && anim.animations.length > 0) {
-                actions.idle = mixer.clipAction(anim.animations[0]);
-                actions.idle.play();
-                currentAction = 'idle';
-                updateDebug("✅ Idle Ready");
-            }
-        }, undefined, (err) => console.warn("Idle warning:", err));
+        // Agar is FBX ke andar animation embedded hai toh use play kar do
+        if (object.animations && object.animations.length > 0) {
+            const idleAction = mixer.clipAction(object.animations[0]);
+            idleAction.play();
+            actions.idle = idleAction;
+            currentAction = 'idle';
+        }
 
-        // 2. Running Animation
-        fbxLoader.load('./Running.fbx', (anim) => {
-            if(anim.animations && anim.animations.length > 0) {
-                actions.run = mixer.clipAction(anim.animations[0]);
-                updateDebug("✅ Run Ready");
-            }
-        }, undefined, (err) => console.warn("Run warning:", err));
-
-        // 3. Punching Animation
-        fbxLoader.load('./Punching.fbx', (anim) => {
-            if(anim.animations && anim.animations.length > 0) {
-                actions.punch = mixer.clipAction(anim.animations[0]);
-                actions.punch.setLoop(THREE.LoopOnce);
-                actions.punch.clampWhenFinished = true;
-                updateDebug("✅ Punch Ready");
-            }
-        }, undefined, (err) => console.warn("Punch warning:", err));
-
-        // 4. Hip Hop Dancing Animation
-        fbxLoader.load('./Hip%20Hop%20Dancing.fbx', (anim) => {
-            if(anim.animations && anim.animations.length > 0) {
-                actions.dance = mixer.clipAction(anim.animations[0]);
-                updateDebug("✅ Dance Ready");
-            }
-        }, undefined, (err) => console.warn("Dance warning:", err));
+        // Baaki animations load karo
+        loadAdditionalAnimations(fbxLoader);
 
     }, undefined, (err) => {
-        updateDebug("❌ Model Error: " + err.message);
+        updateDebug("❌ FBX Load Error: " + err.message);
+    });
+}
+
+function loadAdditionalAnimations(fbxLoader) {
+    // 1. Running FBX
+    fbxLoader.load('./Running.fbx', (anim) => {
+        if(anim.animations && anim.animations.length > 0) {
+            actions.run = mixer.clipAction(anim.animations[0]);
+            updateDebug("✅ Run Loaded");
+        }
+    });
+
+    // 2. Punching FBX
+    fbxLoader.load('./Punching.fbx', (anim) => {
+        if(anim.animations && anim.animations.length > 0) {
+            actions.punch = mixer.clipAction(anim.animations[0]);
+            actions.punch.setLoop(THREE.LoopOnce);
+            actions.punch.clampWhenFinished = true;
+            updateDebug("✅ Punch Loaded");
+        }
+    });
+
+    // 3. Bouncing Fight FBX
+    fbxLoader.load('./bouncing%20fight.fbx', (anim) => {
+        if(anim.animations && anim.animations.length > 0) {
+            actions.fight = mixer.clipAction(anim.animations[0]);
+            updateDebug("✅ Fight Loaded");
+        }
     });
 }
 
 function playAnim(animName) {
     if (!mixer || !actions[animName] || currentAction === animName) return;
-    
-    if(actions[currentAction]) {
-        actions[currentAction].fadeOut(0.2);
-    }
+    if(actions[currentAction]) actions[currentAction].fadeOut(0.2);
     actions[animName].reset().fadeIn(0.2).play();
     currentAction = animName;
 }
 
 function playOneShotAnim(animName, returnToAnim = 'idle') {
     if (!mixer || !actions[animName]) return;
-    
-    if(actions[currentAction]) {
-        actions[currentAction].fadeOut(0.1);
-    }
-    
+    if(actions[currentAction]) actions[currentAction].fadeOut(0.1);
     const action = actions[animName];
     action.reset().fadeIn(0.1).play();
     currentAction = animName;
 
-    const mixerFinishedListener = (e) => {
+    const listener = (e) => {
         if (e.action === action) {
-            mixer.removeEventListener('finished', mixerFinishedListener);
+            mixer.removeEventListener('finished', listener);
             playAnim(returnToAnim);
         }
     };
-    mixer.addEventListener('finished', mixerFinishedListener);
+    mixer.addEventListener('finished', listener);
 }
 
 function setupJoystick() {
@@ -212,7 +217,7 @@ function setupJoystick() {
         knob.style.transform = `translate(${dx}px, ${dy}px)`;
         moveVector = { x: dx/maxDist, y: dy/maxDist };
         
-        if (dist > 5) playAnim('run'); 
+        if (dist > 5 && actions.run) playAnim('run'); 
     }
 }
 
@@ -223,14 +228,14 @@ function setupActionButtons() {
     if(btnAttack) {
         btnAttack.addEventListener('touchstart', () => {
             gameSocket.emit('action', { action: 'attack' });
-            playOneShotAnim('punch', 'idle');
+            if(actions.punch) playOneShotAnim('punch', 'idle');
         });
     }
 
     if(btnSkill) {
         btnSkill.addEventListener('touchstart', () => {
             gameSocket.emit('action', { action: 'skill' });
-            playAnim('dance');
+            if(actions.fight) playAnim('fight');
         });
     }
 }
@@ -252,6 +257,7 @@ function renderLoop() {
             gameSocket.emit('move', { x: my3DCharacter.position.x, y: my3DCharacter.position.z });
         }
 
+        // Camera follow behind character
         camera.position.x = my3DCharacter.position.x;
         camera.position.z = my3DCharacter.position.z + 2.5; 
         camera.position.y = my3DCharacter.position.y + 1.2;
@@ -270,4 +276,3 @@ window.addEventListener('resize', () => {
         renderer.setSize(window.innerWidth, window.innerHeight);
     }
 });
-
