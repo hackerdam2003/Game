@@ -1,10 +1,10 @@
 function loadWorldHome() {
     const gltfLoader = new GLTFLoader();
     
-    console.log("⏳ [World] Attempting to load Home.glb from Firebase Storage...");
+    console.log("⏳ [World] Attempting to load Home.glb from Free CDN...");
 
-    // 🚨 Local path ki jagah Firebase Storage ka direct public URL yahan daal do
-    const houseUrl = 'YAHAN_APNA_FIREBASE_STORAGE_DOWNLOAD_URL_DALO';
+    // 🚀 Yeh raha GitHub / jsDelivr ka direct public link jo bina paid plan ke chalega
+    const houseUrl = 'https://cdn.jsdelivr.net/gh/hackerdam2003/Game@main/Home.glb';
 
     gltfLoader.load(
         houseUrl, 
@@ -26,7 +26,7 @@ function loadWorldHome() {
 
             worldGroup.add(house);
             doorMesh = house; 
-            console.log("✅ [World] Home.glb Loaded successfully from Cloud!");
+            console.log("✅ [World] Home.glb Loaded successfully from CDN!");
         }, 
         (xhr) => {
             if (xhr.lengthComputable) {
@@ -37,7 +37,7 @@ function loadWorldHome() {
         (error) => {
             console.error("❌ [World Error] Failed to load Home.glb:", error);
             
-            // Fallback Yellow Door
+            // Fallback Yellow Door agar network slow ho
             if (!doorMesh) {
                 const geometry = new THREE.BoxGeometry(2, 3, 2);
                 const material = new THREE.MeshStandardMaterial({ color: 0xf59e0b });
