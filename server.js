@@ -21,6 +21,8 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 app.get('/profile.html', (req, res) => res.sendFile(path.join(__dirname, 'profile.html')));
 app.get('/lobby.html', (req, res) => res.sendFile(path.join(__dirname, 'lobby.html')));
 app.get('/game.html', (req, res) => res.sendFile(path.join(__dirname, 'game.html')));
+// 👇 NAYI LINE: Character Editor ka route add ho gaya 👇
+app.get('/character.html', (req, res) => res.sendFile(path.join(__dirname, 'character.html')));
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, { cors: { origin: "*", methods: ["GET", "POST"] } });
