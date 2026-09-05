@@ -3,17 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape">
-    <title>Racing Universe | House Demo Test</title>
+    <title>Racing Universe | Raw House Test</title>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #0f172a; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
         
         #house-canvas { display: block; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 0; }
 
-        /* Back to World Button */
         .back-btn { position: absolute; top: 20px; left: 20px; background: #ef4444; color: white; border: none; padding: 10px 20px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-        
-        /* Status HUD */
         .status-hud { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); color: #38bdf8; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: bold; z-index: 1000; border: 1px solid #3b82f6; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.7); }
     </style>
 </head>
@@ -22,13 +19,11 @@
     <button class="back-btn" onclick="window.location.href='game.html'">⬅ Back to World</button>
     
     <div id="status-text" class="status-hud">
-        ⏳ Loading Home.glb from CDN... Please wait.
+        ⏳ Loading Home.glb from Raw GitHub... Please wait.
     </div>
 
-    <!-- 3D Canvas -->
     <canvas id="house-canvas"></canvas>
 
-    <!-- Three.js Import Map -->
     <script type="importmap">
         {
             "imports": {
@@ -38,7 +33,6 @@
         }
     </script>
 
-    <!-- Test Script -->
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -60,7 +54,6 @@
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
 
-        // Lighting
         const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
         scene.add(ambientLight);
 
@@ -69,14 +62,13 @@
         dirLight.castShadow = true;
         scene.add(dirLight);
 
-        // Ground Grid
         const grid = new THREE.GridHelper(30, 30, 0x3b82f6, 0x1e293b);
         grid.position.y = -0.01;
         scene.add(grid);
 
-        // 🏠 Load Home.glb via Free CDN
+        // 🏠 Direct Raw GitHub Link
         const gltfLoader = new GLTFLoader();
-        const houseUrl = 'https://cdn.jsdelivr.net/gh/hackerdam2003/Game@main/Home.glb';
+        const houseUrl = 'https://raw.githubusercontent.com/hackerdam2003/Game/main/Home.glb';
         
         gltfLoader.load(
             houseUrl, 
@@ -93,9 +85,9 @@
                 });
 
                 scene.add(model);
-                statusEl.innerHTML = "✅ Home.glb Loaded Successfully in Demo!";
+                statusEl.innerHTML = "✅ Home.glb Loaded Successfully from Raw URL!";
                 statusEl.style.color = "#10b981";
-                console.log("✅ Home.glb loaded successfully in demo!");
+                console.log("✅ Home.glb loaded successfully!");
             }, 
             (xhr) => {
                 if (xhr.lengthComputable) {
@@ -105,12 +97,11 @@
             }, 
             (error) => {
                 console.error("❌ Failed to load Home.glb:", error);
-                statusEl.innerHTML = "❌ Error: Failed to load Home.glb via CDN.";
+                statusEl.innerHTML = "❌ Error: Failed to load via Raw GitHub.";
                 statusEl.style.color = "#ef4444";
             }
         );
 
-        // Animation Loop
         function animate() {
             requestAnimationFrame(animate);
             controls.update();
@@ -118,7 +109,6 @@
         }
         animate();
 
-        // Responsive Resize
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
@@ -128,3 +118,4 @@
 
 </body>
 </html>
+
