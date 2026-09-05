@@ -32,67 +32,115 @@ let mixer = null;
 const clock = new THREE.Clock();
 const fbxLoader = new FBXLoader();
 
-// 🛑 Direct Mixamo FBX file load karenge jisme animation aur model dono sath hain!
-const fbxCharacterURL = './Hip%20Hop%20Dancing.fbx'; 
+// Available Characters Map
+const characterFiles = {
+    'man': './Man.fbx',
+    'girl': './Peasant%20Girl.fbx',
+    'dance': './Hip%20Hop%20Dancing.fbx'
+};
+let currentKey = 'man';
 
-fbxLoader.load(
-    fbxCharacterURL,
-    (object) => {
-        characterModel = object;
-        
-        // Mixamo ki units centimeters me hoti hain, isliye scale down karke meters me laate hain
-        characterModel.scale.set(0.01, 0.01, 0.01);
-        
-        characterModel.traverse((node) => {
-            if (node.isMesh) {
-                node.castShadow = true;
-                node.receiveShadow = true;
-            }
-        });
+// Create Editor UI for Character Switching
+function createEditorUI() {
+    const uiDiv = document.createElement('div');
+    uiDiv.style.cssText = 'position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px; z-index: 10;';
+    uiDiv.innerHTML = `
+        <span style="color: #38bdf8; font-size: 12px; display: block; margin-bottom: 6px;"><b>Select Character:</b></span>
+        <button id='edit-man' style='background:#3b82f6; color:#fff; border:none; padding:6px 10px; border-radius:4px; font-size:11px; cursor:pointer; margin-right:5px;'>Man</button>
+        <button id='edit-girl' style='background:#ec4899; color:#fff; border:none; padding:6px 10px; border-radius:4px; font-size:11px; cursor:pointer; margin-right:5px;'>Girl</button>
+        <button id='edit-dance' style='background:#10b981; color:#fff; border:none; padding:6px 10px; border-radius:4px; font-size:11px; cursor:pointer;'>Dance Model</button>
+    `;
+    container.appendChild(uiDiv);
 
-        scene.add(characterModel);
-        
-        const loadingEl = document.getElementById('loading-text');
-        if(loadingEl) loadingEl.style.display = 'none';
+    document.getElementById('edit-man').addEventListener('click', () => switchEditorCharacter('man'));
+    document.getElementById('edit-girl').addEventListener('click', () => switchEditorCharacter('girl'));
+    document.getElementById('edit-dance').addEventListener('click', () => switchEditorCharacter('dance'));
+}
 
-        // Play embedded animation from FBX
-        if (object.animations && object.animations.length > 0) {
-            mixer = new THREE.AnimationMixer(characterModel);
-            const action = mixer.clipAction(object.animations[0]);
-            action.play();
-        }
-    },
-    (xhr) => {
-        if (xhr.lengthComputable) {
-            const percent = Math.floor((xhr.loaded / xhr.total) * 100);
-            const loadingEl = document.getElementById('loading-text');
-            if(loadingEl) loadingEl.innerText = `Loading FBX Animation... ${percent}%`;
-        }
-    },
-    (error) => {
-        console.error("FBX Load Error:", error);
-        const loadingEl = document.getElementById('loading-text');
-        if(loadingEl) {
-            loadingEl.innerText = "❌ Error Loading FBX File";
-            loadingEl.style.color = "#ef4444";
-        }
+function switchEditorCharacter(key) {
+    if (currentKey === key) return;
+    currentKey = key;
+    loadCharacter(characterFiles[key]);
+}
+
+// Load Character Function
+function loadCharacter(url) {
+    const loadingEl = document.getElementById('loading-text');
+    if(loadingEl) {
+        loadingEl.style.display = 'block';
+        loadingEl.innerText = "Loading Character...";
     }
-);
+
+    if (characterModel) {
+        scene.remove(characterModel);
+        characterModel = null;
+        mixer = null;
+    }
+
+    fbxLoader.load(
+        url,
+        (object) => {
+            characterModel = object;
+            
+            // Mixamo scale fix (centimeters to meters)
+            characterModel.scale.set(0.01, 0.01, 0.01);
+            characterModel.position.set(0, 0, 0);
+            
+            characterModel.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
+                }
+            });
+
+            scene.add(characterModel);
+            
+            if(loadingEl) loadingEl.style.display = 'none';
+
+            // Play embedded animation if available
+            if (object.animations && object.animations.length > 0) {
+                mixer = new THREE.AnimationMixer(characterModel);
+                const action = mixer.clipAction(object.animations[0]);
+                action.play();
+            }
+        },
+        (xhr) => {
+            if (xhr.lengthComputable && loadingEl) {
+                const percent = Math.floor((xhr.loaded / xhr.total) * 100);
+                loadingEl.innerText = `Loading... ${percent}%`;
+            }
+        },
+        (error) => {
+            console.error("FBX Load Error:", error);
+            if(loadingEl) {
+                loadingEl.innerText = "❌ Error Loading File";
+                loadingEl.style.color = "#ef4444";
+            }
+        }
+    );
+}
+
+// Initial Load
+createEditorUI();
+loadCharacter(characterFiles[currentKey]);
 
 // Skin color change support
-document.getElementById('color-skin').addEventListener('input', (e) => {
-    if (characterModel) {
-        characterModel.traverse((child) => {
-            if (child.isMesh && child.material) {
-                if (Array.isArray(child.material)) {
-                    child.material.forEach(mat => mat.color.set(e.target.value));
-                } else {
-                    child.material.color.set(e.target.value);
+const colorSkinInput = document.getElementById('color-skin');
+if(colorSkinInput) {
+    colorSkinInput.addEventListener('input', (e) => {
+        if (characterModel) {
+            characterModel.traverse((child) => {
+                if (child.isMesh && child.material) {
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(mat => mat.color.set(e.target.value));
+                    } else {
+                        child.material.color.set(e.target.value);
+                    }
                 }
-            }
-        });
-    }
-});
+            });
+        }
+    });
+}
 
 window.save3DDNA = function() {
     alert('3D Character DNA Saved Successfully! Entering Game World...');
@@ -113,3 +161,4 @@ window.addEventListener('resize', () => {
     camera.updateProjectionMatrix();
     renderer.setSize(container.clientWidth, container.clientHeight);
 });
+
