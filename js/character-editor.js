@@ -1,35 +1,55 @@
-// 5. Connect UI Sliders to Bone Scaling (Since AI models don't have Blendshapes)
-function updateMorphs() {
-    if (!characterModel) return;
-    
-    const chestVal = parseFloat(document.getElementById('morph-chest').value);
-    const waistVal = parseFloat(document.getElementById('morph-waist').value);
-    const hipsVal = parseFloat(document.getElementById('morph-hips').value);
-    
-    // Chest / Bust scaling via spine bone
-    const chestBone = characterModel.getObjectByName('spine_02.x');
-    if (chestBone) {
-        const scale = 0.8 + (chestVal * 0.4);
-        chestBone.scale.set(scale, scale, scale);
-    }
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-    // Waist narrowing via spine_01 bone
-    const waistBone = characterModel.getObjectByName('spine_01.x');
-    if (waistBone) {
-        const scale = 1.2 - (waistVal * 0.4);
-        waistBone.scale.x = scale;
-        waistBone.scale.z = scale;
-    }
+const container = document.getElementById('render-container');
+const scene = new THREE.Scene();
 
-    // Hips scaling via root/hips bone
-    const hipsBone = characterModel.getObjectByName('root.x');
-    if (hipsBone) {
-        const scale = 0.8 + (hipsVal * 0.4);
-        hipsBone.scale.set(scale, scale, scale);
-    }
+const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+camera.position.set(0, 1.2, 3);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(container.clientWidth, container.clientHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+container.appendChild(renderer.domElement);
+
+const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
+scene.add(ambientLight);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+
+let characterModel = null;
+const gltfLoader = new GLTFLoader();
+
+// Sirf Model ka URL
+const modelURL = 'https://raw.githubusercontent.com/hacker2003/Game/main/Game/assets/ee654438-4e51-4637-a703-1e2188cea38e.glb';[span_0](start_span)[span_0](end_span)
+
+document.getElementById('loading-text').innerText = "Loading 3D Model...";
+
+gltfLoader.load(modelURL, (gltf) => {
+    characterModel = gltf.scene;
+    scene.add(characterModel);
+    
+    // Jaise hi model load hoga, loading text gayab ho jayega
+    document.getElementById('loading-text').style.display = 'none';
+}, (xhr) => {
+    const percent = Math.floor((xhr.loaded / xhr.total) * 100);
+    if(percent) document.getElementById('loading-text').innerText = `Loading... ${percent}%`;
+}, (error) => {
+    document.getElementById('loading-text').innerText = "Error: " + error.message;
+    document.getElementById('loading-text').style.color = "#ef4444";
+});
+
+function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
 }
+animate();
 
-// Attach event listeners for all 3 sliders
-document.getElementById('morph-chest').addEventListener('input', updateMorphs);
-document.getElementById('morph-waist').addEventListener('input', updateMorphs);
-document.getElementById('morph-hips').addEventListener('input', updateMorphs);
+window.addEventListener('resize', () => {
+    camera.aspect = container.clientWidth / container.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(container.clientWidth, container.clientHeight);
+});
