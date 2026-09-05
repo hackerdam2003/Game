@@ -8,7 +8,8 @@
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
         
-        #game-canvas { display: block; width: 100%; height: 100%; background: #0f172a; }
+        /* Canvas fixed to cover black screen issues */
+        #game-canvas { display: block; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: -1; }
 
         /* Enter Screen */
         #enter-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.95); display: flex; align-items: center; justify-content: center; z-index: 1000; }
@@ -16,35 +17,19 @@
 
         #hud { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
         
-        /* Top Left: Team List & Health */
-        .hud-team-container { position: absolute; top: 15px; left: 15px; display: flex; flex-direction: column; gap: 8px; pointer-events: auto; }
-        .hud-profile { background: rgba(0,0,0,0.6); padding: 5px 12px; border-radius: 15px; border: 1px solid #334155; display: flex; align-items: center; gap: 10px; backdrop-filter: blur(5px); }
-        .hp-bar { width: 100px; height: 6px; background: #334; border-radius: 3px; overflow: hidden; }
-        .hp-fill { width: 100%; height: 100%; background: #10b981; }
-        
-        /* Top Right: Minimap & Mic/Chat Icons */
-        .top-right-controls { position: absolute; top: 15px; right: 15px; display: flex; gap: 15px; align-items: flex-start; pointer-events: auto; }
-        .icon-btn-game { width: 45px; height: 45px; background: rgba(30,41,59,0.8); border: 2px solid #334155; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; backdrop-filter: blur(5px); transition: 0.2s; }
-        .icon-btn-game:active { transform: scale(0.9); }
-        .hud-minimap { width: 100px; height: 100px; background: rgba(30,41,59,0.7); border: 2px solid #3b82f6; border-radius: 50%; backdrop-filter: blur(5px); }
+        /* Minimap Container (Positioning handled dynamically in minimap.js) */
+        .hud-minimap { pointer-events: auto; }
 
-        /* In-Game Chat Box */
-        #game-chat-box { position: absolute; bottom: 30px; left: 180px; width: 280px; height: 160px; background: rgba(0,0,0,0.6); border: 1px solid #334155; border-radius: 10px; display: none; flex-direction: column; pointer-events: auto; backdrop-filter: blur(5px); z-index: 100; }
-        .chat-msgs { flex: 1; overflow-y: auto; padding: 8px; color: white; font-size: 11px; display: flex; flex-direction: column; gap: 4px; }
-        .chat-input-row { display: flex; border-top: 1px solid #334; }
-        .chat-input-row input { flex: 1; background: transparent; border: none; color: white; padding: 8px; outline: none; font-size: 12px; }
-        .chat-input-row button { background: #3b82f6; border: none; color: white; padding: 0 14px; border-radius: 0 0 10px 0; font-weight: bold; cursor: pointer; }
-
-        /* Controls */
-        .joystick-zone { position: absolute; bottom: 20px; left: 30px; width: 130px; height: 130px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); pointer-events: auto; display: flex; align-items: center; justify-content: center; }
+        /* Joystick Controls */
+        .joystick-zone { position: absolute; bottom: 20px; left: 30px; width: 130px; height: 130px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); pointer-events: auto; display: flex; align-items: center; justify-content: center; z-index: 100; }
         .joystick-knob { width: 45px; height: 45px; background: rgba(255,255,255,0.6); border-radius: 50%; pointer-events: none; }
 
-        .action-cluster { position: absolute; bottom: 20px; right: 30px; pointer-events: auto; width: 180px; height: 180px; }
-        .btn-action { position: absolute; background: rgba(0,0,0,0.6); border: 2px solid rgba(255,255,255,0.4); border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); transition: 0.1s; }
+        /* Action Buttons */
+        .action-cluster { position: absolute; bottom: 20px; right: 30px; pointer-events: auto; width: 180px; height: 180px; z-index: 100; }
+        .btn-action { position: absolute; background: rgba(0,0,0,0.6); border: 2px solid rgba(255,255,255,0.4); border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); transition: 0.1s; cursor: pointer; }
         .btn-action:active { background: rgba(255,255,255,0.4); transform: scale(0.9); }
         .btn-main { width: 70px; height: 70px; bottom: 10px; right: 10px; font-size: 24px; }
         .btn-skill { width: 50px; height: 50px; bottom: 90px; right: 20px; font-size: 18px; }
-        .btn-jump { width: 50px; height: 50px; bottom: 20px; right: 90px; font-size: 18px; }
     </style>
 </head>
 <body>
@@ -53,32 +38,12 @@
         <button class="enter-btn" onclick="enterWorld()">Tap to Enter World</button>
     </div>
 
-    <!-- 3D Canvas Injection Target -->
+    <!-- 3D Canvas -->
     <canvas id="game-canvas"></canvas>
 
     <div id="hud">
-        <!-- Dynamic Team List -->
-        <div class="hud-team-container" id="team-hud-list">
-            <!-- Inject by JS -->
-        </div>
-
-        <!-- Top Right Controls -->
-        <div class="top-right-controls">
-            <div class="icon-btn-game" id="btn-mic-toggle" onclick="toggleVoiceChat()">🔇</div>
-            <div class="icon-btn-game" onclick="toggleGameChat()">💬</div>
-            <div class="hud-minimap"></div>
-        </div>
-
-        <!-- In-Game Chat Overlay -->
-        <div id="game-chat-box">
-            <div class="chat-msgs" id="in-game-msgs">
-                <div><i>Welcome to Open World Secure Chat...</i></div>
-            </div>
-            <div class="chat-input-row">
-                <input type="text" id="game-chat-input" placeholder="Type team message..." autocomplete="off">
-                <button onclick="sendGameChat()">Send</button>
-            </div>
-        </div>
+        <!-- Minimap Hook -->
+        <div class="hud-minimap"></div>
 
         <!-- Joystick -->
         <div class="joystick-zone" id="joystick-base">
@@ -89,18 +54,13 @@
         <div class="action-cluster">
             <div class="btn-action btn-main" id="btn-attack">⚔️</div>
             <div class="btn-action btn-skill" id="btn-skill">🔥</div>
-            <div class="btn-action btn-jump" id="btn-jump">⬆️</div>
         </div>
     </div>
 
     <!-- Socket.io library -->
     <script src="/socket.io/socket.io.js"></script>
-    <script>
-        window.socket = io(); // Default pipeline for Voice & Chat
-        window.gameSocket = io('/world'); // Dedicated pipeline for Game World movement
-    </script>
 
-    <!-- Three.js Import Map for 3D Game World -->
+    <!-- Three.js Import Map -->
     <script type="importmap">
         {
             "imports": {
@@ -111,48 +71,8 @@
         }
     </script>
 
-    <!-- Game Scripts -->
-    <script type="module" src="js/voice.js"></script> 
+    <!-- Game Script (Engine handles Chat, Connection, and Player List now) -->
     <script type="module" src="js/engine.js"></script> 
 
-    <script>
-        // In-game chat toggle and sync logic
-        function toggleGameChat() {
-            const box = document.getElementById('game-chat-box');
-            box.style.display = box.style.display === 'flex' ? 'none' : 'flex';
-        }
-
-        function sendGameChat() {
-            const input = document.getElementById('game-chat-input');
-            const msg = input.value.trim();
-            if(msg !== '') {
-                if(window.gameSocket) {
-                    window.gameSocket.emit('world-chat', { message: msg });
-                }
-                const chatBox = document.getElementById('in-game-msgs');
-                chatBox.innerHTML += `<div><b style="color:#3b82f6">You:</b> ${escapeHtml(msg)}</div>`;
-                chatBox.scrollTop = chatBox.scrollHeight;
-                input.value = '';
-            }
-        }
-
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                if(window.gameSocket) {
-                    window.gameSocket.on('world-chat-broadcast', (data) => {
-                        const chatBox = document.getElementById('in-game-msgs');
-                        if(chatBox) {
-                            chatBox.innerHTML += `<div><b style="color:#10b981">${escapeHtml(data.name)}:</b> ${escapeHtml(data.message)}</div>`;
-                            chatBox.scrollTop = chatBox.scrollHeight;
-                        }
-                    });
-                }
-            }, 1000);
-        });
-
-        function escapeHtml(text) {
-            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        }
-    </script>
 </body>
 </html>
