@@ -20,18 +20,16 @@
         
         .loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 20px; font-weight: bold; color: #3b82f6; z-index: 10; pointer-events: none; }
         .btn-save { background: #10b981; color: white; border: none; padding: 15px; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 20px; }
-    </style>
-</head>
-<body>
-        .btn-save { background: #10b981; color: white; border: none; padding: 15px; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 20px; }
         
-        /* 👇 YEH NAYA CODE ADD KARO (Mobile ke liye Layout) 👇 */
+        /* 👇 Mobile-Friendly Layout 👇 */
         @media (max-width: 768px) {
             body { flex-direction: column; }
             #render-container { flex: 1.5; width: 100%; }
             .controls-box { flex: 1; width: 100%; border-left: none; border-top: 2px solid #1f2937; padding: 15px; }
         }
     </style>
+</head>
+<body>
 
     <div id="render-container">
         <div id="loading-text" class="loading">Loading Ultra 3D Core...</div>
@@ -64,7 +62,7 @@
         <button class="btn-save" onclick="save3DDNA()">💾 Save 3D DNA & Enter World</button>
     </div>
 
-    <!-- 🛑 YAHAN FIX HAI: fflate library add kar di gayi hai 🛑 -->
+    <!-- Import Map with fflate -->
     <script type="importmap">
         {
             "imports": {
