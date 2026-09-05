@@ -3,6 +3,8 @@ import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-aut
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import * as THREE from 'three';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+// 🏠 NAYA: GLB House load karne ke liye GLTFLoader import kiya
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { renderMinimap } from './minimap.js';
 
 // Setup Firebase
@@ -15,11 +17,11 @@ const app = initializeApp(engineConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-console.log("🎮 [Game Engine] Original Characters & Real Names Loaded!");
+console.log("🎮 [Game Engine] Home.glb & Multiplayer System Loaded!");
 
 const gameSocket = io(); 
 
-// 🚨 FIX 1: Real Name Fetching - Lobby se sahi naam uthayega, warna Guest banayega, sabka same nahi hoga.
+// 🚨 Real Name & UID from LocalStorage
 let myUid = localStorage.getItem('playerUID') || "UID_" + Math.floor(Math.random()*99999);
 let myName = localStorage.getItem('gameName') || localStorage.getItem('playerName') || "Guest_" + Math.floor(Math.random()*999);
 let speed = 0.08; 
@@ -53,10 +55,7 @@ let isBusy = false;
 const CHAIR_POS = { x: -3, z: -2 };
 const BED_POS = { x: 3, z: -4 };
 
-// ✅ Make sure ye files tumhare server par maujood hain
 const characterFiles = { 'man': './Man.fbx', 'girl': './Peasant%20Girl.fbx' };
-
-// Agar localStorage me char save hai toh wo lo, warna default 'man'
 let currentSelectedChar = localStorage.getItem('selectedCharacter') || 'man';
 
 window.enterWorld = async function() {
@@ -82,7 +81,7 @@ window.enterWorld = async function() {
         gameRoomId: "GLOBAL-ROOM", 
         uid: myUid, 
         name: myName, 
-        char: currentSelectedChar, // ✅ Asli character ID server ko bhej rahe hain
+        char: currentSelectedChar, 
         env: currentEnvironment
     });
 };
@@ -127,7 +126,7 @@ function updatePlayerListUI() {
 }
 
 // ==========================================
-// 2. 3D SCENE MANAGEMENT 
+// 2. 3D SCENE MANAGEMENT (Loaded with Home.glb)
 // ==========================================
 function init3DWorld() {
     const canvas = document.getElementById('game-canvas');
@@ -161,9 +160,8 @@ function init3DWorld() {
     worldGroup.add(dirLightW);
     worldGroup.add(new THREE.GridHelper(50, 50, 0x3b82f6, 0x1e293b));
 
-    doorMesh = new THREE.Mesh(new THREE.BoxGeometry(1.5, 2.5, 0.5), new THREE.MeshStandardMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.8 }));
-    doorMesh.position.set(4, 1.25, -4);
-    worldGroup.add(doorMesh);
+    // 🏠 LOAD ASLI HOME.GLB IN WORLD MAP
+    loadWorldHome();
 
     const ambientH = new THREE.AmbientLight(0xffffff, 1.2);
     const pointLightH = new THREE.PointLight(0xffddaa, 1.5, 20);
@@ -192,6 +190,30 @@ function init3DWorld() {
     loadCharacter(currentSelectedChar);
     loadMonster();
     requestAnimationFrame(renderLoop);
+}
+
+// 🏠 Home.glb Loader Function
+function loadWorldHome() {
+    const gltfLoader = new GLTFLoader();
+    
+    gltfLoader.load('./Home.glb', (gltf) => {
+        const house = gltf.scene;
+        house.scale.set(1, 1, 1); // Agar size adjust karna ho toh yahan change kar sakte ho
+        house.position.set(4, 0, -4); // World me ghar ki location
+
+        house.traverse((node) => {
+            if (node.isMesh) {
+                node.castShadow = true;
+                node.receiveShadow = true;
+            }
+        });
+
+        worldGroup.add(house);
+        doorMesh = house; // Door reference for proximity check
+        console.log("✅ [World] Home.glb Loaded Successfully!");
+    }, undefined, (error) => {
+        console.error("❌ Error loading Home.glb:", error);
+    });
 }
 
 function switchEnvironment(targetEnv) {
@@ -233,7 +255,6 @@ function loadCharacter(charKey) {
     });
 }
 
-// Reusable animation loader (khud ke aur dusre player ke liye)
 function loadAnimations(fbxLoader, targetMixer, targetActions) {
     fbxLoader.load('./Running.fbx', (anim) => { if(anim.animations.length) targetActions.run = targetMixer.clipAction(anim.animations[0]); });
     fbxLoader.load('./Punching.fbx', (anim) => { if(anim.animations.length) { targetActions.punch = targetMixer.clipAction(anim.animations[0]); targetActions.punch.setLoop(THREE.LoopOnce); }});
@@ -285,7 +306,6 @@ function setupMultiplayer() {
             remotePlayers[data.uid].targetRot = data.rot;
             remotePlayers[data.uid].env = data.env;
             
-            // 🚨 Remote Player ki Animation Trigger
             if(remotePlayers[data.uid].mixer && remotePlayers[data.uid].actions[data.action]) {
                 const actionToPlay = remotePlayers[data.uid].actions[data.action];
                 if(remotePlayers[data.uid].currentAction !== data.action) {
@@ -307,7 +327,7 @@ function setupMultiplayer() {
 
     gameSocket.on('player-left', (uid) => {
         if(remotePlayers[uid]) {
-            scene.remove(remotePlayers[uid].group); // 🚨 Group remove kar rahe hain (asli character)
+            scene.remove(remotePlayers[uid].group); 
             if(remotePlayers[uid].label) remotePlayers[uid].label.remove();
             delete remotePlayers[uid];
             updatePlayerListUI();
@@ -317,11 +337,10 @@ function setupMultiplayer() {
     });
 }
 
-// 🚨 FIX 2: Fake Capsule Hataya! Asli FBX Model Load Hoga
 function addRemotePlayer(data) {
     const fbxLoader = new FBXLoader();
-    const group = new THREE.Group(); // Character ko group me rakhenge taaki move karna asaan ho
-    group.position.set(data.x || 0, 0, data.z || 0); // Y position 0 kardi taaki zameen par rahe
+    const group = new THREE.Group(); 
+    group.position.set(data.x || 0, 0, data.z || 0); 
     scene.add(group);
 
     const label = document.createElement('div');
@@ -343,7 +362,6 @@ function addRemotePlayer(data) {
     };
     remotePlayers[data.uid] = rp;
 
-    // Asli 3D Model load kar rahe hain doosre player ka
     const charKey = data.char || 'man';
     fbxLoader.load(characterFiles[charKey] || characterFiles['man'], (object) => {
         object.scale.set(0.01, 0.01, 0.01);
@@ -355,7 +373,6 @@ function addRemotePlayer(data) {
             rp.actions.idle = rp.mixer.clipAction(object.animations[0]); 
             rp.actions.idle.play(); 
         }
-        // Unki animations load karo
         loadAnimations(fbxLoader, rp.mixer, rp.actions);
     });
 
@@ -518,8 +535,8 @@ function renderLoop() {
             renderMinimap(allPlayersData, myUid);
         }
 
-        if (currentEnvironment === "world") {
-            if (my3DCharacter.position.distanceTo(doorMesh.position) < 2.0) {
+        if (currentEnvironment === "world" && doorMesh) {
+            if (my3DCharacter.position.distanceTo(doorMesh.position) < 3.0) {
                 enterHouseBtn.style.display = "block";
                 enterHouseBtn.innerHTML = "🏠 Enter House";
                 enterHouseBtn.onclick = () => switchEnvironment("house");
@@ -564,11 +581,9 @@ function renderLoop() {
         }
     }
 
-    // 🚨 REMOTE PLAYERS FIX: Asli mesh rotate aur move karegi
     for(let uid in remotePlayers) {
         const rp = remotePlayers[uid];
-        
-        if(rp.mixer) rp.mixer.update(delta); // Remote player ki animation chalne ke liye
+        if(rp.mixer) rp.mixer.update(delta);
 
         if(rp.env === currentEnvironment) {
             rp.group.visible = true;
@@ -606,3 +621,4 @@ window.addEventListener('resize', () => {
         canvas.style.height = '100vh';
     }
 });
+
