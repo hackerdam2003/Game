@@ -3,7 +3,6 @@ import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-aut
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import * as THREE from 'three';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
-// 🏠 NAYA: GLB House load karne ke liye GLTFLoader import kiya
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { renderMinimap } from './minimap.js';
 
@@ -21,37 +20,31 @@ console.log("🎮 [Game Engine] Home.glb & Multiplayer System Loaded!");
 
 const gameSocket = io(); 
 
-// 🚨 Real Name & UID from LocalStorage
 let myUid = localStorage.getItem('playerUID') || "UID_" + Math.floor(Math.random()*99999);
 let myName = localStorage.getItem('gameName') || localStorage.getItem('playerName') || "Guest_" + Math.floor(Math.random()*999);
 let speed = 0.08; 
 let moveVector = { x: 0, y: 0 };
 
-// Scene Management (World vs House)
 let currentEnvironment = "world";
 let scene, camera, renderer, clock;
 let worldGroup, houseGroup; 
 
-// Characters & Animations
 let my3DCharacter = null;
 let monsterCharacter = null;
 let mixer = null, monsterMixer = null;
 let actions = {}; 
 let currentAction = 'idle';
 
-// Multiplayer
 const remotePlayers = {}; 
 let allPlayersData = {}; 
 let floatingLabels = document.createElement('div');
 document.body.appendChild(floatingLabels);
 
-// World Stats & Objects
 let playerHP = 100, monsterHP = 100, isMonsterDead = false;
 let doorMesh = null, exitDoorMesh = null;
 let enterHouseBtn = null, actionUI = null, playerListUI = null;
 let isBusy = false; 
 
-// Furniture Pos
 const CHAIR_POS = { x: -3, z: -2 };
 const BED_POS = { x: 3, z: -4 };
 
@@ -86,9 +79,6 @@ window.enterWorld = async function() {
     });
 };
 
-// ==========================================
-// 1. UI SETUP 
-// ==========================================
 function createUIElements() {
     const hudBar = document.createElement('div');
     hudBar.style.cssText = 'position: fixed; top: 10px; left: 10px; z-index: 9999; pointer-events: none;';
@@ -108,7 +98,7 @@ function createUIElements() {
     actionUI.style.cssText = 'position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); display: none; gap: 10px; z-index: 10000;';
     actionUI.innerHTML = `
         <button id="btn-sit" style="padding: 12px 24px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; display:none;">🪑 Sit</button>
-        <button id="btn-sleep" style="padding: 12px 24px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; display:none;">🛏️ Sleep</button>
+        <button id="btn-sleep" style="padding: 12px 24px; background: #ef4444; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; display:none;">🛏️ Sleep</button>
         <button id="btn-stand" style="padding: 12px 24px; background: #f59e0b; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; display:none;">🧍 Stand</button>
     `;
     document.body.appendChild(actionUI);
@@ -125,9 +115,6 @@ function updatePlayerListUI() {
     if(playerListUI) playerListUI.innerHTML = html;
 }
 
-// ==========================================
-// 2. 3D SCENE MANAGEMENT (Loaded with Home.glb)
-// ==========================================
 function init3DWorld() {
     const canvas = document.getElementById('game-canvas');
     canvas.style.width = '100vw';
@@ -160,7 +147,7 @@ function init3DWorld() {
     worldGroup.add(dirLightW);
     worldGroup.add(new THREE.GridHelper(50, 50, 0x3b82f6, 0x1e293b));
 
-    // 🏠 LOAD ASLI HOME.GLB IN WORLD MAP
+    // 🏠 LOAD HOME.GLB WITH PROPER POSITION & VISIBILITY
     loadWorldHome();
 
     const ambientH = new THREE.AmbientLight(0xffffff, 1.2);
@@ -192,14 +179,14 @@ function init3DWorld() {
     requestAnimationFrame(renderLoop);
 }
 
-// 🏠 Home.glb Loader Function
+// 🏠 Home.glb Safe Loader (Fixed position & fallback box)
 function loadWorldHome() {
     const gltfLoader = new GLTFLoader();
     
     gltfLoader.load('./Home.glb', (gltf) => {
         const house = gltf.scene;
-        house.scale.set(1, 1, 1); // Agar size adjust karna ho toh yahan change kar sakte ho
-        house.position.set(4, 0, -4); // World me ghar ki location
+        house.scale.set(1, 1, 1); 
+        house.position.set(3, 0, -3); // Player ke bilkul paas rakha hai taaki saaf dikhe
 
         house.traverse((node) => {
             if (node.isMesh) {
@@ -209,10 +196,16 @@ function loadWorldHome() {
         });
 
         worldGroup.add(house);
-        doorMesh = house; // Door reference for proximity check
+        doorMesh = house; 
         console.log("✅ [World] Home.glb Loaded Successfully!");
     }, undefined, (error) => {
-        console.error("❌ Error loading Home.glb:", error);
+        console.warn("⚠️ Home.glb load nahi hua, fallback yellow door laga rahe hain:", error);
+        // Fallback agar file na mile toh purana yellow box dikhega taaki game na tute
+        const geometry = new THREE.BoxGeometry(2, 2, 2);
+        const material = new THREE.MeshStandardMaterial({ color: 0xf59e0b });
+        doorMesh = new THREE.Mesh(geometry, material);
+        doorMesh.position.set(3, 1, -3);
+        worldGroup.add(doorMesh);
     });
 }
 
@@ -230,16 +223,13 @@ function switchEnvironment(targetEnv) {
         worldGroup.visible = true;
         houseGroup.visible = false;
         scene.background = new THREE.Color(0x0f172a); 
-        my3DCharacter.position.set(4, 0, -2); 
+        my3DCharacter.position.set(3, 0, -1); 
         enterHouseBtn.style.display = "none";
     }
     
     gameSocket.emit('player-moved', { uid: myUid, x: my3DCharacter.position.x, y: my3DCharacter.position.y, z: my3DCharacter.position.z, rot: my3DCharacter.rotation.y, action: 'idle', env: currentEnvironment });
 }
 
-// ==========================================
-// 3. CHARACTERS & ANIMATIONS
-// ==========================================
 function loadCharacter(charKey) {
     const fbxLoader = new FBXLoader();
     if (my3DCharacter) scene.remove(my3DCharacter);
@@ -250,16 +240,30 @@ function loadCharacter(charKey) {
         my3DCharacter.position.set(0, 0, 0);
         scene.add(my3DCharacter);
         mixer = new THREE.AnimationMixer(my3DCharacter);
-        if (object.animations.length > 0) { actions.idle = mixer.clipAction(object.animations[0]); actions.idle.play(); }
+        if (object.animations.length > 0) { 
+            actions.idle = mixer.clipAction(object.animations[0]); 
+            actions.idle.play(); 
+        }
         loadAnimations(fbxLoader, mixer, actions);
     });
 }
 
 function loadAnimations(fbxLoader, targetMixer, targetActions) {
-    fbxLoader.load('./Running.fbx', (anim) => { if(anim.animations.length) targetActions.run = targetMixer.clipAction(anim.animations[0]); });
-    fbxLoader.load('./Punching.fbx', (anim) => { if(anim.animations.length) { targetActions.punch = targetMixer.clipAction(anim.animations[0]); targetActions.punch.setLoop(THREE.LoopOnce); }});
-    fbxLoader.load('./Sitting.fbx', (anim) => { if(anim.animations.length) targetActions.sit = targetMixer.clipAction(anim.animations[0]); });
-    fbxLoader.load('./Sleeping.fbx', (anim) => { if(anim.animations.length) targetActions.sleep = targetMixer.clipAction(anim.animations[0]); });
+    fbxLoader.load('./Running.fbx', (anim) => { 
+        if(anim.animations.length) targetActions.run = targetMixer.clipAction(anim.animations[0]); 
+    });
+    fbxLoader.load('./Punching.fbx', (anim) => { 
+        if(anim.animations.length) { 
+            targetActions.punch = targetMixer.clipAction(anim.animations[0]); 
+            targetActions.punch.setLoop(THREE.LoopOnce); 
+        }
+    });
+    fbxLoader.load('./Sitting.fbx', (anim) => { 
+        if(anim.animations.length) targetActions.sit = targetMixer.clipAction(anim.animations[0]); 
+    });
+    fbxLoader.load('./Sleeping.fbx', (anim) => { 
+        if(anim.animations.length) targetActions.sleep = targetMixer.clipAction(anim.animations[0]); 
+    });
 }
 
 function playAnim(animName) {
@@ -281,9 +285,6 @@ function loadMonster() {
     });
 }
 
-// ==========================================
-// 4. MULTIPLAYER SYNC & CHAT
-// ==========================================
 function setupMultiplayer() {
     gameSocket.on('current-players', (players) => {
         for(let id in players) {
@@ -461,9 +462,6 @@ function showChatBubble(uid, msg) {
     }
 }
 
-// ==========================================
-// 5. CONTROLS & INTERACTION
-// ==========================================
 function setupJoystick() {
     const base = document.getElementById('joystick-base'), knob = document.getElementById('joystick-knob');
     if(!base || !knob) return;
@@ -515,9 +513,6 @@ function setupActionButtons() {
     });
 }
 
-// ==========================================
-// 6. RENDER LOOP
-// ==========================================
 function renderLoop() {
     requestAnimationFrame(renderLoop);
     const delta = clock ? clock.getDelta() : 0;
@@ -536,7 +531,7 @@ function renderLoop() {
         }
 
         if (currentEnvironment === "world" && doorMesh) {
-            if (my3DCharacter.position.distanceTo(doorMesh.position) < 3.0) {
+            if (my3DCharacter.position.distanceTo(doorMesh.position) < 4.0) {
                 enterHouseBtn.style.display = "block";
                 enterHouseBtn.innerHTML = "🏠 Enter House";
                 enterHouseBtn.onclick = () => switchEnvironment("house");
