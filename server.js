@@ -7,7 +7,6 @@ import { fileURLToPath } from 'url';
 
 import { handleRoomEvents, handlePlayerDisconnect, checkAutoRejoin } from './core/roommanager.js';
 import { handleChatEvents } from './core/chatmanager.js'; 
-// 🛑 NAYA IMPORT: Dedicated Game Engine
 import { handleGameWorld } from './core/gameEngine.js'; 
 
 const app = express();
@@ -21,15 +20,15 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 app.get('/profile.html', (req, res) => res.sendFile(path.join(__dirname, 'profile.html')));
 app.get('/lobby.html', (req, res) => res.sendFile(path.join(__dirname, 'lobby.html')));
 app.get('/game.html', (req, res) => res.sendFile(path.join(__dirname, 'game.html')));
-// 👇 NAYI LINE: Character Editor ka route add ho gaya 👇
 app.get('/character.html', (req, res) => res.sendFile(path.join(__dirname, 'character.html')));
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, { cors: { origin: "*", methods: ["GET", "POST"] } });
 
 const connectedPlayers = new Map();
+const worldPlayers = {}; // 🌍 3D World ke live players ko track karne ke liye
 
-// 🚀 START THE DEDICATED GAME ENGINE PIPELINE ('/world')
+// 🚀 START THE DEDICATED GAME ENGINE PIPELINE
 handleGameWorld(io);
 
 io.on('connection', (socket) => {
@@ -51,10 +50,43 @@ io.on('connection', (socket) => {
             
             console.log(`✅ Player Identity Confirmed: ${player.gameName} (UID: ${player.uid})`);
             
-            // Restore party if the user just refreshed the page
             checkAutoRejoin(socket, io, connectedPlayers);
         }
     });
+
+    // ==========================================
+    // 🎮 3D WORLD MULTIPLAYER SYNC (GLOBAL ROOM)
+    // ==========================================
+    socket.on('join-world', (data) => {
+        worldPlayers[socket.id] = data;
+        const roomName = data.gameRoomId || 'GLOBAL-ROOM';
+        socket.join(roomName);
+        
+        // Naye player ko batao ki map me pehle se kaun kaun hai
+        socket.emit('current-players', worldPlayers);
+        
+        // Purane players ko batao ki naya player aa gaya hai
+        socket.broadcast.to(roomName).emit('player-joined', data);
+    });
+
+    socket.on('player-moved', (data) => {
+        if(worldPlayers[socket.id]) {
+            worldPlayers[socket.id].x = data.x;
+            worldPlayers[socket.id].y = data.y;
+            worldPlayers[socket.id].z = data.z;
+            worldPlayers[socket.id].rot = data.rot;
+            worldPlayers[socket.id].action = data.action;
+            worldPlayers[socket.id].env = data.env;
+        }
+        // Sabko nayi location aur animation bhejo
+        socket.broadcast.to('GLOBAL-ROOM').emit('player-moved', data);
+    });
+
+    socket.on('chat-message', (data) => {
+        // 3D floating chat bubbles ke liye
+        socket.broadcast.to('GLOBAL-ROOM').emit('chat-message', data);
+    });
+    // ==========================================
 
     handleRoomEvents(socket, io, connectedPlayers); 
     handleChatEvents(socket, io, connectedPlayers);
@@ -64,6 +96,13 @@ io.on('connection', (socket) => {
         if (player) {
             console.log(`🔴 Player Disconnected: ${player.gameName || socket.id}`);
             handlePlayerDisconnect(socket, io, connectedPlayers);
+        }
+
+        // 3D World Cleanup jab player game band kare
+        if (worldPlayers[socket.id]) {
+            const uid = worldPlayers[socket.id].uid;
+            delete worldPlayers[socket.id];
+            io.to('GLOBAL-ROOM').emit('player-left', uid);
         }
     });
 });
