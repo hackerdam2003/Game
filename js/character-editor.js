@@ -22,8 +22,8 @@ controls.enableDamping = true;
 let characterModel = null;
 const gltfLoader = new GLTFLoader();
 
-// Sirf Model ka URL
-const modelURL = 'https://raw.githubusercontent.com/hacker2003/Game/main/Game/assets/ee654438-4e51-4637-a703-1e2188cea38e.glb';[span_0](start_span)[span_0](end_span)
+// Updated with the new prepared rigged model URL
+const modelURL = 'https://raw.githubusercontent.com/hacker2003/Game/main/Game/assets/ee654438-4e51-4637-a703-1e2188cea38e_model_prepared.glb';
 
 document.getElementById('loading-text').innerText = "Loading 3D Model...";
 
