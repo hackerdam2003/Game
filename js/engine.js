@@ -15,13 +15,13 @@ const app = initializeApp(engineConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-console.log("🎮 [Game Engine] Fixed Single-Page Multiplayer Loaded!");
+console.log("🎮 [Game Engine] Smooth Single-Page Multiplayer Loaded with Real Names & Chat!");
 
-// 🚨 FIX 1: Default namespace par connect kiya taaki server link ho jaye
 const gameSocket = io(); 
 
-let myUid = "UID_" + Math.floor(Math.random()*9999);
-let myName = "Player_" + Math.floor(Math.random()*99);
+// 🚨 FIX 1: Real Name aur UID LocalStorage se lenge (Fake name hataya)
+let myUid = localStorage.getItem('playerUID') || "UID_" + Math.floor(Math.random()*9999);
+let myName = localStorage.getItem('playerName') || "Racer";
 let speed = 0.08; 
 let moveVector = { x: 0, y: 0 };
 
@@ -46,7 +46,7 @@ document.body.appendChild(floatingLabels);
 // World Stats & Objects
 let playerHP = 100, monsterHP = 100, isMonsterDead = false;
 let doorMesh = null, exitDoorMesh = null;
-let enterHouseBtn = null, actionUI = null, playerListUI = null, chatContainer = null;
+let enterHouseBtn = null, actionUI = null, playerListUI = null;
 let isBusy = false; 
 
 // Furniture Pos
@@ -72,6 +72,7 @@ window.enterWorld = async function() {
     init3DWorld(); 
     setupJoystick();
     setupActionButtons();
+    setupChatAndVoice(); // 🚨 FIX 2: Mic & Chat system start
     setupMultiplayer();
     
     gameSocket.emit('join-world', { 
@@ -93,23 +94,13 @@ function createUIElements() {
     hudBar.innerHTML = `<div style="background: rgba(0,0,0,0.7); color: #fff; font-size: 11px; padding: 10px; border-radius: 8px; border: 1px solid #3b82f6;"><b>❤️ HP:</b> <span id='p-hp'>100</span> | <b>🧟 Boss:</b> <span id='m-hp'>100</span></div>`;
     document.body.appendChild(hudBar);
 
-    // 🚨 FIX 3: Restored Player List UI
+    // Player List UI
     playerListUI = document.createElement('div');
     playerListUI.style.cssText = 'position: fixed; top: 60px; left: 10px; background: rgba(0,0,0,0.7); color: #fff; font-size: 11px; padding: 10px; z-index: 99999; border-radius: 8px; min-width: 120px; border: 1px solid #3b82f6;';
     document.body.appendChild(playerListUI);
     updatePlayerListUI();
 
-    // 🚨 Restored Chat UI
-    chatContainer = document.createElement('div');
-    chatContainer.style.cssText = 'position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%); z-index: 99999; display: flex; gap: 5px;';
-    chatContainer.innerHTML = `
-        <input type="text" id="chat-input" placeholder="Type message..." style="padding: 8px; border-radius: 20px; border: none; outline: none; width: 200px; background: rgba(255,255,255,0.9);">
-        <button id="chat-send" style="padding: 8px 15px; border-radius: 20px; border: none; background: #3b82f6; color: white; font-weight: bold;">Send</button>
-    `;
-    document.body.appendChild(chatContainer);
-    
-    document.getElementById('chat-send').addEventListener('click', sendChat);
-    document.getElementById('chat-input').addEventListener('keypress', (e) => { if (e.key === 'Enter') sendChat(); });
+    // 🚨 Duplicate Chat code removed. HTML buttons are used now.
 
     // Enter/Exit House Button
     enterHouseBtn = document.createElement('button');
@@ -143,14 +134,12 @@ function updatePlayerListUI() {
 // ==========================================
 function init3DWorld() {
     const canvas = document.getElementById('game-canvas');
-    
-    // 🚨 FIX 2: Black Screen permanently fixed by forcing canvas width/height
     canvas.style.width = '100vw';
     canvas.style.height = '100vh';
     canvas.style.position = 'absolute';
     canvas.style.top = '0';
     canvas.style.left = '0';
-    canvas.style.zIndex = '-1';
+    canvas.style.zIndex = '0'; // Black screen fix
 
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0f172a); 
@@ -248,7 +237,6 @@ function loadCharacter(charKey) {
 }
 
 function loadAnimations(fbxLoader) {
-    // ⚠️ Note: File names are case-sensitive on GitHub. Ensure they match exactly.
     fbxLoader.load('./Running.fbx', (anim) => { if(anim.animations.length) actions.run = mixer.clipAction(anim.animations[0]); });
     fbxLoader.load('./Punching.fbx', (anim) => { if(anim.animations.length) { actions.punch = mixer.clipAction(anim.animations[0]); actions.punch.setLoop(THREE.LoopOnce); }});
     fbxLoader.load('./Sitting.fbx', (anim) => { if(anim.animations.length) actions.sit = mixer.clipAction(anim.animations[0]); });
@@ -315,6 +303,7 @@ function setupMultiplayer() {
 
     gameSocket.on('chat-message', (data) => {
         showChatBubble(data.uid, data.msg);
+        appendChatUI(data.name, data.msg, '#10b981'); // 🚨 FIX: Sync to chat box
     });
 
     gameSocket.on('player-left', (uid) => {
@@ -355,13 +344,65 @@ function addRemotePlayer(data) {
     updatePlayerListUI();
 }
 
-function sendChat() {
-    const input = document.getElementById('chat-input');
-    const msg = input.value.trim();
-    if(msg !== "") {
-        gameSocket.emit('chat-message', { uid: myUid, name: myName, msg: msg });
-        showChatBubble(myUid, msg);
-        input.value = "";
+// 🚨 FIX 3: HTML Chat UI Connection
+function setupChatAndVoice() {
+    const chatToggle = document.getElementById('btn-chat-toggle');
+    const chatBox = document.getElementById('game-chat-box');
+    const sendBtn = document.getElementById('btn-send-chat');
+    const input = document.getElementById('game-chat-input');
+    const micToggle = document.getElementById('btn-mic-toggle');
+
+    if(chatToggle && chatBox) {
+        const toggleBox = () => { chatBox.style.display = chatBox.style.display === 'flex' ? 'none' : 'flex'; };
+        chatToggle.addEventListener('click', toggleBox);
+        chatToggle.addEventListener('touchstart', toggleBox, {passive: true});
+    }
+
+    const sendChatMsg = () => {
+        if(!input) return;
+        const msg = input.value.trim();
+        if(msg !== "") {
+            gameSocket.emit('chat-message', { uid: myUid, name: myName, msg: msg });
+            showChatBubble(myUid, msg); 
+            appendChatUI('You', msg, '#3b82f6'); 
+            input.value = "";
+        }
+    };
+
+    if(sendBtn) {
+        sendBtn.addEventListener('click', sendChatMsg);
+        sendBtn.addEventListener('touchstart', sendChatMsg, {passive: true});
+    }
+    if(input) input.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendChatMsg(); });
+
+    let isMicOn = false;
+    if(micToggle) {
+        const toggleMic = async () => {
+            if(!isMicOn) {
+                try {
+                    await navigator.mediaDevices.getUserMedia({ audio: true });
+                    micToggle.innerText = '🎙️';
+                    micToggle.style.background = 'rgba(16, 185, 129, 0.8)';
+                    isMicOn = true;
+                } catch(err) {
+                    alert("Mic permission denied!");
+                }
+            } else {
+                micToggle.innerText = '🔇';
+                micToggle.style.background = 'rgba(30,41,59,0.8)';
+                isMicOn = false;
+            }
+        };
+        micToggle.addEventListener('click', toggleMic);
+        micToggle.addEventListener('touchstart', toggleMic, {passive: true});
+    }
+}
+
+function appendChatUI(name, msg, color) {
+    const chatBox = document.getElementById('in-game-msgs');
+    if(chatBox) {
+        chatBox.innerHTML += `<div><b style="color:${color}">${name}:</b> ${msg}</div>`;
+        chatBox.scrollTop = chatBox.scrollHeight;
     }
 }
 
@@ -539,7 +580,6 @@ window.addEventListener('resize', () => {
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
         
-        // 🚨 FIX: Force canvas width update on resize
         const canvas = renderer.domElement;
         canvas.style.width = '100vw';
         canvas.style.height = '100vh';
