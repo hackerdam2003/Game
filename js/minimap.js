@@ -81,14 +81,18 @@ export function renderMinimap(players, myUid) {
         index++;
     }
     
-    // 3️⃣ Update Minimap Container (Fix UI Scattering - Gol Radar Style)
+    // 3️⃣ Update Minimap Container (🚨 MAP KO TOP-RIGHT ME SHIFT KIYA 🚨)
     const minimapContainer = document.querySelector('.hud-minimap');
     if (minimapContainer) {
         minimapContainer.style.position = 'fixed'; 
         minimapContainer.style.top = '15px';
-        minimapContainer.style.left = '50%'; // Screen ke top center me
-        minimapContainer.style.transform = 'translateX(-50%)'; 
-        minimapContainer.style.background = 'rgba(15, 23, 42, 0.85)'; // Dark Glass effect
+        
+        // YAHAN CHANGE HAI: Map right side me set hoga
+        minimapContainer.style.right = '15px'; 
+        minimapContainer.style.left = 'auto'; 
+        minimapContainer.style.transform = 'none'; 
+        
+        minimapContainer.style.background = 'rgba(15, 23, 42, 0.85)'; 
         minimapContainer.style.border = '2px solid #38bdf8';
         minimapContainer.style.overflow = 'hidden';
         minimapContainer.style.width = '110px';
@@ -99,3 +103,4 @@ export function renderMinimap(players, myUid) {
         minimapContainer.innerHTML = minimapHtml;
     }
 }
+
