@@ -16,41 +16,35 @@ const app = initializeApp(engineConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-console.log("🎮 [Game Engine] Complete System Loaded with Home.glb & Safe Render Loop!");
+console.log("🎮 [Game Engine] Fully Ready & Loaded!");
 
 const gameSocket = io(); 
 
-// Real Name & UID from LocalStorage
 let myUid = localStorage.getItem('playerUID') || "UID_" + Math.floor(Math.random()*99999);
 let myName = localStorage.getItem('gameName') || localStorage.getItem('playerName') || "Guest_" + Math.floor(Math.random()*999);
 let speed = 0.08; 
 let moveVector = { x: 0, y: 0 };
 
-// Scene Management (World vs House)
 let currentEnvironment = "world";
 let scene, camera, renderer, clock;
 let worldGroup, houseGroup; 
 
-// Characters & Animations
 let my3DCharacter = null;
 let monsterCharacter = null;
 let mixer = null, monsterMixer = null;
 let actions = {}; 
 let currentAction = 'idle';
 
-// Multiplayer
 const remotePlayers = {}; 
 let allPlayersData = {}; 
 let floatingLabels = document.createElement('div');
 document.body.appendChild(floatingLabels);
 
-// World Stats & Objects
 let playerHP = 100, monsterHP = 100, isMonsterDead = false;
 let doorMesh = null, exitDoorMesh = null;
 let enterHouseBtn = null, actionUI = null, playerListUI = null;
 let isBusy = false; 
 
-// Furniture Pos
 const CHAIR_POS = { x: -3, z: -2 };
 const BED_POS = { x: 3, z: -4 };
 
@@ -85,9 +79,6 @@ window.enterWorld = async function() {
     });
 };
 
-// ==========================================
-// 1. UI SETUP 
-// ==========================================
 function createUIElements() {
     const hudBar = document.createElement('div');
     hudBar.style.cssText = 'position: fixed; top: 10px; left: 10px; z-index: 9999; pointer-events: none;';
@@ -124,9 +115,6 @@ function updatePlayerListUI() {
     if(playerListUI) playerListUI.innerHTML = html;
 }
 
-// ==========================================
-// 2. 3D SCENE MANAGEMENT 
-// ==========================================
 function init3DWorld() {
     const canvas = document.getElementById('game-canvas');
     canvas.style.width = '100vw';
@@ -191,53 +179,39 @@ function init3DWorld() {
     requestAnimationFrame(renderLoop);
 }
 
-// 🏠 Home.glb Advanced Loader with Fallback
+// 🏠 Home.glb Loader
 function loadWorldHome() {
     const gltfLoader = new GLTFLoader();
     
-    console.log("⏳ [World] Attempting to load Home.glb...");
+    gltfLoader.load('./Home.glb', (gltf) => {
+        const house = gltf.scene;
+        house.scale.set(1.5, 1.5, 1.5); 
+        house.position.set(2, 0, -3); 
 
-    gltfLoader.load(
-        './Home.glb', 
-        (gltf) => {
-            const house = gltf.scene;
-            house.scale.set(1.5, 1.5, 1.5); 
-            house.position.set(2, 0, -3); 
-
-            house.traverse((node) => {
-                if (node.isMesh) {
-                    node.castShadow = true;
-                    node.receiveShadow = true;
-                }
-            });
-
-            if (doorMesh && doorMesh.parent) {
-                worldGroup.remove(doorMesh);
+        house.traverse((node) => {
+            if (node.isMesh) {
+                node.castShadow = true;
+                node.receiveShadow = true;
             }
+        });
 
-            worldGroup.add(house);
-            doorMesh = house; 
-            console.log("✅ [World] Home.glb Loaded and Rendered Successfully!");
-        }, 
-        (xhr) => {
-            if (xhr.lengthComputable) {
-                const percentComplete = Math.floor((xhr.loaded / xhr.total) * 100);
-                console.log(`📦 [Home.glb] Loading progress: ${percentComplete}%`);
-            }
-        }, 
-        (error) => {
-            console.error("❌ [World Error] Failed to load Home.glb from root folder:", error);
-            
-            if (!doorMesh) {
-                const geometry = new THREE.BoxGeometry(2, 3, 2);
-                const material = new THREE.MeshStandardMaterial({ color: 0xf59e0b });
-                doorMesh = new THREE.Mesh(geometry, material);
-                doorMesh.position.set(2, 1.5, -3);
-                worldGroup.add(doorMesh);
-                console.log("⚠️ [World] Fallback Yellow Door activated.");
-            }
+        if (doorMesh && doorMesh.parent) {
+            worldGroup.remove(doorMesh);
         }
-    );
+
+        worldGroup.add(house);
+        doorMesh = house; 
+        console.log("✅ [World] Home.glb Loaded Successfully!");
+    }, undefined, (error) => {
+        console.error("❌ Error loading Home.glb, using fallback box:", error);
+        if (!doorMesh) {
+            const geometry = new THREE.BoxGeometry(2, 3, 2);
+            const material = new THREE.MeshStandardMaterial({ color: 0xf59e0b });
+            doorMesh = new THREE.Mesh(geometry, material);
+            doorMesh.position.set(2, 1.5, -3);
+            worldGroup.add(doorMesh);
+        }
+    });
 }
 
 function switchEnvironment(targetEnv) {
@@ -261,9 +235,6 @@ function switchEnvironment(targetEnv) {
     gameSocket.emit('player-moved', { uid: myUid, x: my3DCharacter.position.x, y: my3DCharacter.position.y, z: my3DCharacter.position.z, rot: my3DCharacter.rotation.y, action: 'idle', env: currentEnvironment });
 }
 
-// ==========================================
-// 3. CHARACTERS & ANIMATIONS
-// ==========================================
 function loadCharacter(charKey) {
     const fbxLoader = new FBXLoader();
     if (my3DCharacter) scene.remove(my3DCharacter);
@@ -319,9 +290,6 @@ function loadMonster() {
     });
 }
 
-// ==========================================
-// 4. MULTIPLAYER SYNC & CHAT
-// ==========================================
 function setupMultiplayer() {
     gameSocket.on('current-players', (players) => {
         for(let id in players) {
@@ -499,9 +467,6 @@ function showChatBubble(uid, msg) {
     }
 }
 
-// ==========================================
-// 5. CONTROLS & INTERACTION
-// ==========================================
 function setupJoystick() {
     const base = document.getElementById('joystick-base'), knob = document.getElementById('joystick-knob');
     if(!base || !knob) return;
@@ -553,9 +518,6 @@ function setupActionButtons() {
     });
 }
 
-// ==========================================
-// 6. CRASH-PROOF RENDER LOOP
-// ==========================================
 function renderLoop() {
     requestAnimationFrame(renderLoop);
     
