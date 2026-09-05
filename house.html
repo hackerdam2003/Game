@@ -1,86 +1,49 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape">
-    <title>Racing Universe | Draco Home Test</title>
-    <style>
-        * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #0f172a; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
-        
-        #house-canvas { display: block; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 0; }
-        .back-btn { position: absolute; top: 20px; left: 20px; background: #ef4444; color: white; border: none; padding: 10px 20px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-        .status-hud { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); color: #38bdf8; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: bold; z-index: 1000; border: 1px solid #3b82f6; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.7); max-width: 90%; word-wrap: break-word; }
-    </style>
-</head>
-<body>
-
-    <button class="back-btn" onclick="window.location.href='game.html'">⬅ Back to World</button>
-    
-    <div id="status-text" class="status-hud">
-        ⏳ Loading compressed newhome.glb... Please wait.
-    </div>
-
-    <canvas id="house-canvas"></canvas>
-
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-            }
-        }
-    </script>
-
-    <script type="module">
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-        // 🚀 DRACOLoader Import kiya
-        import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
-
-        const canvas = document.getElementById('house-canvas');
-        const statusEl = document.getElementById('status-text');
-        
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0f172a); 
-
-        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 5, 10);
-
-        const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-
-        const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
-        scene.add(ambientLight);
-        
-        const dirLight = new THREE.DirectionalLight(0xffffff, 2);
-        dirLight.position.set(5, 10, 5);
-        dirLight.castShadow = true;
-        scene.add(dirLight);
-
-        // 🛠️ Draco Decoder Setup
-        const dracoLoader = new DRACOLoader();
-        dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/');
-
-        const gltfLoader = new GLTFLoader();
-        gltfLoader.setDRACOLoader(dracoLoader); // DRACOLoader ko GLTFLoader se connect kiya
-        
-        // GitHub Pages Link
-        const houseUrl = 'https://hackerdam2003.github.io/Game/newhome.glb';
-        
         gltfLoader.load(
             houseUrl, 
             (gltf) => {
                 const houseModel = gltf.scene;
-                houseModel.scale.set(1, 1, 1);
-                houseModel.position.set(0, 0, 0);
-                scene.add(houseModel);
+
+                // 🪄 MAGIC: Auto-Center & Auto-Scale Model
+                // 1. Model ka bounding box (total size) pata karo
+                const box = new THREE.Box3().setFromObject(houseModel);
+                const center = box.getCenter(new THREE.Vector3());
+                const size = box.getSize(new THREE.Vector3());
+
+                // 2. Model ko screen ke ekdum center me laao
+                houseModel.position.x = -center.x;
+                houseModel.position.y = -center.y;
+                houseModel.position.z = -center.z;
+
+                // 3. Model ka size adjust karo (Taaki screen ke bahar na nikle)
+                const maxDim = Math.max(size.x, size.y, size.z);
+                if (maxDim > 0) {
+                    const scaleFactor = 15 / maxDim; // 15 unit fit size hai
+                    houseModel.scale.set(scaleFactor, scaleFactor, scaleFactor);
+                }
+
+                // 4. Materials fix karo (Patto ke black border hatane ke liye)
+                houseModel.traverse((node) => {
+                    if (node.isMesh) {
+                        node.castShadow = true;
+                        node.receiveShadow = true;
+                        if (node.material) {
+                            node.material.side = THREE.DoubleSide; // Dono taraf se render ho
+                            node.material.alphaTest = 0.3; // Leaves ki transparency fix
+                        }
+                    }
+                });
+
+                // Ek nayi group bana kar usme daalo taaki easily rotate kar sakein
+                const wrapper = new THREE.Group();
+                wrapper.add(houseModel);
+                scene.add(wrapper);
                 
-                statusEl.innerHTML = "✅ SUCCESS: newhome.glb Decompressed & Loaded!";
+                // 5. Camera ko thoda upar aur peeche set karo taaki poora ghar dikhe
+                camera.position.set(0, 8, 20);
+                controls.target.set(0, 0, 0);
+                controls.update();
+
+                statusEl.innerHTML = "✅ SUCCESS: Full House Loaded & Centered!";
                 statusEl.style.color = "#10b981";
             }, 
             (xhr) => {
@@ -95,20 +58,3 @@
                 statusEl.style.color = "#ef4444";
             }
         );
-
-        function animate() {
-            requestAnimationFrame(animate);
-            controls.update();
-            renderer.render(scene, camera);
-        }
-        animate();
-        
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-    </script>
-</body>
-</html>
-
