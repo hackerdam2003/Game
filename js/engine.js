@@ -15,18 +15,20 @@ const app = initializeApp(engineConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-console.log("🎮 [Game Engine] Smooth Single-Page Multiplayer Loaded!");
+console.log("🎮 [Game Engine] Fixed Single-Page Multiplayer Loaded!");
 
-const gameSocket = io('/world'); 
+// 🚨 FIX 1: Default namespace par connect kiya taaki server link ho jaye
+const gameSocket = io(); 
+
 let myUid = "UID_" + Math.floor(Math.random()*9999);
 let myName = "Player_" + Math.floor(Math.random()*99);
 let speed = 0.08; 
 let moveVector = { x: 0, y: 0 };
 
 // Scene Management (World vs House)
-let currentEnvironment = "world"; // Ya toh "world" hoga ya "house"
+let currentEnvironment = "world";
 let scene, camera, renderer, clock;
-let worldGroup, houseGroup; // Dono environments ko alag group me rakhenge
+let worldGroup, houseGroup; 
 
 // Characters & Animations
 let my3DCharacter = null;
@@ -37,21 +39,20 @@ let currentAction = 'idle';
 
 // Multiplayer
 const remotePlayers = {}; 
-let allPlayersData = {}; // Minimap ke liye
+let allPlayersData = {}; 
 let floatingLabels = document.createElement('div');
 document.body.appendChild(floatingLabels);
 
 // World Stats & Objects
 let playerHP = 100, monsterHP = 100, isMonsterDead = false;
 let doorMesh = null, exitDoorMesh = null;
-let enterHouseBtn = null, actionUI = null;
-let isBusy = false; // Agar bed ya chair par hai toh true hoga
+let enterHouseBtn = null, actionUI = null, playerListUI = null, chatContainer = null;
+let isBusy = false; 
 
 // Furniture Pos
 const CHAIR_POS = { x: -3, z: -2 };
 const BED_POS = { x: 3, z: -4 };
 
-// Characters
 const characterFiles = { 'man': './Man.fbx', 'girl': './Peasant%20Girl.fbx' };
 let currentSelectedChar = 'man';
 
@@ -73,7 +74,6 @@ window.enterWorld = async function() {
     setupActionButtons();
     setupMultiplayer();
     
-    // Broadcast initial state
     gameSocket.emit('join-world', { 
         gameRoomId: "GLOBAL-ROOM", 
         uid: myUid, 
@@ -84,26 +84,39 @@ window.enterWorld = async function() {
 };
 
 // ==========================================
-// 1. UI SETUP (Smooth Transitions & Interaction)
+// 1. UI SETUP 
 // ==========================================
 function createUIElements() {
     // Top HUD
     const hudBar = document.createElement('div');
-    hudBar.style.cssText = 'position: fixed; top: 10px; left: 10px; right: 10px; display: flex; justify-content: space-between; z-index: 9999; pointer-events: none;';
-    
-    hudBar.innerHTML = `
-        <div style="background: rgba(0,0,0,0.7); color: #fff; font-size: 11px; padding: 10px; border-radius: 8px; border: 1px solid #3b82f6;">
-            <b>❤️ HP:</b> <span id='p-hp'>100</span> | <b>🧟 Boss:</b> <span id='m-hp'>100</span>
-        </div>
-    `;
+    hudBar.style.cssText = 'position: fixed; top: 10px; left: 10px; z-index: 9999; pointer-events: none;';
+    hudBar.innerHTML = `<div style="background: rgba(0,0,0,0.7); color: #fff; font-size: 11px; padding: 10px; border-radius: 8px; border: 1px solid #3b82f6;"><b>❤️ HP:</b> <span id='p-hp'>100</span> | <b>🧟 Boss:</b> <span id='m-hp'>100</span></div>`;
     document.body.appendChild(hudBar);
+
+    // 🚨 FIX 3: Restored Player List UI
+    playerListUI = document.createElement('div');
+    playerListUI.style.cssText = 'position: fixed; top: 60px; left: 10px; background: rgba(0,0,0,0.7); color: #fff; font-size: 11px; padding: 10px; z-index: 99999; border-radius: 8px; min-width: 120px; border: 1px solid #3b82f6;';
+    document.body.appendChild(playerListUI);
+    updatePlayerListUI();
+
+    // 🚨 Restored Chat UI
+    chatContainer = document.createElement('div');
+    chatContainer.style.cssText = 'position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%); z-index: 99999; display: flex; gap: 5px;';
+    chatContainer.innerHTML = `
+        <input type="text" id="chat-input" placeholder="Type message..." style="padding: 8px; border-radius: 20px; border: none; outline: none; width: 200px; background: rgba(255,255,255,0.9);">
+        <button id="chat-send" style="padding: 8px 15px; border-radius: 20px; border: none; background: #3b82f6; color: white; font-weight: bold;">Send</button>
+    `;
+    document.body.appendChild(chatContainer);
+    
+    document.getElementById('chat-send').addEventListener('click', sendChat);
+    document.getElementById('chat-input').addEventListener('keypress', (e) => { if (e.key === 'Enter') sendChat(); });
 
     // Enter/Exit House Button
     enterHouseBtn = document.createElement('button');
     enterHouseBtn.style.cssText = "position: fixed; top: 20%; left: 50%; transform: translateX(-50%); padding: 12px 24px; font-size: 16px; font-weight: bold; background: #10b981; color: white; border: none; border-radius: 8px; display: none; z-index: 10000; box-shadow: 0px 4px 10px rgba(0,0,0,0.5); cursor: pointer;";
     document.body.appendChild(enterHouseBtn);
 
-    // Furniture Actions UI (Sit/Sleep/Stand)
+    // Furniture Actions UI
     actionUI = document.createElement('div');
     actionUI.style.cssText = 'position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); display: none; gap: 10px; z-index: 10000;';
     actionUI.innerHTML = `
@@ -114,11 +127,31 @@ function createUIElements() {
     document.body.appendChild(actionUI);
 }
 
+function updatePlayerListUI() {
+    let html = `<b style="color:#38bdf8;">🌐 Live Players</b><hr style="border-color:#333; margin:4px 0;">`;
+    html += `<div style="color:#10b981;">⭐ 1p: ${myName} (You)</div>`;
+    let count = 2;
+    for(let uid in remotePlayers) {
+        html += `<div style="color:#e2e8f0;">👤 ${count}p: ${remotePlayers[uid].name}</div>`;
+        count++;
+    }
+    if(playerListUI) playerListUI.innerHTML = html;
+}
+
 // ==========================================
-// 2. 3D SCENE MANAGEMENT (World & House in one place)
+// 2. 3D SCENE MANAGEMENT 
 // ==========================================
 function init3DWorld() {
     const canvas = document.getElementById('game-canvas');
+    
+    // 🚨 FIX 2: Black Screen permanently fixed by forcing canvas width/height
+    canvas.style.width = '100vw';
+    canvas.style.height = '100vh';
+    canvas.style.position = 'absolute';
+    canvas.style.top = '0';
+    canvas.style.left = '0';
+    canvas.style.zIndex = '-1';
+
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0f172a); 
     clock = new THREE.Clock();
@@ -130,13 +163,11 @@ function init3DWorld() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
 
-    // Groups for switching environments smoothly
     worldGroup = new THREE.Group();
     houseGroup = new THREE.Group();
     scene.add(worldGroup);
     scene.add(houseGroup);
 
-    // Setup World Lighting & Floor
     const ambientW = new THREE.AmbientLight(0xffffff, 1.5);
     const dirLightW = new THREE.DirectionalLight(0xfff0dd, 2);
     dirLightW.position.set(5, 10, 5);
@@ -144,12 +175,10 @@ function init3DWorld() {
     worldGroup.add(dirLightW);
     worldGroup.add(new THREE.GridHelper(50, 50, 0x3b82f6, 0x1e293b));
 
-    // Door in World to enter House
     doorMesh = new THREE.Mesh(new THREE.BoxGeometry(1.5, 2.5, 0.5), new THREE.MeshStandardMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.8 }));
     doorMesh.position.set(4, 1.25, -4);
     worldGroup.add(doorMesh);
 
-    // Setup House Lighting & Floor
     const ambientH = new THREE.AmbientLight(0xffffff, 1.2);
     const pointLightH = new THREE.PointLight(0xffddaa, 1.5, 20);
     pointLightH.position.set(0, 4, 0);
@@ -160,7 +189,6 @@ function init3DWorld() {
     houseFloor.rotation.x = -Math.PI / 2;
     houseGroup.add(houseFloor);
 
-    // Furniture in House
     const chairMesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0x3b82f6 }));
     chairMesh.position.set(CHAIR_POS.x, 0.5, CHAIR_POS.z);
     houseGroup.add(chairMesh);
@@ -169,12 +197,10 @@ function init3DWorld() {
     bedMesh.position.set(BED_POS.x, 0.25, BED_POS.z);
     houseGroup.add(bedMesh);
 
-    // Door in House to exit to World
     exitDoorMesh = new THREE.Mesh(new THREE.BoxGeometry(1.5, 2.5, 0.5), new THREE.MeshStandardMaterial({ color: 0x10b981, transparent: true, opacity: 0.8 }));
     exitDoorMesh.position.set(0, 1.25, 6);
     houseGroup.add(exitDoorMesh);
 
-    // Initially hide house
     houseGroup.visible = false;
 
     loadCharacter(currentSelectedChar);
@@ -182,7 +208,6 @@ function init3DWorld() {
     requestAnimationFrame(renderLoop);
 }
 
-// ENVIRONMENT SWITCHER (Smooth Teleport)
 function switchEnvironment(targetEnv) {
     currentEnvironment = targetEnv;
     isBusy = false;
@@ -190,18 +215,17 @@ function switchEnvironment(targetEnv) {
     if(targetEnv === "house") {
         worldGroup.visible = false;
         houseGroup.visible = true;
-        scene.background = new THREE.Color(0x1e293b); // Darker inside
-        my3DCharacter.position.set(0, 0, 4); // Spawn inside house near exit door
+        scene.background = new THREE.Color(0x1e293b); 
+        my3DCharacter.position.set(0, 0, 4); 
         enterHouseBtn.style.display = "none";
     } else {
         worldGroup.visible = true;
         houseGroup.visible = false;
-        scene.background = new THREE.Color(0x0f172a); // Sky color
-        my3DCharacter.position.set(4, 0, -2); // Spawn outside near entrance door
+        scene.background = new THREE.Color(0x0f172a); 
+        my3DCharacter.position.set(4, 0, -2); 
         enterHouseBtn.style.display = "none";
     }
     
-    // Notify Server
     gameSocket.emit('player-moved', { uid: myUid, x: my3DCharacter.position.x, y: my3DCharacter.position.y, z: my3DCharacter.position.z, rot: my3DCharacter.rotation.y, action: 'idle', env: currentEnvironment });
 }
 
@@ -224,6 +248,7 @@ function loadCharacter(charKey) {
 }
 
 function loadAnimations(fbxLoader) {
+    // ⚠️ Note: File names are case-sensitive on GitHub. Ensure they match exactly.
     fbxLoader.load('./Running.fbx', (anim) => { if(anim.animations.length) actions.run = mixer.clipAction(anim.animations[0]); });
     fbxLoader.load('./Punching.fbx', (anim) => { if(anim.animations.length) { actions.punch = mixer.clipAction(anim.animations[0]); actions.punch.setLoop(THREE.LoopOnce); }});
     fbxLoader.load('./Sitting.fbx', (anim) => { if(anim.animations.length) actions.sit = mixer.clipAction(anim.animations[0]); });
@@ -243,14 +268,14 @@ function loadMonster() {
         monsterCharacter = object;
         monsterCharacter.scale.set(0.01, 0.01, 0.01);
         monsterCharacter.position.set(-3, 0, -5);
-        worldGroup.add(monsterCharacter); // Monster sirf World me hai
+        worldGroup.add(monsterCharacter); 
         monsterMixer = new THREE.AnimationMixer(monsterCharacter);
         if (object.animations.length > 0) monsterMixer.clipAction(object.animations[0]).play();
     });
 }
 
 // ==========================================
-// 4. MULTIPLAYER SYNC
+// 4. MULTIPLAYER SYNC & CHAT
 // ==========================================
 function setupMultiplayer() {
     gameSocket.on('current-players', (players) => {
@@ -274,7 +299,6 @@ function setupMultiplayer() {
             remotePlayers[data.uid].targetRot = data.rot;
             remotePlayers[data.uid].env = data.env;
             
-            // Trigger animation on remote player
             if(remotePlayers[data.uid].mixer && remotePlayers[data.uid].actions[data.action]) {
                 const actionToPlay = remotePlayers[data.uid].actions[data.action];
                 if(remotePlayers[data.uid].currentAction !== data.action) {
@@ -289,11 +313,16 @@ function setupMultiplayer() {
         renderMinimap(allPlayersData, myUid);
     });
 
+    gameSocket.on('chat-message', (data) => {
+        showChatBubble(data.uid, data.msg);
+    });
+
     gameSocket.on('player-left', (uid) => {
         if(remotePlayers[uid]) {
             scene.remove(remotePlayers[uid].mesh);
             if(remotePlayers[uid].label) remotePlayers[uid].label.remove();
             delete remotePlayers[uid];
+            updatePlayerListUI();
         }
         delete allPlayersData[uid];
         renderMinimap(allPlayersData, myUid);
@@ -301,7 +330,6 @@ function setupMultiplayer() {
 }
 
 function addRemotePlayer(data) {
-    // Basic capsule for remote players
     const geometry = new THREE.CapsuleGeometry(0.3, 1, 4, 8);
     const material = new THREE.MeshStandardMaterial({ color: Math.random() * 0xffffff });
     const mesh = new THREE.Mesh(geometry, material);
@@ -321,8 +349,41 @@ function addRemotePlayer(data) {
         env: data.env || 'world',
         name: data.name,
         currentAction: 'idle',
-        actions: {} // We will need to load animations for remote players later for full visual sync
+        actions: {},
+        chatTimeout: null
     };
+    updatePlayerListUI();
+}
+
+function sendChat() {
+    const input = document.getElementById('chat-input');
+    const msg = input.value.trim();
+    if(msg !== "") {
+        gameSocket.emit('chat-message', { uid: myUid, name: myName, msg: msg });
+        showChatBubble(myUid, msg);
+        input.value = "";
+    }
+}
+
+function showChatBubble(uid, msg) {
+    let targetLabel = uid === myUid ? document.getElementById('my-label') : (remotePlayers[uid] ? remotePlayers[uid].label : null);
+    
+    if(!targetLabel && uid === myUid) {
+        targetLabel = document.createElement('div');
+        targetLabel.id = 'my-label';
+        targetLabel.style.cssText = 'position: absolute; color: #3b82f6; background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; transform: translate(-50%, -100%); pointer-events: none; transition: 0.1s;';
+        floatingLabels.appendChild(targetLabel);
+    }
+
+    if(targetLabel) {
+        targetLabel.innerHTML = `${uid === myUid ? 'You' : remotePlayers[uid].name}: <span style="color:#fff;">${msg}</span>`;
+        if(uid !== myUid) {
+            clearTimeout(remotePlayers[uid].chatTimeout);
+            remotePlayers[uid].chatTimeout = setTimeout(() => { targetLabel.innerText = remotePlayers[uid].name; }, 5000);
+        } else {
+            setTimeout(() => { targetLabel.innerHTML = ''; }, 5000);
+        }
+    }
 }
 
 // ==========================================
@@ -357,7 +418,6 @@ function setupJoystick() {
 }
 
 function setupActionButtons() {
-    // Combat
     document.getElementById('btn-attack')?.addEventListener('touchstart', () => {
         if(currentEnvironment !== 'world' || isBusy) return;
         if(actions.punch) { actions.punch.reset().fadeIn(0.1).play(); currentAction = 'punch'; }
@@ -369,7 +429,6 @@ function setupActionButtons() {
         }
     });
 
-    // Furniture
     document.getElementById('btn-sit').addEventListener('touchstart', () => {
         isBusy = true; my3DCharacter.position.set(CHAIR_POS.x, 0.5, CHAIR_POS.z); playAnim('sit');
     });
@@ -382,7 +441,7 @@ function setupActionButtons() {
 }
 
 // ==========================================
-// 6. RENDER LOOP
+// 6. RENDER LOOP & RESIZE FIX
 // ==========================================
 function renderLoop() {
     requestAnimationFrame(renderLoop);
@@ -391,7 +450,6 @@ function renderLoop() {
     if (monsterMixer) monsterMixer.update(delta);
 
     if (my3DCharacter) {
-        // Handle Movement
         if (!isBusy && (moveVector.x !== 0 || moveVector.y !== 0)) {
             my3DCharacter.position.x += moveVector.x * speed;
             my3DCharacter.position.z += moveVector.y * speed;
@@ -402,9 +460,7 @@ function renderLoop() {
             renderMinimap(allPlayersData, myUid);
         }
 
-        // --- ENVIRONMENT LOGIC ---
         if (currentEnvironment === "world") {
-            // Door Check
             if (my3DCharacter.position.distanceTo(doorMesh.position) < 2.0) {
                 enterHouseBtn.style.display = "block";
                 enterHouseBtn.innerHTML = "🏠 Enter House";
@@ -414,7 +470,6 @@ function renderLoop() {
             }
         } 
         else if (currentEnvironment === "house") {
-            // Exit Door Check
             if (my3DCharacter.position.distanceTo(exitDoorMesh.position) < 2.0) {
                 enterHouseBtn.style.display = "block";
                 enterHouseBtn.innerHTML = "🚪 Exit House";
@@ -423,7 +478,6 @@ function renderLoop() {
                 enterHouseBtn.style.display = "none";
             }
 
-            // Furniture Check
             if(!isBusy) {
                 const distToChair = Math.hypot(my3DCharacter.position.x - CHAIR_POS.x, my3DCharacter.position.z - CHAIR_POS.z);
                 const distToBed = Math.hypot(my3DCharacter.position.x - BED_POS.x, my3DCharacter.position.z - BED_POS.z);
@@ -440,16 +494,20 @@ function renderLoop() {
             }
         }
 
-        // Camera follow
         camera.position.set(my3DCharacter.position.x, my3DCharacter.position.y + 1.5, my3DCharacter.position.z + 3.0);
         camera.lookAt(my3DCharacter.position.x, my3DCharacter.position.y + 0.8, my3DCharacter.position.z);
+        
+        const myLabel = document.getElementById('my-label');
+        if(myLabel && myLabel.innerHTML !== "") {
+            const pos = my3DCharacter.position.clone();
+            pos.y += 1.8; pos.project(camera);
+            myLabel.style.left = `${(pos.x * .5 + .5) * window.innerWidth}px`;
+            myLabel.style.top = `${-(pos.y * .5 - .5) * window.innerHeight}px`;
+        }
     }
 
-    // --- REMOTE PLAYERS SYNC ---
     for(let uid in remotePlayers) {
         const rp = remotePlayers[uid];
-        
-        // Agar dusra player same environment me hai toh dikhao, warna hide kardo
         if(rp.env === currentEnvironment) {
             rp.mesh.visible = true;
             rp.mesh.position.lerp(rp.targetPos, 0.1);
@@ -474,3 +532,17 @@ function renderLoop() {
 
     if (renderer && scene && camera) renderer.render(scene, camera);
 }
+
+window.addEventListener('resize', () => {
+    if(camera && renderer) {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        
+        // 🚨 FIX: Force canvas width update on resize
+        const canvas = renderer.domElement;
+        canvas.style.width = '100vw';
+        canvas.style.height = '100vh';
+    }
+});
+
