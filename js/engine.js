@@ -13,7 +13,7 @@ const app = initializeApp(engineConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-console.log("🎮 [Game Engine] Character Switcher & Combat System Loaded!");
+console.log("🎮 [Game Engine] Teleport & Door System Loaded!");
 
 const gameSocket = io('/world'); 
 let myUid = "UID_" + Math.floor(Math.random()*9999);
@@ -29,15 +29,18 @@ let monsterMixer = null;
 let actions = {}; 
 let currentAction = 'idle';
 
-// --- HEALTH & COMBAT STATS ---
+// Health Stats
 let playerHP = 100;
 let monsterHP = 100;
 let isMonsterDead = false;
 
+// Door & UI variables
+let doorMesh = null;
+let enterHouseBtn = null;
+let isNearDoor = false;
 let debugDiv = null;
 let hpBarUI = null;
 
-// Available characters list for testing switch
 const characterFiles = {
     'man': './Man.fbx',
     'girl': './Peasant%20Girl.fbx'
@@ -61,6 +64,7 @@ window.enterWorld = async function() {
     createMobileDebugger();
     createCombatHUD();
     createCharacterSwitcherUI();
+    createHouseUI(); // 🏠 House Teleport UI add kiya
     
     init3DWorld(); 
     setupJoystick();
@@ -68,6 +72,19 @@ window.enterWorld = async function() {
     
     gameSocket.emit('join-world', { gameRoomId: "GLOBAL-ROOM", uid: myUid, name: myName });
 };
+
+// 🏠 Create Enter House Button (Hidden by default)
+function createHouseUI() {
+    enterHouseBtn = document.createElement('button');
+    enterHouseBtn.innerHTML = "🏠 Enter House";
+    enterHouseBtn.style.cssText = "position: fixed; top: 25%; left: 50%; transform: translateX(-50%); padding: 12px 24px; font-size: 16px; font-weight: bold; background: #10b981; color: white; border: none; border-radius: 8px; display: none; z-index: 100000; box-shadow: 0px 4px 10px rgba(0,0,0,0.5); cursor: pointer;";
+    document.body.appendChild(enterHouseBtn);
+
+    // Jab click karega toh house.html par bhej do
+    const enterAction = () => { window.location.href = "house.html"; };
+    enterHouseBtn.addEventListener('touchstart', enterAction);
+    enterHouseBtn.addEventListener('click', enterAction);
+}
 
 function createMobileDebugger() {
     debugDiv = document.createElement('div');
@@ -80,13 +97,12 @@ function createCombatHUD() {
     hpBarUI = document.createElement('div');
     hpBarUI.style.cssText = 'position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.85); color: #fff; font-size: 11px; padding: 10px; z-index: 99999; border-radius: 8px; width: 180px;';
     hpBarUI.innerHTML = `
-        <b>❤️ Player HP:</b> <span id='p-hp'>100</span><br>
-        <b>🧟 Monster HP:</b> <span id='m-hp'>100</span>
+        <b>❤️ Player:</b> <span id='p-hp'>100</span><br>
+        <b>🧟 Monster:</b> <span id='m-hp'>100</span>
     `;
     document.body.appendChild(hpBarUI);
 }
 
-// UI to switch characters for testing
 function createCharacterSwitcherUI() {
     const switcher = document.createElement('div');
     switcher.style.cssText = 'position: fixed; top: 70px; left: 10px; background: rgba(0,0,0,0.85); padding: 8px; z-index: 99999; border-radius: 6px;';
@@ -97,17 +113,12 @@ function createCharacterSwitcherUI() {
     `;
     document.body.appendChild(switcher);
 
-    document.getElementById('btn-man').addEventListener('touchstart', () => switchCharacter('man'));
     document.getElementById('btn-man').addEventListener('click', () => switchCharacter('man'));
-    document.getElementById('btn-girl').addEventListener('touchstart', () => switchCharacter('girl'));
     document.getElementById('btn-girl').addEventListener('click', () => switchCharacter('girl'));
 }
 
 function updateDebug(msg) {
-    if(debugDiv) {
-        debugDiv.innerHTML = "<b>3D Engine Status:</b><br>" + msg;
-    }
-    console.log(msg);
+    if(debugDiv) debugDiv.innerHTML = "<b>3D Engine Status:</b><br>" + msg;
 }
 
 function init3DWorld() {
@@ -133,19 +144,26 @@ function init3DWorld() {
     const gridHelper = new THREE.GridHelper(50, 50, 0x3b82f6, 0x1e293b);
     scene.add(gridHelper);
 
+    createDoorMarker(); // 🚪 Map me darwaza lagao
     loadCharacter(currentSelectedChar);
     loadMonster();
     requestAnimationFrame(renderLoop);
 }
 
-// Load Player Character
+// 🚪 Temporary Visual Marker for the House Door
+function createDoorMarker() {
+    const geometry = new THREE.BoxGeometry(1.5, 2.5, 0.5);
+    const material = new THREE.MeshStandardMaterial({ color: 0xf59e0b, emissive: 0xf59e0b, emissiveIntensity: 0.4, transparent: true, opacity: 0.8 });
+    doorMesh = new THREE.Mesh(geometry, material);
+    doorMesh.position.set(4, 1.25, -4); // Is Coordinate par darwaza hai
+    scene.add(doorMesh);
+}
+
 function loadCharacter(charKey) {
     const fbxLoader = new FBXLoader();
     updateDebug(`Loading ${charKey}...`);
 
-    if (my3DCharacter) {
-        scene.remove(my3DCharacter);
-    }
+    if (my3DCharacter) scene.remove(my3DCharacter);
 
     fbxLoader.load(characterFiles[charKey], (object) => {
         my3DCharacter = object;
@@ -161,7 +179,7 @@ function loadCharacter(charKey) {
 
         scene.add(my3DCharacter);
         mixer = new THREE.AnimationMixer(my3DCharacter);
-        updateDebug(`✅ ${charKey.toUpperCase()} Loaded Successfully!`);
+        updateDebug(`✅ ${charKey.toUpperCase()} Loaded!`);
 
         if (object.animations && object.animations.length > 0) {
             actions.idle = mixer.clipAction(object.animations[0]);
@@ -171,25 +189,22 @@ function loadCharacter(charKey) {
 
         loadAnimations(fbxLoader);
     }, undefined, (err) => {
-        updateDebug(`❌ Error loading ${charKey}: ` + err.message);
+        updateDebug(`❌ Error: ` + err.message);
     });
 }
 
-// Switch Character function for testing
 function switchCharacter(charKey) {
     if (currentSelectedChar === charKey) return;
     currentSelectedChar = charKey;
     loadCharacter(charKey);
 }
 
-// Load MPC Monster (Skeleton Zombie)
 function loadMonster() {
     const fbxLoader = new FBXLoader();
     fbxLoader.load('./Mpc%20Skeletonzombie.fbx', (object) => {
         monsterCharacter = object;
         monsterCharacter.scale.set(0.01, 0.01, 0.01);
-        // Monster ko player ke samne thoda door rakhte hain
-        monsterCharacter.position.set(0, 0, -3);
+        monsterCharacter.position.set(-3, 0, -5);
 
         monsterCharacter.traverse((node) => {
             if (node.isMesh) {
@@ -204,32 +219,19 @@ function loadMonster() {
             const mAction = monsterMixer.clipAction(object.animations[0]);
             mAction.play();
         }
-        updateDebug("🧟 Monster Spawned!");
-    }, undefined, (err) => {
-        console.warn("Monster load warning:", err);
     });
 }
 
 function loadAnimations(fbxLoader) {
-    fbxLoader.load('./Running.fbx', (anim) => {
-        if(anim.animations && anim.animations.length > 0) {
-            actions.run = mixer.clipAction(anim.animations[0]);
-        }
-    });
-
+    fbxLoader.load('./Running.fbx', (anim) => { if(anim.animations.length) actions.run = mixer.clipAction(anim.animations[0]); });
     fbxLoader.load('./Punching.fbx', (anim) => {
-        if(anim.animations && anim.animations.length > 0) {
+        if(anim.animations.length) {
             actions.punch = mixer.clipAction(anim.animations[0]);
             actions.punch.setLoop(THREE.LoopOnce);
             actions.punch.clampWhenFinished = true;
         }
     });
-
-    fbxLoader.load('./Hip%20Hop%20Dancing.fbx', (anim) => {
-        if(anim.animations && anim.animations.length > 0) {
-            actions.dance = mixer.clipAction(anim.animations[0]);
-        }
-    });
+    fbxLoader.load('./Hip%20Hop%20Dancing.fbx', (anim) => { if(anim.animations.length) actions.dance = mixer.clipAction(anim.animations[0]); });
 }
 
 function playAnim(animName) {
@@ -292,34 +294,28 @@ function setupJoystick() {
     }
 }
 
-// --- ATTACK & SKILL BUTTONS WITH COMBAT CHECK ---
 function setupActionButtons() {
     const btnAttack = document.getElementById('btn-attack');
-    const btnSkill = document.getElementById('btn-skill');
-
     if(btnAttack) {
         btnAttack.addEventListener('touchstart', () => {
             gameSocket.emit('action', { action: 'attack' });
             if(actions.punch) playOneShotAnim('punch', 'idle');
 
-            // Combat Logic: Check distance to monster
             if (my3DCharacter && monsterCharacter && !isMonsterDead) {
-                const distance = my3DCharacter.position.distanceTo(monsterCharacter.position);
-                if (distance < 3.5) { // Agar pass me hai toh damage do
+                if (my3DCharacter.position.distanceTo(monsterCharacter.position) < 3.5) { 
                     monsterHP -= 20;
                     if (monsterHP <= 0) {
                         monsterHP = 0;
                         isMonsterDead = true;
                         scene.remove(monsterCharacter);
-                        updateDebug("🏆 Victory! Monster Defeated!");
-                        alert("🏆 Victory! You defeated the Skeleton Zombie!");
+                        alert("🏆 Victory! Monster Defeated!");
                     }
                     document.getElementById('m-hp').innerText = monsterHP;
                 }
             }
         });
     }
-
+    const btnSkill = document.getElementById('btn-skill');
     if(btnSkill) {
         btnSkill.addEventListener('touchstart', () => {
             gameSocket.emit('action', { action: 'skill' });
@@ -342,30 +338,38 @@ function renderLoop() {
             
             const targetRotation = Math.atan2(moveVector.x, moveVector.y);
             my3DCharacter.rotation.y = targetRotation;
-
             gameSocket.emit('move', { x: my3DCharacter.position.x, y: my3DCharacter.position.z });
         }
 
-        // Proximity damage from monster if monster is alive
+        // 🚪 DISTANCE CHECK FOR DOOR TELEPORT
+        if (doorMesh) {
+            // Check distance between character and the yellow door box
+            const distToDoor = my3DCharacter.position.distanceTo(doorMesh.position);
+            
+            if (distToDoor < 2.0 && !isNearDoor) {
+                isNearDoor = true;
+                enterHouseBtn.style.display = "block"; // Show button
+            } else if (distToDoor >= 2.0 && isNearDoor) {
+                isNearDoor = false;
+                enterHouseBtn.style.display = "none";  // Hide button
+            }
+        }
+
         if (monsterCharacter && !isMonsterDead) {
-            const distToMonster = my3DCharacter.position.distanceTo(monsterCharacter.position);
-            if (distToMonster < 1.5) {
-                playerHP -= 0.1; // Continuous slight damage when too close
+            if (my3DCharacter.position.distanceTo(monsterCharacter.position) < 1.5) {
+                playerHP -= 0.1; 
                 if(playerHP < 0) playerHP = 0;
                 document.getElementById('p-hp').innerText = Math.floor(playerHP);
             }
         }
 
-        // Camera follow behind character
         camera.position.x = my3DCharacter.position.x;
         camera.position.z = my3DCharacter.position.z + 2.5; 
         camera.position.y = my3DCharacter.position.y + 1.2;
         camera.lookAt(my3DCharacter.position.x, my3DCharacter.position.y + 0.8, my3DCharacter.position.z);
     }
 
-    if (renderer && scene && camera) {
-        renderer.render(scene, camera);
-    }
+    if (renderer && scene && camera) renderer.render(scene, camera);
 }
 
 window.addEventListener('resize', () => {
@@ -375,4 +379,3 @@ window.addEventListener('resize', () => {
         renderer.setSize(window.innerWidth, window.innerHeight);
     }
 });
-
