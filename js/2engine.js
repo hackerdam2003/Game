@@ -18,7 +18,7 @@ const app = initializeApp(engineConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-console.log("🏝️ [Game Engine 2] Bug Fixes: True Skybox, 360 Camera & Anti-Sink Active!");
+console.log("🏝️ [Game Engine 2] Sky Fix, Sinking Fix, New Animations & Swimming Active!");
 
 const gameSocket = io(); 
 
@@ -34,7 +34,7 @@ let worldGroup;
 let my3DCharacter = null;
 let mixer = null;
 let actions = {}; 
-let currentAction = 'none'; // 🚀 FIX: Isko 'none' kiya taaki animation load hote hi play ho jaye (No T-Pose)
+let currentAction = 'none'; 
 
 const remotePlayers = {}; 
 let allPlayersData = {}; 
@@ -42,6 +42,7 @@ let floatingLabels = document.createElement('div');
 document.body.appendChild(floatingLabels);
 
 let isBusy = false; 
+let inWater = false; // Check if player is in ocean
 
 // 🧗 Raycaster Setup
 const downRaycaster = new THREE.Raycaster();
@@ -126,7 +127,7 @@ function init3DWorld() {
     requestAnimationFrame(renderLoop);
 }
 
-// ☁️ FIX 1: Sky.glb ka texture ab nahi gayab hoga
+// ☁️ FIX 1: Sky.glb Rendering Bug Fixed
 function loadSkybox() {
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/');
@@ -135,20 +136,29 @@ function loadSkybox() {
     
     gltfLoader.load('https://hackerdam2003.github.io/Game/Sky.glb', (gltf) => {
         const sky = gltf.scene;
-        sky.scale.set(800, 800, 800); 
+        sky.scale.set(1500, 1500, 1500); // 🚀 Bada scale taaki camera bahar na jaye
         sky.position.set(0, 0, 0);
         
         sky.traverse((node) => {
             if (node.isMesh && node.material) {
                 node.castShadow = false;
                 node.receiveShadow = false;
-                // Material ko replace karne ke bajaye sirf uski property update ki
-                node.material.side = THREE.DoubleSide; 
-                node.material.fog = false;
-                node.material.needsUpdate = true;
+                // Agar map texture hai, toh usko BasicMaterial me convert karo taaki bright dikhe
+                if (node.material.map) {
+                    node.material = new THREE.MeshBasicMaterial({
+                        map: node.material.map,
+                        side: THREE.BackSide,
+                        depthWrite: false
+                    });
+                } else {
+                    node.material.side = THREE.BackSide;
+                    node.material.depthWrite = false;
+                }
             }
         });
         worldGroup.add(sky);
+    }, undefined, (err) => {
+        console.error("Skybox load error:", err);
     });
 }
 
@@ -163,7 +173,7 @@ function createOcean() {
     });
     const water = new THREE.Mesh(waterGeo, waterMat);
     water.rotation.x = -Math.PI / 2;
-    water.position.y = -1.5; 
+    water.position.y = -1.5; // Water depth
     worldGroup.add(water);
 }
 
@@ -190,29 +200,27 @@ function loadCharacter(charKey) {
     });
 }
 
-// 💃 FIX 2: T-Pose hata kar Dance start kiya
+// 💃 FIX 2: All New Animations Loaded + Auto Play Logic
 function loadAnimations(fbxLoader, targetMixer, targetActions, baseObject) {
     if (baseObject.animations.length > 0) {
         targetActions.idle = targetMixer.clipAction(baseObject.animations[0]);
     }
     
-    fbxLoader.load('./Running.fbx', (anim) => { 
-        if(anim.animations.length) targetActions.run = targetMixer.clipAction(anim.animations[0]); 
-    });
-    fbxLoader.load('./Punching.fbx', (anim) => { 
-        if(anim.animations.length) {
-            targetActions.punch = targetMixer.clipAction(anim.animations[0]); 
-            targetActions.punch.setLoop(THREE.LoopOnce); 
-        }
-    });
-
-    fbxLoader.load('./Hip%20Hop%20Dancing.fbx', (anim) => { 
-        if(anim.animations.length) {
-            targetActions.dance = targetMixer.clipAction(anim.animations[0]); 
-            // Jaise hi dance load ho, wo automatically chalne lage
-            if(!isBusy) playAnim('dance');
-        }
-    });
+    // Core actions
+    fbxLoader.load('./Running.fbx', (anim) => { if(anim.animations.length) targetActions.run = targetMixer.clipAction(anim.animations[0]); });
+    fbxLoader.load('./Punching.fbx', (anim) => { if(anim.animations.length) { targetActions.punch = targetMixer.clipAction(anim.animations[0]); targetActions.punch.setLoop(THREE.LoopOnce); }});
+    fbxLoader.load('./Hip%20Hop%20Dancing.fbx', (anim) => { if(anim.animations.length) { targetActions.dance = targetMixer.clipAction(anim.animations[0]); if(!isBusy) playAnim('dance'); }});
+    
+    // 🏊 NEW Water Actions
+    fbxLoader.load('./Swimming.fbx', (anim) => { if(anim.animations.length) targetActions.swim = targetMixer.clipAction(anim.animations[0]); });
+    fbxLoader.load('./Treading%20Water.fbx', (anim) => { if(anim.animations.length) targetActions.treadWater = targetMixer.clipAction(anim.animations[0]); });
+    
+    // 🛏️ NEW Relax Actions
+    fbxLoader.load('./Sitting%20Dazed.fbx', (anim) => { if(anim.animations.length) targetActions.sitDazed = targetMixer.clipAction(anim.animations[0]); });
+    fbxLoader.load('./Lying%20Down.fbx', (anim) => { if(anim.animations.length) targetActions.lieDown = targetMixer.clipAction(anim.animations[0]); });
+    fbxLoader.load('./Female%20Laying%20Pose.fbx', (anim) => { if(anim.animations.length) targetActions.layFemale = targetMixer.clipAction(anim.animations[0]); });
+    fbxLoader.load('./Male%20Laying%20Pose.fbx', (anim) => { if(anim.animations.length) targetActions.layMale = targetMixer.clipAction(anim.animations[0]); });
+    fbxLoader.load('./Jump.fbx', (anim) => { if(anim.animations.length) { targetActions.jump = targetMixer.clipAction(anim.animations[0]); targetActions.jump.setLoop(THREE.LoopOnce); }});
 }
 
 function playAnim(animName) {
@@ -324,6 +332,7 @@ function showChatBubble(uid, msg) {
     }
 }
 
+// 🕹️ Joystick (Movement Logic)
 function setupJoystick() {
     const base = document.getElementById('joystick-base'), knob = document.getElementById('joystick-knob');
     if(!base || !knob) return;
@@ -331,7 +340,13 @@ function setupJoystick() {
 
     base.addEventListener('touchstart', (e) => { e.stopPropagation(); isDragging = true; center = { x: base.getBoundingClientRect().left + base.clientWidth / 2, y: base.getBoundingClientRect().top + base.clientHeight / 2 }; handleTouch(e); });
     base.addEventListener('touchmove', (e) => { e.stopPropagation(); if(isDragging) handleTouch(e); });
-    base.addEventListener('touchend', (e) => { e.stopPropagation(); isDragging = false; knob.style.transform = `translate(0, 0)`; moveVector = { x: 0, y: 0 }; playAnim('dance'); });
+    base.addEventListener('touchend', (e) => { 
+        e.stopPropagation(); 
+        isDragging = false; 
+        knob.style.transform = `translate(0, 0)`; 
+        moveVector = { x: 0, y: 0 }; 
+        if(!isBusy) playAnim(inWater ? 'treadWater' : 'dance'); // 🚀 Auto-switch resting animation
+    });
 
     function handleTouch(e) {
         let dx = e.touches[0].clientX - center.x, dy = e.touches[0].clientY - center.y;
@@ -341,13 +356,18 @@ function setupJoystick() {
         
         knob.style.transform = `translate(${dx}px, ${dy}px)`;
         moveVector = { x: dx/maxDist, y: -dy/maxDist }; 
-        if (dist > 5) playAnim('run'); 
+        if (dist > 5) playAnim(inWater ? 'swim' : 'run'); // 🚀 Auto-switch running animation
     }
 }
 
 function setupActionButtons() {
     document.getElementById('btn-attack')?.addEventListener('touchstart', () => {
         if(actions.punch) { actions.punch.reset().fadeIn(0.1).play(); currentAction = 'punch'; }
+    });
+    
+    // Jump button (Uses Skill button from HTML)
+    document.getElementById('btn-skill')?.addEventListener('touchstart', () => {
+        if(actions.jump) { actions.jump.reset().fadeIn(0.1).play(); currentAction = 'jump'; }
     });
 }
 
@@ -384,7 +404,7 @@ function renderLoop() {
                 const currentSpeed = Math.min(Math.sqrt(moveVector.x*moveVector.x + moveVector.y*moveVector.y), 1) * speed;
                 let canMove = true;
                 
-                if (currentIslandCollider) {
+                if (currentIslandCollider && !inWater) {
                     const chestPos = my3DCharacter.position.clone();
                     chestPos.y += 0.8; 
                     forwardRaycaster.set(chestPos, moveDirection);
@@ -401,27 +421,27 @@ function renderLoop() {
                 renderMinimap(allPlayersData, myUid);
             }
 
-            // 🧗 FIX 3: 100% Anti-Sinking Logic
+            // 🧗 FIX 3: Anti-Sinking Logic + Water Check
             if (currentIslandCollider) {
-                // Raycast thoda aur upar se mara taaki zameen pakad le
                 const rayOrigin = my3DCharacter.position.clone();
                 rayOrigin.y += 10.0; 
                 downRaycaster.set(rayOrigin, downDirection);
                 const hits = downRaycaster.intersectObject(currentIslandCollider, true);
 
                 if (hits.length > 0) {
-                    // Exact zameen par rakh dega (No Sinking)
-                    my3DCharacter.position.y = hits[0].point.y; 
-                } else if (my3DCharacter.position.y > -1.5) {
-                    my3DCharacter.position.y -= 0.1;
+                    // Island par hai: 0.15 offset diya taaki character mitti me na dhasse
+                    my3DCharacter.position.y = hits[0].point.y + 0.15; 
+                    inWater = false;
+                } else {
+                    // Island se bahar aa gaya, paani me gir gaya
+                    my3DCharacter.position.y = -1.0; // Water floating level
+                    inWater = true;
                 }
             }
 
-            // 🎥 2. TRUE 360 FREE CAMERA FOLLOW (No forced auto-pan)
+            // 🎥 2. TRUE 360 FREE CAMERA FOLLOW
             if (controls) {
                 const charTarget = new THREE.Vector3(my3DCharacter.position.x, my3DCharacter.position.y + 1.5, my3DCharacter.position.z);
-                
-                // Camera aur Character ke beech ka distance barabar rakhta hai (Free look + Follow)
                 const posDelta = charTarget.clone().sub(controls.target);
                 controls.target.add(posDelta);
                 camera.position.add(posDelta);
