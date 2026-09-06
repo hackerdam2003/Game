@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape">
-    <title>Racing Universe | Perfect Mansion Scene</title>
+    <title>Racing Universe | Perfect Aligned Mansion Scene</title>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #0f172a; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
@@ -33,7 +33,7 @@
     </div>
 
     <div id="status-text" class="status-hud">
-        ⏳ Loading Full Mansion Scene...
+        ⏳ Loading Perfect Aligned Mansion Scene...
     </div>
 
     <canvas id="house-canvas"></canvas>
@@ -69,7 +69,7 @@
         
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
-        controls.target.set(10, 0, 0);
+        controls.target.set(0, 0, 0);
 
         const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
         scene.add(ambientLight);
@@ -99,7 +99,6 @@
             }
         }
 
-        // Single GLB Loader
         window.loadGLBModel = function(filename) {
             clearScene();
             statusEl.innerHTML = `⏳ Loading ${filename}...`;
@@ -145,10 +144,10 @@
             });
         };
 
-        // 🌟 Full Mansion Scene (House + Fixed Pool Level + 4 Chairs + Hotgirl FBX)
+        // 🌟 Full Mansion Scene (Aligned House, Horizontally Rotated Pool, Bigger Chairs & Big Hotgirl)
         window.loadFullMansionScene = function() {
             clearScene();
-            statusEl.innerHTML = `⏳ Building Perfect Mansion & Pool Scene...`;
+            statusEl.innerHTML = `⏳ Building Aligned Mansion & Pool Scene...`;
             statusEl.style.color = "#38bdf8";
 
             // 1. House (Center)
@@ -162,41 +161,44 @@
                 currentGroup.add(house);
             });
 
-            // 2. Pool (Right Side - Y level fixed so water matches yellow patti)
+            // 2. Pool (Horizontally Rotated and placed right beside the house at ground level)
             gltfLoader.load('https://hackerdam2003.github.io/Game/Pool.glb', (gltf) => {
                 const pool = gltf.scene;
                 const box = new THREE.Box3().setFromObject(pool);
-                const scaleFactor = 15 / Math.max(box.getSize(new THREE.Vector3()).x, box.getSize(new THREE.Vector3()).y, box.getSize(new THREE.Vector3()).z);
+                const scaleFactor = 18 / Math.max(box.getSize(new THREE.Vector3()).x, box.getSize(new THREE.Vector3()).y, box.getSize(new THREE.Vector3()).z);
                 pool.scale.set(scaleFactor, scaleFactor, scaleFactor);
                 
-                // 🔥 Pool ko ghar ki yellow patti ke barabar ground par set kiya
-                pool.position.set(22, 0, 0); 
+                // 🔄 Pool ko horizontally modo (Rotate Y axis) aur ghar ke sath satha ke rakho
+                pool.rotation.y = Math.PI / 2; 
+                pool.position.set(18, 0, 2); // Ground level (Y = 0) par exact match
                 currentGroup.add(pool);
 
-                // 3. Chairs around Pool (Upar surface par)
+                // 3. Chairs around Pool (Size increased karke proper level par)
                 gltfLoader.load('https://hackerdam2003.github.io/Game/chair.glb', (chairGltf) => {
                     const chairBase = chairGltf.scene;
                     
                     const chairPositions = [
-                        { x: 16, z: 4, rot: Math.PI / 4 },
-                        { x: 16, z: -3, rot: Math.PI / 4 },
-                        { x: 26, z: 4, rot: -Math.PI / 4 },
-                        { x: 26, z: -3, rot: -Math.PI / 4 }
+                        { x: 12, z: 6, rot: Math.PI / 4 },
+                        { x: 12, z: -2, rot: Math.PI / 4 },
+                        { x: 22, z: 6, rot: -Math.PI / 4 },
+                        { x: 22, z: -2, rot: -Math.PI / 4 }
                     ];
 
                     chairPositions.forEach(pos => {
                         const chair = chairBase.clone();
-                        chair.scale.set(2, 2, 2);
-                        chair.position.set(pos.x, 0, pos.z); // Zameen ke upar exact fit
+                        // 🚀 Chair ka size bada kiya (from 2 to 4.5)
+                        chair.scale.set(4.5, 4.5, 4.5);
+                        chair.position.set(pos.x, 0, pos.z); 
                         chair.rotation.y = pos.rot;
                         currentGroup.add(chair);
                     });
 
-                    // 4. Hotgirl FBX standing near pool/chair
+                    // 4. Hotgirl FBX (Size kafi bada kiya taaki choti na lage)
                     fbxLoader.load('./Hotgirl.fbx', (fbx) => {
                         const hotgirl = fbx;
-                        hotgirl.scale.set(0.06, 0.06, 0.06); // Proper human size
-                        hotgirl.position.set(14, 0, 6); // Chair ke paas upar khadi hai
+                        // 🚀 Hotgirl scale kafi bada kiya (0.06 se badha kar 0.18 kiya)
+                        hotgirl.scale.set(0.18, 0.18, 0.18); 
+                        hotgirl.position.set(10, 0, 4); // Chair ke paas ground level par
                         hotgirl.rotation.y = -Math.PI / 2;
 
                         // Texture mapping
@@ -213,7 +215,7 @@
                         });
 
                         currentGroup.add(hotgirl);
-                        statusEl.innerHTML = `✅ Mansion, Aligned Pool, Chairs & Hotgirl Loaded!`;
+                        statusEl.innerHTML = `✅ Perfect Mansion, Aligned Pool, Big Chairs & Hotgirl Loaded!`;
                         statusEl.style.color = "#10b981";
                     }, undefined, (err) => {
                         statusEl.innerHTML = `⚠️ Scene loaded, but Hotgirl.fbx not found!`;
@@ -276,3 +278,4 @@
     </script>
 </body>
 </html>
+
