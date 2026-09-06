@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape">
-    <title>Racing Universe | Model Switcher</title>
+    <title>Racing Universe | Multi-Model & FBX Switcher</title>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #0f172a; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
@@ -12,8 +12,8 @@
         
         .back-btn { position: absolute; top: 20px; left: 20px; background: #ef4444; color: white; border: none; padding: 10px 20px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
         
-        /* 🎛️ Switch Buttons CSS */
-        .switch-container { position: absolute; top: 70px; left: 20px; z-index: 1000; display: flex; gap: 10px; }
+        /* 🎛️ Switch Buttons Container (Multiline support for many models) */
+        .switch-container { position: absolute; top: 70px; left: 20px; z-index: 1000; display: flex; flex-wrap: wrap; gap: 10px; max-width: 600px; }
         .switch-btn { background: #3b82f6; color: white; border: none; padding: 10px 15px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5); transition: 0.2s; }
         .switch-btn:active { transform: scale(0.95); }
         .switch-btn.active { background: #10b981; }
@@ -25,10 +25,13 @@
 
     <button class="back-btn" onclick="window.location.href='game.html'">⬅ Back to World</button>
     
-    <!-- 🎛️ Naya Switcher Panel -->
+    <!-- 🎛️ Updated Switcher Panel with Pool, Chair, and Hotgirl (FBX) -->
     <div class="switch-container">
-        <button id="btn-home" class="switch-btn">🏠 Load Home.glb</button>
-        <button id="btn-newhome" class="switch-btn">🏡 Load newhome.glb</button>
+        <button id="btn-home" class="switch-btn">🏠 Home.glb</button>
+        <button id="btn-newhome" class="switch-btn">🏡 newhome.glb</button>
+        <button id="btn-pool" class="switch-btn">🏊 Pool.glb</button>
+        <button id="btn-chair" class="switch-btn">🪑 chair.glb</button>
+        <button id="btn-hotgirl" class="switch-btn" style="background: #ec4899;">💃 Hotgirl.fbx</button>
     </div>
 
     <div id="status-text" class="status-hud">
@@ -51,6 +54,7 @@
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
         import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+        import { FBXLoader } from 'three/addons/loaders/FBXLoader.js'; // 💃 Added FBX Loader for Hotgirl
 
         const canvas = document.getElementById('house-canvas');
         const statusEl = document.getElementById('status-text');
@@ -58,8 +62,8 @@
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x0f172a); 
 
-        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 10000); // 10000 tak duri set ki hai
-        camera.position.set(0, 10, 30); // Default camera position
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 10000);
+        camera.position.set(0, 10, 30); 
 
         const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -75,21 +79,23 @@
         dirLight.position.set(10, 20, 10);
         scene.add(dirLight);
 
-        // Ground Grid (Refrence ke liye taaki size ka andaza lage)
+        // Ground Grid
         const grid = new THREE.GridHelper(100, 100, 0x3b82f6, 0x1e293b);
         scene.add(grid);
 
+        // Loaders setup
         const dracoLoader = new DRACOLoader();
         dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/');
 
         const gltfLoader = new GLTFLoader();
         gltfLoader.setDRACOLoader(dracoLoader); 
 
-        let currentModel = null; // Purane model ko hatane ke liye variable
+        const fbxLoader = new FBXLoader(); // FBX Loader instance
 
-        // 🔄 Model Load Karne Ka Main Function
-        window.loadModel = function(filename) {
-            // Agar pehle se koi model hai toh usko scene se hata do
+        let currentModel = null; 
+
+        // 🔄 Generic Model Loader for GLB files (Home, newhome, Pool, chair)
+        window.loadGLBModel = function(filename) {
             if (currentModel) {
                 scene.remove(currentModel);
                 currentModel = null;
@@ -105,15 +111,13 @@
                 (gltf) => {
                     currentModel = gltf.scene;
 
-                    // 1. Model ko Center me laao aur Ground par rakho (Shrink kiye bina)
                     const box = new THREE.Box3().setFromObject(currentModel);
                     const center = box.getCenter(new THREE.Vector3());
 
                     currentModel.position.x = -center.x;
-                    currentModel.position.y = -box.min.y; // Zameen (0) par touch karega
+                    currentModel.position.y = -box.min.y; 
                     currentModel.position.z = -center.z;
 
-                    // 2. Black borders aur transparency fix karo
                     currentModel.traverse((node) => {
                         if (node.isMesh) {
                             node.castShadow = true;
@@ -127,10 +131,9 @@
 
                     scene.add(currentModel);
                     
-                    // 3. Camera ko model ke size ke hisaab se adjust karo
                     const size = box.getSize(new THREE.Vector3());
                     const maxDim = Math.max(size.x, size.y, size.z);
-                    const camDistance = maxDim > 0 ? maxDim * 1.5 : 30; // Model jitna bada, camera utna peeche
+                    const camDistance = maxDim > 0 ? maxDim * 1.5 : 30; 
 
                     camera.position.set(0, maxDim * 0.5, camDistance);
                     controls.target.set(0, maxDim * 0.2, 0);
@@ -147,23 +150,139 @@
                 }, 
                 (error) => {
                     console.error("Exact Error:", error);
-                    statusEl.innerHTML = `❌ ERROR in ${filename}: ${error.message || 'File Not Found'}`;
+                    statusEl.innerHTML = `❌ ERROR in ${filename}: File Not Found or Invalid`;
                     statusEl.style.color = "#ef4444";
                 }
             );
         };
 
-        // Button Clicks
+        // 💃 Specific FBX Loader for Hotgirl with Chair Placement Logic
+        window.loadHotgirlFBX = function() {
+            if (currentModel) {
+                scene.remove(currentModel);
+                currentModel = null;
+            }
+
+            statusEl.innerHTML = `⏳ Loading Hotgirl.fbx...`;
+            statusEl.style.color = "#38bdf8";
+
+            // First load the chair reference so we can place the girl right next to it
+            const chairUrl = `https://hackerdam2003.github.io/Game/chair.glb`;
+            
+            gltfLoader.load(chairUrl, (chairGltf) => {
+                const chairModel = chairGltf.scene;
+                chairModel.position.set(0, 0, 0);
+                scene.add(chairModel);
+                currentModel = chairModel; // Track it as part of scene group temporarily or group them
+
+                // Now load Hotgirl FBX
+                const fbxUrl = './Hotgirl.fbx'; // Adjust path if hosted on github or relative
+                fbxLoader.load(
+                    fbxUrl,
+                    (fbx) => {
+                        const hotgirl = fbx;
+                        hotgirl.scale.set(0.01, 0.01, 0.01); // Standard FBX scale adjustment
+                        
+                        // Position hotgirl right next to the chair (e.g., offset on X axis)
+                        hotgirl.position.set(2, 0, 0);
+
+                        hotgirl.traverse((node) => {
+                            if (node.isMesh) {
+                                node.castShadow = true;
+                                node.receiveShadow = true;
+                            }
+                        });
+
+                        // Load external texture if present
+                        const textureLoader = new THREE.TextureLoader();
+                        textureLoader.load('./texture.jpg', (texture) => {
+                            texture.colorSpace = THREE.SRGBColorSpace;
+                            hotgirl.traverse((child) => {
+                                if (child.isMesh && child.material) {
+                                    child.material.map = texture;
+                                    child.material.color.setHex(0xffffff);
+                                    child.material.needsUpdate = true;
+                                }
+                            });
+                        });
+
+                        // Create a combined group for both chair and hotgirl
+                        const group = new THREE.Group();
+                        group.add(chairModel);
+                        group.add(hotgirl);
+                        
+                        scene.remove(chairModel); // Remove single instance to avoid duplication
+                        scene.add(group);
+                        currentModel = group;
+
+                        camera.position.set(0, 5, 10);
+                        controls.target.set(1, 1, 0);
+                        controls.update();
+
+                        statusEl.innerHTML = `✅ SUCCESS: chair.glb & Hotgirl.fbx Loaded Together!`;
+                        statusEl.style.color = "#10b981";
+                    },
+                    undefined,
+                    (fbxError) => {
+                        console.warn("FBX local load failed, trying raw path or fallback:", fbxError);
+                        statusEl.innerHTML = `❌ Hotgirl.fbx load failed. Check filename/path!`;
+                        statusEl.style.color = "#ef4444";
+                    }
+                );
+            }, undefined, () => {
+                // If chair fails, just load Hotgirl standalone
+                loadStandaloneHotgirl();
+            });
+        };
+
+        function loadStandaloneHotgirl() {
+            const fbxUrl = './Hotgirl.fbx';
+            fbxLoader.load(fbxUrl, (fbx) => {
+                currentModel = fbx;
+                currentModel.scale.set(0.01, 0.01, 0.01);
+                currentModel.position.set(0, 0, 0);
+                scene.add(currentModel);
+
+                camera.position.set(0, 5, 10);
+                controls.target.set(0, 1, 0);
+                controls.update();
+                statusEl.innerHTML = `✅ SUCCESS: Hotgirl.fbx Loaded!`;
+                statusEl.style.color = "#10b981";
+            }, undefined, (err) => {
+                statusEl.innerHTML = `❌ Error loading Hotgirl.fbx`;
+                statusEl.style.color = "#ef4444";
+            });
+        }
+
+        // Button Event Listeners
         document.getElementById('btn-home').addEventListener('click', (e) => {
             document.querySelectorAll('.switch-btn').forEach(b => b.classList.remove('active'));
             e.target.classList.add('active');
-            window.loadModel('Home.glb');
+            window.loadGLBModel('Home.glb');
         });
 
         document.getElementById('btn-newhome').addEventListener('click', (e) => {
             document.querySelectorAll('.switch-btn').forEach(b => b.classList.remove('active'));
             e.target.classList.add('active');
-            window.loadModel('newhome.glb');
+            window.loadGLBModel('newhome.glb');
+        });
+
+        document.getElementById('btn-pool').addEventListener('click', (e) => {
+            document.querySelectorAll('.switch-btn').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            window.loadGLBModel('Pool.glb');
+        });
+
+        document.getElementById('btn-chair').addEventListener('click', (e) => {
+            document.querySelectorAll('.switch-btn').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            window.loadGLBModel('chair.glb');
+        });
+
+        document.getElementById('btn-hotgirl').addEventListener('click', (e) => {
+            document.querySelectorAll('.switch-btn').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            window.loadHotgirlFBX();
         });
 
         // Start animation loop
@@ -179,9 +298,7 @@
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
-
-        // Automatically pehli file test karne ke liye (Optional)
-        // window.loadModel('newhome.glb');
     </script>
 </body>
 </html>
+
