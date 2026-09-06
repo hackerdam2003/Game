@@ -18,7 +18,7 @@ const app = initializeApp(engineConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-console.log("🏝️ [Game Engine 2] Sky Fix, Sinking Fix, New Animations & Swimming Active!");
+console.log("🏝️ [Game Engine 2] Auto-Water Swimming, Poses & Jump Animations Active!");
 
 const gameSocket = io(); 
 
@@ -42,9 +42,8 @@ let floatingLabels = document.createElement('div');
 document.body.appendChild(floatingLabels);
 
 let isBusy = false; 
-let inWater = false; // Check if player is in ocean
+let inWater = false; // 🌊 Water Status Tracker
 
-// 🧗 Raycaster Setup
 const downRaycaster = new THREE.Raycaster();
 const forwardRaycaster = new THREE.Raycaster();
 const downDirection = new THREE.Vector3(0, -1, 0);
@@ -65,6 +64,7 @@ window.enterWorld = async function() {
     if(overlay) overlay.style.display = 'none';
     if(hud) hud.style.display = 'block';
 
+    createPoseUI(); // 🚀 NAYA: Bottom buttons create karna
     init3DWorld(); 
     setupJoystick();
     setupActionButtons();
@@ -79,6 +79,30 @@ window.enterWorld = async function() {
         env: currentEnvironment
     });
 };
+
+// 🎮 NAYA: Dynamically Add Pose Buttons to Bottom
+function createPoseUI() {
+    const poseMenu = document.createElement('div');
+    poseMenu.id = 'pose-menu';
+    poseMenu.style.cssText = 'position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; z-index: 10000; width: 90%; max-width: 350px;';
+    poseMenu.innerHTML = `
+        <button id="btn-sitDazed" style="padding: 8px 12px; background: rgba(59,130,246,0.8); color: white; border: 1px solid #fff; border-radius: 8px; font-weight: bold; cursor: pointer; backdrop-filter: blur(4px);">🧘 Sit</button>
+        <button id="btn-lieDown" style="padding: 8px 12px; background: rgba(139,92,246,0.8); color: white; border: 1px solid #fff; border-radius: 8px; font-weight: bold; cursor: pointer; backdrop-filter: blur(4px);">🛌 Lie</button>
+        <button id="btn-layM" style="padding: 8px 12px; background: rgba(6,182,212,0.8); color: white; border: 1px solid #fff; border-radius: 8px; font-weight: bold; cursor: pointer; backdrop-filter: blur(4px);">🧍‍♂️ Pose M</button>
+        <button id="btn-layF" style="padding: 8px 12px; background: rgba(236,72,153,0.8); color: white; border: 1px solid #fff; border-radius: 8px; font-weight: bold; cursor: pointer; backdrop-filter: blur(4px);">🧍‍♀️ Pose F</button>
+        <button id="btn-stand" style="padding: 10px 20px; background: #ef4444; color: white; border: 2px solid #fff; border-radius: 8px; font-weight: bold; cursor: pointer; display: none; width: 100%; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">🧍 Stand Up</button>
+    `;
+    document.body.appendChild(poseMenu);
+}
+
+function resetPoseUI() {
+    isBusy = false;
+    document.getElementById('btn-sitDazed').style.display = 'block';
+    document.getElementById('btn-lieDown').style.display = 'block';
+    document.getElementById('btn-layM').style.display = 'block';
+    document.getElementById('btn-layF').style.display = 'block';
+    document.getElementById('btn-stand').style.display = 'none';
+}
 
 function init3DWorld() {
     const canvas = document.getElementById('game-canvas');
@@ -127,7 +151,6 @@ function init3DWorld() {
     requestAnimationFrame(renderLoop);
 }
 
-// ☁️ FIX 1: Sky.glb Rendering Bug Fixed
 function loadSkybox() {
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/');
@@ -136,14 +159,13 @@ function loadSkybox() {
     
     gltfLoader.load('https://hackerdam2003.github.io/Game/Sky.glb', (gltf) => {
         const sky = gltf.scene;
-        sky.scale.set(1500, 1500, 1500); // 🚀 Bada scale taaki camera bahar na jaye
+        sky.scale.set(1500, 1500, 1500); 
         sky.position.set(0, 0, 0);
         
         sky.traverse((node) => {
             if (node.isMesh && node.material) {
                 node.castShadow = false;
                 node.receiveShadow = false;
-                // Agar map texture hai, toh usko BasicMaterial me convert karo taaki bright dikhe
                 if (node.material.map) {
                     node.material = new THREE.MeshBasicMaterial({
                         map: node.material.map,
@@ -157,8 +179,6 @@ function loadSkybox() {
             }
         });
         worldGroup.add(sky);
-    }, undefined, (err) => {
-        console.error("Skybox load error:", err);
     });
 }
 
@@ -173,7 +193,7 @@ function createOcean() {
     });
     const water = new THREE.Mesh(waterGeo, waterMat);
     water.rotation.x = -Math.PI / 2;
-    water.position.y = -1.5; // Water depth
+    water.position.y = -1.5; 
     worldGroup.add(water);
 }
 
@@ -200,27 +220,49 @@ function loadCharacter(charKey) {
     });
 }
 
-// 💃 FIX 2: All New Animations Loaded + Auto Play Logic
+// 💃 LOAD ALL NEW ANIMATIONS
 function loadAnimations(fbxLoader, targetMixer, targetActions, baseObject) {
-    if (baseObject.animations.length > 0) {
-        targetActions.idle = targetMixer.clipAction(baseObject.animations[0]);
-    }
+    if (baseObject.animations.length > 0) targetActions.idle = targetMixer.clipAction(baseObject.animations[0]);
     
-    // Core actions
     fbxLoader.load('./Running.fbx', (anim) => { if(anim.animations.length) targetActions.run = targetMixer.clipAction(anim.animations[0]); });
-    fbxLoader.load('./Punching.fbx', (anim) => { if(anim.animations.length) { targetActions.punch = targetMixer.clipAction(anim.animations[0]); targetActions.punch.setLoop(THREE.LoopOnce); }});
     fbxLoader.load('./Hip%20Hop%20Dancing.fbx', (anim) => { if(anim.animations.length) { targetActions.dance = targetMixer.clipAction(anim.animations[0]); if(!isBusy) playAnim('dance'); }});
     
-    // 🏊 NEW Water Actions
+    // 🏊 Water Actions
     fbxLoader.load('./Swimming.fbx', (anim) => { if(anim.animations.length) targetActions.swim = targetMixer.clipAction(anim.animations[0]); });
     fbxLoader.load('./Treading%20Water.fbx', (anim) => { if(anim.animations.length) targetActions.treadWater = targetMixer.clipAction(anim.animations[0]); });
     
-    // 🛏️ NEW Relax Actions
+    // 🛏️ Poses Actions
     fbxLoader.load('./Sitting%20Dazed.fbx', (anim) => { if(anim.animations.length) targetActions.sitDazed = targetMixer.clipAction(anim.animations[0]); });
     fbxLoader.load('./Lying%20Down.fbx', (anim) => { if(anim.animations.length) targetActions.lieDown = targetMixer.clipAction(anim.animations[0]); });
     fbxLoader.load('./Female%20Laying%20Pose.fbx', (anim) => { if(anim.animations.length) targetActions.layFemale = targetMixer.clipAction(anim.animations[0]); });
     fbxLoader.load('./Male%20Laying%20Pose.fbx', (anim) => { if(anim.animations.length) targetActions.layMale = targetMixer.clipAction(anim.animations[0]); });
-    fbxLoader.load('./Jump.fbx', (anim) => { if(anim.animations.length) { targetActions.jump = targetMixer.clipAction(anim.animations[0]); targetActions.jump.setLoop(THREE.LoopOnce); }});
+    
+    // 🚀 Jump & Punch (One-time actions)
+    fbxLoader.load('./Jump.fbx', (anim) => { 
+        if(anim.animations.length) { 
+            targetActions.jump = targetMixer.clipAction(anim.animations[0]); 
+            targetActions.jump.setLoop(THREE.LoopOnce); 
+            targetActions.jump.clampWhenFinished = true;
+        }
+    });
+    fbxLoader.load('./Punching.fbx', (anim) => { 
+        if(anim.animations.length) { 
+            targetActions.punch = targetMixer.clipAction(anim.animations[0]); 
+            targetActions.punch.setLoop(THREE.LoopOnce); 
+            targetActions.punch.clampWhenFinished = true;
+        }
+    });
+
+    // Auto-return to normal animation after Jump/Punch finishes
+    targetMixer.addEventListener('finished', (e) => {
+        if(e.action === targetActions.jump || e.action === targetActions.punch) {
+            if(moveVector.x !== 0 || moveVector.y !== 0) {
+                playAnim(inWater ? 'swim' : 'run');
+            } else {
+                playAnim(inWater ? 'treadWater' : 'dance');
+            }
+        }
+    });
 }
 
 function playAnim(animName) {
@@ -286,7 +328,7 @@ function addRemotePlayer(data) {
     label.innerText = data.name;
     floatingLabels.appendChild(label);
 
-    const rp = { group: group, label: label, targetPos: group.position.clone(), targetRot: 0, env: data.env, name: data.name, currentAction: 'none', mixer: null, actions: {}, chatTimeout: null };
+    const rp = { group: group, label: label, targetPos: group.position.clone(), targetRot: 0, env: data.env, name: data.name, currentAction: 'dance', mixer: null, actions: {}, chatTimeout: null };
     remotePlayers[data.uid] = rp;
 
     const charKey = data.char || 'man';
@@ -301,9 +343,7 @@ function addRemotePlayer(data) {
 
 function setupChatAndVoice() {
     const chatToggle = document.getElementById('btn-chat-toggle'), chatBox = document.getElementById('game-chat-box'), sendBtn = document.getElementById('btn-send-chat'), input = document.getElementById('game-chat-input');
-
     if(chatToggle && chatBox) { const toggleBox = () => { chatBox.style.display = chatBox.style.display === 'flex' ? 'none' : 'flex'; }; chatToggle.addEventListener('click', toggleBox); chatToggle.addEventListener('touchstart', toggleBox, {passive: true}); }
-
     const sendChatMsg = () => {
         if(!input) return;
         const msg = input.value.trim();
@@ -332,20 +372,20 @@ function showChatBubble(uid, msg) {
     }
 }
 
-// 🕹️ Joystick (Movement Logic)
+// 🕹️ Joystick & Dynamic Water Animation Toggle
 function setupJoystick() {
     const base = document.getElementById('joystick-base'), knob = document.getElementById('joystick-knob');
     if(!base || !knob) return;
     let isDragging = false, center = {x:0, y:0};
 
-    base.addEventListener('touchstart', (e) => { e.stopPropagation(); isDragging = true; center = { x: base.getBoundingClientRect().left + base.clientWidth / 2, y: base.getBoundingClientRect().top + base.clientHeight / 2 }; handleTouch(e); });
+    base.addEventListener('touchstart', (e) => { e.stopPropagation(); if(isBusy) return; isDragging = true; center = { x: base.getBoundingClientRect().left + base.clientWidth / 2, y: base.getBoundingClientRect().top + base.clientHeight / 2 }; handleTouch(e); });
     base.addEventListener('touchmove', (e) => { e.stopPropagation(); if(isDragging) handleTouch(e); });
     base.addEventListener('touchend', (e) => { 
         e.stopPropagation(); 
         isDragging = false; 
         knob.style.transform = `translate(0, 0)`; 
         moveVector = { x: 0, y: 0 }; 
-        if(!isBusy) playAnim(inWater ? 'treadWater' : 'dance'); // 🚀 Auto-switch resting animation
+        if(!isBusy && currentAction !== 'jump') playAnim(inWater ? 'treadWater' : 'dance'); 
     });
 
     function handleTouch(e) {
@@ -356,18 +396,39 @@ function setupJoystick() {
         
         knob.style.transform = `translate(${dx}px, ${dy}px)`;
         moveVector = { x: dx/maxDist, y: -dy/maxDist }; 
-        if (dist > 5) playAnim(inWater ? 'swim' : 'run'); // 🚀 Auto-switch running animation
+        if (dist > 5 && !isBusy && currentAction !== 'jump') playAnim(inWater ? 'swim' : 'run'); 
     }
 }
 
+// 🎮 BUTTON ACTIONS: Poses & Attack & Jump
 function setupActionButtons() {
     document.getElementById('btn-attack')?.addEventListener('touchstart', () => {
-        if(actions.punch) { actions.punch.reset().fadeIn(0.1).play(); currentAction = 'punch'; }
+        if(actions.punch && !inWater) { isBusy=false; actions.punch.reset().fadeIn(0.1).play(); currentAction = 'punch'; resetPoseUI();}
     });
-    
-    // Jump button (Uses Skill button from HTML)
     document.getElementById('btn-skill')?.addEventListener('touchstart', () => {
-        if(actions.jump) { actions.jump.reset().fadeIn(0.1).play(); currentAction = 'jump'; }
+        if(actions.jump && !inWater) { isBusy=false; actions.jump.reset().fadeIn(0.1).play(); currentAction = 'jump'; resetPoseUI();}
+    });
+
+    // Poses Logic
+    const triggerPose = (anim) => {
+        if(inWater || currentAction === 'jump') return; 
+        isBusy = true;
+        playAnim(anim);
+        document.getElementById('btn-sitDazed').style.display = 'none';
+        document.getElementById('btn-lieDown').style.display = 'none';
+        document.getElementById('btn-layM').style.display = 'none';
+        document.getElementById('btn-layF').style.display = 'none';
+        document.getElementById('btn-stand').style.display = 'block';
+    };
+
+    document.getElementById('btn-sitDazed')?.addEventListener('touchstart', () => triggerPose('sitDazed'));
+    document.getElementById('btn-lieDown')?.addEventListener('touchstart', () => triggerPose('lieDown'));
+    document.getElementById('btn-layM')?.addEventListener('touchstart', () => triggerPose('layMale'));
+    document.getElementById('btn-layF')?.addEventListener('touchstart', () => triggerPose('layFemale'));
+
+    document.getElementById('btn-stand')?.addEventListener('touchstart', () => {
+        resetPoseUI();
+        playAnim(inWater ? 'treadWater' : 'dance');
     });
 }
 
@@ -380,7 +441,7 @@ function renderLoop() {
 
         if (my3DCharacter) {
             
-            // ⚔️ 1. TRUE GENSHIN STYLE CAMERA-RELATIVE MOVEMENT
+            // ⚔️ MOVEMENT (Genshin Style)
             if (!isBusy && (moveVector.x !== 0 || moveVector.y !== 0)) {
                 
                 const camForward = new THREE.Vector3();
@@ -421,25 +482,40 @@ function renderLoop() {
                 renderMinimap(allPlayersData, myUid);
             }
 
-            // 🧗 FIX 3: Anti-Sinking Logic + Water Check
+            // 🧗 AUTO-WATER SENSOR & ANTI-SINK
             if (currentIslandCollider) {
                 const rayOrigin = my3DCharacter.position.clone();
                 rayOrigin.y += 10.0; 
                 downRaycaster.set(rayOrigin, downDirection);
                 const hits = downRaycaster.intersectObject(currentIslandCollider, true);
 
+                let wasInWater = inWater;
+
                 if (hits.length > 0) {
-                    // Island par hai: 0.15 offset diya taaki character mitti me na dhasse
-                    my3DCharacter.position.y = hits[0].point.y + 0.15; 
+                    my3DCharacter.position.y = hits[0].point.y + 0.15; // Zameen ke thoda upar
                     inWater = false;
                 } else {
-                    // Island se bahar aa gaya, paani me gir gaya
-                    my3DCharacter.position.y = -1.0; // Water floating level
+                    my3DCharacter.position.y = -1.2; // Paani ke andar ka level
                     inWater = true;
+                }
+
+                // 🚀 WATER AUTO-ANIMATION SWITCH (Jaise hi paani me gire ya bahar nikle)
+                if (wasInWater !== inWater && !isBusy && currentAction !== 'jump') {
+                    if (moveVector.x !== 0 || moveVector.y !== 0) {
+                        playAnim(inWater ? 'swim' : 'run');
+                    } else {
+                        playAnim(inWater ? 'treadWater' : 'dance');
+                    }
+                }
+
+                // Agar paani me gir gaya toh Pose automatically cancel ho jaye
+                if (inWater && isBusy) {
+                    resetPoseUI();
+                    playAnim('treadWater');
                 }
             }
 
-            // 🎥 2. TRUE 360 FREE CAMERA FOLLOW
+            // 🎥 360 FREE CAMERA FOLLOW
             if (controls) {
                 const charTarget = new THREE.Vector3(my3DCharacter.position.x, my3DCharacter.position.y + 1.5, my3DCharacter.position.z);
                 const posDelta = charTarget.clone().sub(controls.target);
