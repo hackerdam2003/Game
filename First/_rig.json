@@ -1,0 +1,95 @@
+{
+  "input_url": "https://autorig.online/u/d1fcb75b-b9a6-4bda-a2c2-ec96291dcdeb/textured_mesh.glb",
+  "type": "t_pose",
+  "mode": "only_rig",
+  "viewer_environment": {
+    "schema_version": 1,
+    "theme_id": "mediterranean_courtyard",
+    "theme_name": "Mediterranean Courtyard",
+    "background": {
+      "url": "https://autorig.online/static/env/backdrops/viewer/mediterranean_courtyard.jpg?v=20260516-16x9"
+    },
+    "background_fit": "cover",
+    "theme_short_description": "Warm stone courtyard with plants and sunlit rustic walls.",
+    "semantic_tags": [
+      "courtyard",
+      "stone",
+      "mediterranean",
+      "garden",
+      "human",
+      "statue",
+      "animal",
+      "humanoid",
+      "character"
+    ],
+    "plane_color": "#282a2f",
+    "camera_transform": {
+      "fov": 45,
+      "position": {
+        "x": 499.9487381159941,
+        "y": 194.52992227960715,
+        "z": 294.58758665991036
+      },
+      "target": {
+        "x": -25.405345410482635,
+        "y": 73.92303886688971,
+        "z": -7.873076709854209
+      }
+    },
+    "environment_settings": {
+      "intensity": 1,
+      "mode": "image",
+      "reflection_intensity": 3,
+      "source": "backdrop"
+    },
+    "sun_settings": {
+      "inclination": 55,
+      "intensity": 2.45,
+      "rotation": -65
+    },
+    "shadow_settings": {
+      "opacity": 0.34,
+      "shadow_y_offset": 0.01,
+      "softness": 5,
+      "sun_multiplier": 3.5
+    }
+  },
+  "title": "Female Character in Swimwear low-poly 3d model",
+  "category": "Characters",
+  "subcategory": "Woman",
+  "image_url": "https://autorig.online/renderfin/render/masks/t_pose.jpg",
+  "image_description": {
+    "title": "Female Character in Swimwear low-poly 3d model",
+    "description": "This model represents a female character designed for a beach or pool setting. She is wearing a bright green bikini and has long black hair styled in a ponytail. The art style is vibrant and playful, suitable for casual or summer-themed projects.\n\nEach model has 3 levels of detail with QUAD polygons:\n* Low-poly    1000 triangles for mobile.\n* Middle-poly 10 000 triangles for environment.\n* High-poly 100 000 triangles.\n* Ultra detailed up to 1 500 000 triangles for close up (triangulated).\n\nThis allows for the use of this model in:\n* production rendering(such as 3ds max, Maya,Cinema4d, Blender, Vray/Corona/Cycles and all other )\n\n* game engines(Unity and Unreal compatible - both included) and interactive presentations, providing a choice of detail based on the LOD System principle.\n\nThe model's textures are PBR 4096x4096 pixels:\n* Diffuse\n* NormalMap\n* Reflection\n* Roughness\n* Metall\n* Ambient Occlusion\n\nwhich are suitable for any modern rendering engine. All models accurately unwrapped and has no overlapping UV.\n\nThe character is rigged and comes with a full animation set, ready for use in game engines.\n\nIf you like this model, please leave a comment!",
+    "keywords": [
+      "female",
+      "swimwear",
+      "bikini",
+      "beach",
+      "pool",
+      "summer",
+      "casual",
+      "character",
+      "3d",
+      "animation",
+      "game asset",
+      "unity",
+      "unreal",
+      "blender",
+      "glb",
+      "fbx",
+      "cartoon",
+      "stylized",
+      "playful",
+      "vibrant",
+      "model",
+      "rigging",
+      "3d model",
+      "asset",
+      "character design"
+    ]
+  },
+  "backend_task_id": "c1da24a6-8009-4c85-9ca0-f10194c763f4",
+  "queue_class": "interactive",
+  "workload_class": "autorig_interactive"
+}

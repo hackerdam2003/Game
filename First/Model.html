@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Статус задачи ee654438-4e51-4637-a703-1e2188cea38e</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --panel: #151923;
+      --muted: #8b94a7;
+      --text: #e6ecff;
+      --accent: #7aa2f7;
+      --good: #19c37d;
+      --warn: #f7b733;
+      --bad: #ef476f;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 0;
+      background: linear-gradient(180deg, #0b0f14, #0f1115 40%);
+      color: var(--text);
+      font-family: -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Inter,Helvetica,Arial,Segoe UI Symbol;
+    }
+    header {
+      padding: 18px 24px;
+      background: rgba(255,255,255,0.02);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      position: sticky; top: 0; backdrop-filter: blur(8px);
+      display: flex; align-items: center; gap: 16px; z-index: 5;
+    }
+    .pill { border: 1px solid rgba(255,255,255,0.08); padding: 6px 10px; border-radius: 999px; color: var(--muted); }
+    .container { padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
+    .card {
+      grid-column: span 12;
+      background: radial-gradient(800px 400px at 10% -10%, rgba(122,162,247,0.08), transparent 40%),
+                  radial-gradient(600px 300px at 110% 10%, rgba(25,195,125,0.08), transparent 40%),
+                  var(--panel);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 16px; padding: 16px 16px 6px 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+    }
+    .cols-6 { grid-column: span 6; }
+    .cols-4 { grid-column: span 4; }
+    .cols-8 { grid-column: span 8; }
+    @media (max-width: 1200px) { .cols-6,.cols-4,.cols-8 { grid-column: span 12; } }
+    h2 { margin: 0 0 8px 0; font-weight: 600; font-size: 18px; }
+    .sub { color: var(--muted); font-size: 13px; margin-bottom: 10px; }
+      .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin: 12px 0; }
+    .kpi { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 12px; }
+    .kpi .v { font-size: 18px; font-weight: 700; }
+    .kpi .l { font-size: 12px; color: var(--muted); }
+    .status-badge { display:inline-block; padding:6px 10px; border-radius:8px; font-weight:600; }
+    .status-Completed { background:rgba(25,195,125,0.15); color:var(--good); }
+    .status-Processing { background:rgba(122,162,247,0.15); color:var(--accent); }
+    .status-Pending { background:rgba(247,183,51,0.15); color:var(--warn); }
+    .status-Failed { background:rgba(239,71,111,0.15); color:var(--bad); }
+    .media-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(160px,1fr)); gap:10px; }
+    .thumb { border-radius:10px; overflow:hidden; border:1px solid rgba(255,255,255,0.06); background:#0b0f14; }
+    .thumb img { width:100%; height:120px; object-fit:cover; display:block; }
+    .file-row { display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px dashed rgba(255,255,255,0.06); }
+    .file-row a { color:var(--text); text-decoration:none; }
+    .hint { color:var(--muted); font-size:12px; }
+    .video-wrap video { width:100%; border-radius:10px; border:1px solid rgba(255,255,255,0.06); background:#000; }
+    .platform-section { margin-bottom: 16px; }
+    .platform-header { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+    .platform-badge { display:inline-block; padding:4px 10px; border-radius:8px; font-weight:600; font-size:13px; }
+    .badge-android { background:rgba(164,198,57,0.15); color:#a4c639; }
+    .badge-vr { background:rgba(122,162,247,0.15); color:#7aa2f7; }
+    .badge-web { background:rgba(247,183,51,0.15); color:#f7b733; }
+    .badge-urp { background:rgba(25,195,125,0.15); color:#19c37d; }
+    .badge-hdrp { background:rgba(220,120,255,0.15); color:#dc78ff; }
+    .renders-compare { display:grid; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); gap:14px; }
+    .render-card { border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,0.06); background:rgba(255,255,255,0.02); }
+    .render-card img { width:100%; height:auto; display:block; cursor:pointer; }
+    .render-card .rc-label { padding:8px 10px; font-size:13px; display:flex; justify-content:space-between; }
+    .dl-btn { display:inline-block; padding:6px 14px; border-radius:8px; background:rgba(122,162,247,0.15); color:var(--accent); font-size:13px; font-weight:600; text-decoration:none; transition:background 0.2s; }
+    .dl-btn:hover { background:rgba(122,162,247,0.3); }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="pill">Задача</div>
+    <div><strong>ee654438-4e51-4637-a703-1e2188cea38e</strong></div>
+    <div class="pill">task_id: 22d2e8fc-c65c-4759-b8e0-49112787df97</div>
+    <div class="pill">auto-refresh</div>
+  </header>
+  <div class="container">
+    <div class="grid">
+      <div class="card cols-8">
+        <h2>Статус выполнения</h2>
+        <div id="statusLine" class="sub">Загрузка...</div>
+        <div class="kpis">
+          <div class="kpi"><div class="v" id="kpiStatus">-</div><div class="l">Статус</div></div>
+          <div class="kpi"><div class="v" id="kpiElapsed">-</div><div class="l">Время (мин)</div></div>
+          <div class="kpi"><div class="v" id="kpiOutputs">-</div><div class="l">URL в задаче</div></div>
+          <div class="kpi"><div class="v" id="kpiFiles">-</div><div class="l">Файлов всего</div></div>
+          <div class="kpi"><div class="v" id="kpiImages">-</div><div class="l">Изображений</div></div>
+          <div class="kpi"><div class="v" id="kpiApps">-</div><div class="l">Приложений</div></div>
+          <div class="kpi"><div class="v" id="kpiArchives">-</div><div class="l">Архивов</div></div>
+        </div>
+      </div>
+      <div class="card cols-4">
+        <h2>Счётчики по папкам</h2>
+        <div class="file-row"><div>root</div><div id="cnt_root">0</div></div>
+        <div class="file-row"><div>ee654438-4e51-4637-a703-1e2188cea38e_1k</div><div id="cnt_1k">0</div></div>
+        <div class="file-row"><div>ee654438-4e51-4637-a703-1e2188cea38e_10k</div><div id="cnt_10k">0</div></div>
+        <div class="file-row"><div>ee654438-4e51-4637-a703-1e2188cea38e_100k</div><div id="cnt_100k">0</div></div>
+        <div class="file-row" id="row_android" style="display:none"><div>OC_Android_APK</div><div id="cnt_android">0</div></div>
+        <div class="file-row" id="row_vr" style="display:none"><div>OC_VR</div><div id="cnt_vr">0</div></div>
+        <div class="file-row" id="row_web" style="display:none"><div>OC_WebBuild</div><div id="cnt_web">0</div></div>
+        <div class="file-row" id="row_hdrp" style="display:none"><div>OC_HDRP</div><div id="cnt_hdrp">0</div></div>
+        <div class="hint">Папки отображаются, когда создаются</div>
+      </div>
+      <div class="card cols-12" id="platformBuildsCard" style="display:none">
+        <h2>Unity Platform Builds</h2>
+        <div class="sub">Результаты сборки для разных платформ</div>
+        <div id="platformBuilds"></div>
+      </div>
+      <div class="card cols-12" id="rendersCompareCard" style="display:none">
+        <h2>Сравнение рендеров по платформам</h2>
+        <div class="sub">Камеры рендерились с одинаковым разрешением (1920x1080) для визуального сравнения</div>
+        <div class="renders-compare" id="rendersCompare"></div>
+      </div>
+      <div class="card cols-12">
+        <h2>Галерея изображений</h2>
+        <div class="media-grid" id="imagesGrid"></div>
+      </div>
+      <div class="card cols-12">
+        <h2>Видео</h2>
+        <div id="videosWrap" class="grid"></div>
+        <div class="hint">.mov может не воспроизводиться в браузере — используйте скачивание при необходимости</div>
+      </div>
+      <div class="card cols-12">
+        <h2>Список файлов</h2>
+        <div id="filesList"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const taskId = "22d2e8fc-c65c-4759-b8e0-49112787df97";
+    const modelName = "ee654438-4e51-4637-a703-1e2188cea38e";
+
+    async function fetchJson(url) {
+      try { const r = await fetch(url); return await r.json(); } catch(e) { return null; }
+    }
+
+    function fmtSize(bytes) {
+      const units = ["B","KB","MB","GB","TB"];
+      let i = 0, v = bytes || 0;
+      while (v >= 1024 && i < units.length-1) { v /= 1024; i++; }
+      return v.toFixed(2) + " " + units[i];
+    }
+
+    function setText(id, txt) {
+      const el = document.getElementById(id); if (el) el.innerText = txt;
+    }
+
+    function renderStatus(task) {
+      const st = task?.status || "-";
+      const runningSec = task?.started_at && !task?.completed_at ? (Date.now()/1000 - task.started_at) : 0;
+      const totalSec = task?.completed_at && task?.started_at ? (task.completed_at - task.started_at) : runningSec;
+      const mins = (totalSec/60).toFixed(1);
+      setText("kpiStatus", st);
+      setText("kpiElapsed", mins);
+      setText("kpiOutputs", (task?.output_urls?.length || 0));
+      const badge = `<span class="status-badge status-${st}">${st}</span>`;
+      const inf = [badge, task?.task_type ? ("тип: " + task.task_type) : "", task?.error ? ("ошибка: " + task.error) : ""].filter(Boolean).join(" • ");
+      document.getElementById("statusLine").innerHTML = inf || "Нет данных";
+    }
+
+    const PLATFORM_META = {
+      "OC_Android_APK": { label: "Android APK", badge: "badge-android", icon: "📱" },
+      "OC_VR":          { label: "Quest VR APK", badge: "badge-vr",      icon: "🥽" },
+      "OC_WebBuild":    { label: "WebGL Build",  badge: "badge-web",     icon: "🌐" },
+      "OC_HDRP":        { label: "HDRP Build",   badge: "badge-hdrp",    icon: "🖥️" }
+    };
+
+    function renderFilesInfo(info) {
+      if (!info) return;
+      setText("kpiFiles", info?.totals?.files || 0);
+      setText("kpiImages", info?.totals?.images || 0);
+      setText("kpiApps", info?.totals?.apps || 0);
+      setText("kpiArchives", info?.totals?.archives || 0);
+
+      document.getElementById("cnt_root").innerText = info?.folders?.root?.count || 0;
+      document.getElementById("cnt_1k").innerText = info?.folders?.["ee654438-4e51-4637-a703-1e2188cea38e_1k"]?.count || 0;
+      document.getElementById("cnt_10k").innerText = info?.folders?.["ee654438-4e51-4637-a703-1e2188cea38e_10k"]?.count || 0;
+      document.getElementById("cnt_100k").innerText = info?.folders?.["ee654438-4e51-4637-a703-1e2188cea38e_100k"]?.count || 0;
+
+      // Platform folder counters
+      for (const [proj, meta] of Object.entries(PLATFORM_META)) {
+        const f = info?.folders?.[proj];
+        const rk = proj + "/renders";
+        const rf = info?.folders?.[rk];
+        const urk = proj + "/unity_renders";
+        const urf = info?.folders?.[urk];
+        const ubk = proj + "/unity_builds";
+        const ubf = info?.folders?.[ubk];
+        const total = (f?.count || 0) + (rf?.count || 0) + (urf?.count || 0) + (ubf?.count || 0);
+        const rowMap = {"OC_Android_APK": "android", "OC_VR": "vr", "OC_WebBuild": "web", "OC_HDRP": "hdrp"};
+        const rowEl = document.getElementById("row_" + (rowMap[proj] || ""));
+        if (rowEl) {
+          rowEl.style.display = total > 0 ? "flex" : "none";
+          rowEl.querySelector("div:last-child").innerText = total;
+        }
+      }
+
+      // --- Platform Builds section ---
+      const pbCard = document.getElementById("platformBuildsCard");
+      const pbDiv = document.getElementById("platformBuilds");
+      let pbHtml = "";
+
+      // URP/Windows build (from export/unity_builds)
+      const urpBuilds = info?.folders?.["export/unity_builds"];
+      if (urpBuilds?.files?.length) {
+        const zips = urpBuilds.files.filter(x => x.type === "archive");
+        if (zips.length > 0) {
+          pbHtml += `<div class="platform-section">
+            <div class="platform-header">
+              <span class="platform-badge badge-urp">&#128187; Windows (URP)</span>
+              <span class="hint">${urpBuilds.count} файл(ов)</span>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">`;
+          for (const z of zips) {
+            pbHtml += `<a class="dl-btn" href="./${z.rel_path}" target="_blank">${z.name} (${fmtSize(z.size)})</a>`;
+          }
+          pbHtml += `</div></div>`;
+        }
+      }
+
+      // Unity package
+      const expRoot = info?.folders?.["export"];
+      if (expRoot?.files?.length) {
+        const pkgs = expRoot.files.filter(x => x.name.endsWith(".unitypackage"));
+        if (pkgs.length > 0) {
+          pbHtml += `<div class="platform-section">
+            <div class="platform-header">
+              <span class="platform-badge badge-urp">&#128230; Unity Package</span>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">`;
+          for (const p of pkgs) {
+            pbHtml += `<a class="dl-btn" href="./${p.rel_path}" target="_blank">${p.name} (${fmtSize(p.size)})</a>`;
+          }
+          pbHtml += `</div></div>`;
+        }
+      }
+
+      for (const [proj, meta] of Object.entries(PLATFORM_META)) {
+        const fdata = info?.folders?.[proj];
+        if (!fdata || !fdata.exists) continue;
+
+        let buildFiles = (fdata.files || []).filter(x => x.type === "app" || x.type === "archive" || x.type === "other");
+        const hasIndex = (fdata.files || []).some(x => x.name === "index.html");
+
+        const subBuilds = info?.folders?.[proj + "/unity_builds"];
+        if (subBuilds?.files?.length) {
+          buildFiles = buildFiles.concat(subBuilds.files.filter(x => x.type === "archive"));
+        }
+
+        if (buildFiles.length === 0 && !hasIndex) continue;
+        pbHtml += `<div class="platform-section">
+          <div class="platform-header">
+            <span class="platform-badge ${meta.badge}">${meta.icon} ${meta.label}</span>
+            <span class="hint">${fdata.count} файл(ов)</span>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;">`;
+        if (hasIndex) {
+          pbHtml += `<a class="dl-btn" href="./${proj}/index.html" target="_blank">&#9654; Launch WebGL</a>`;
+        }
+        for (const bf of buildFiles) {
+          pbHtml += `<a class="dl-btn" href="./${bf.rel_path}" target="_blank">${bf.name} (${fmtSize(bf.size)})</a>`;
+        }
+        pbHtml += `</div></div>`;
+      }
+      if (pbHtml) {
+        pbCard.style.display = "";
+        pbDiv.innerHTML = pbHtml;
+      } else {
+        pbCard.style.display = "none";
+      }
+
+      // --- Platform Renders Comparison ---
+      const rcCard = document.getElementById("rendersCompareCard");
+      const rcDiv = document.getElementById("rendersCompare");
+      const renderSets = {};
+
+      // Collect URP export renders too
+      const exportRenders = info?.folders?.["export/unity_renders"];
+      if (exportRenders?.files?.length) {
+        renderSets["URP Base"] = { badge: "badge-urp", files: exportRenders.files };
+      }
+      for (const [proj, meta] of Object.entries(PLATFORM_META)) {
+        const rk = proj + "/renders";
+        const rf = info?.folders?.[rk];
+        if (rf?.files?.length) {
+          renderSets[meta.label] = { badge: meta.badge, files: rf.files };
+        }
+        const urk = proj + "/unity_renders";
+        const urf = info?.folders?.[urk];
+        if (urf?.files?.length) {
+          renderSets[meta.label] = { badge: meta.badge, files: urf.files };
+        }
+      }
+
+      if (Object.keys(renderSets).length > 0) {
+        rcCard.style.display = "";
+        let rcHtml = "";
+        for (const [label, rdata] of Object.entries(renderSets)) {
+          for (const rf of rdata.files) {
+            if (rf.type !== "image") continue;
+            rcHtml += `<div class="render-card">
+              <a href="./${rf.rel_path}" target="_blank"><img src="./${rf.rel_path}" alt="${rf.name}" /></a>
+              <div class="rc-label">
+                <span><span class="platform-badge ${rdata.badge}">${label}</span> ${rf.name}</span>
+                <span class="hint">${fmtSize(rf.size)}</span>
+              </div>
+            </div>`;
+          }
+        }
+        rcDiv.innerHTML = rcHtml;
+      } else {
+        rcCard.style.display = "none";
+      }
+
+      // Images grid (exclude platform render images — they're shown above)
+      const platformFolders = new Set(["export/unity_renders"]);
+      for (const proj of Object.keys(PLATFORM_META)) {
+        platformFolders.add(proj + "/renders");
+        platformFolders.add(proj + "/unity_renders");
+      }
+      const imgs = [];
+      for (const [folder, fdata] of Object.entries(info.folders || {})) {
+        if (platformFolders.has(folder)) continue;
+        (fdata.files||[]).forEach(x => { if (x.type === "image") imgs.push(x); });
+      }
+      const grid = document.getElementById("imagesGrid");
+      grid.innerHTML = imgs.slice(0, 60).map(x => `
+        <a class="thumb" href="./${x.rel_path}" target="_blank" title="${x.name}">
+          <img src="./${x.rel_path}" alt="${x.name}" />
+        </a>`).join("");
+
+      // Videos
+      const videos = [];
+      Object.values(info.folders || {}).forEach(f => (f.files||[]).forEach(x => { if (x.type === "video") videos.push(x); }));
+      const vw = document.getElementById("videosWrap");
+      vw.innerHTML = videos.map(x => `
+        <div class="cols-4">
+          <div class="video-wrap">
+            <video controls preload="metadata">
+              <source src="./${x.rel_path}" type="video/mp4" />
+              <source src="./${x.rel_path}" />
+            </video>
+            <div class="sub">${x.name} — ${fmtSize(x.size)}</div>
+          </div>
+        </div>`).join("");
+
+      // Files list
+      const fl = document.getElementById("filesList");
+      const rows = [];
+      for (const [folder, data] of Object.entries(info.folders || {})) {
+        rows.push(`<div class="sub" style="margin-top:10px"><strong>${folder}</strong> (${data.count})</div>`);
+        rows.push(...(data.files||[]).slice(0, 300).map(x => `
+          <div class="file-row">
+            <div>${x.type.toUpperCase()} · <a href="./${x.rel_path}" target="_blank">${x.name}</a></div>
+            <div class="hint">${fmtSize(x.size)}</div>
+          </div>`));
+      }
+      fl.innerHTML = rows.join("");
+    }
+
+    async function tick() {
+      const t = await fetchJson("/api-converter-glb/status/" + taskId);
+      renderStatus(t || null);
+      const fi = await fetchJson("/api-converter-glb/model-files/" + modelName);
+      renderFilesInfo(fi || null);
+    }
+    tick();
+    setInterval(tick, 10000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,191 @@
+{
+  "artifact": "ee654438-4e51-4637-a703-1e2188cea38e_model_prepared_viewer.glb",
+  "expected_action_names": [
+    "Agreeing_remap",
+    "Defeat2_remap",
+    "Drunk Run Forward_remap",
+    "Hand Raising_remap",
+    "Idle_happy_remap",
+    "Jump_remap",
+    "Pointing Gesture_remap",
+    "Running3_remap",
+    "Running_scared_remap",
+    "Standing 2H Magic Attack 02_remap",
+    "Thoughtful Head Shake_remap",
+    "Victory_remap",
+    "Walking_crouched_remap"
+  ],
+  "generated_at_unix_ns": 1788563431288771900,
+  "material_contracts": [
+    {
+      "alpha": false,
+      "base_color_texture": true,
+      "emissive_texture": false,
+      "image_colorspaces": {
+        "Image_0.002": {
+          "colorspace": "sRGB",
+          "role": "base_color"
+        },
+        "Image_1.002": {
+          "colorspace": "Non-Color",
+          "role": "metallic_roughness"
+        }
+      },
+      "image_dimensions": {
+        "Image_0.002__AUTORIG_VIEWER_2048": {
+          "colorspace": "sRGB",
+          "height": 2048,
+          "width": 2048
+        },
+        "Image_1.002__AUTORIG_VIEWER_2048": {
+          "colorspace": "Non-Color",
+          "height": 2048,
+          "width": 2048
+        }
+      },
+      "max_image_dimension": 2048,
+      "metallic_roughness_texture": true,
+      "name": "PBR_Material.002__AUTORIG_VIEWER_PBR",
+      "normal_texture": false,
+      "occlusion_texture": false,
+      "source_name": "PBR_Material.002"
+    }
+  ],
+  "max_image_dimension": 2048,
+  "sha256": "387f5f3a22bc295be902eb7045f381f70f0a8bf9784f56cd38f7ccb01ade4b07",
+  "size_bytes": 5452588,
+  "source_artifact": "ee654438-4e51-4637-a703-1e2188cea38e_all_animations_threejs_preview.glb",
+  "validation": {
+    "animation_count": 13,
+    "animation_names": [
+      "Agreeing_remap",
+      "Defeat2_remap",
+      "Drunk Run Forward_remap",
+      "Hand Raising_remap",
+      "Idle_happy_remap",
+      "Jump_remap",
+      "Pointing Gesture_remap",
+      "Running3_remap",
+      "Running_scared_remap",
+      "Standing 2H Magic Attack 02_remap",
+      "Thoughtful Head Shake_remap",
+      "Victory_remap",
+      "Walking_crouched_remap"
+    ],
+    "animation_time_ranges": {
+      "Agreeing_remap": {
+        "end": 4.733333333333333,
+        "start": 0.03333333333333333
+      },
+      "Defeat2_remap": {
+        "end": 4.8,
+        "start": 0.03333333333333333
+      },
+      "Drunk Run Forward_remap": {
+        "end": 1.8666666666666667,
+        "start": 0.03333333333333333
+      },
+      "Hand Raising_remap": {
+        "end": 4.1,
+        "start": 0.03333333333333333
+      },
+      "Idle_happy_remap": {
+        "end": 2.033333333333333,
+        "start": 0.03333333333333333
+      },
+      "Jump_remap": {
+        "end": 2.2,
+        "start": 0.03333333333333333
+      },
+      "Pointing Gesture_remap": {
+        "end": 2.0,
+        "start": 0.03333333333333333
+      },
+      "Running3_remap": {
+        "end": 0.8666666666666667,
+        "start": 0.03333333333333333
+      },
+      "Running_scared_remap": {
+        "end": 1.1333333333333333,
+        "start": 0.03333333333333333
+      },
+      "Standing 2H Magic Attack 02_remap": {
+        "end": 2.6666666666666665,
+        "start": 0.03333333333333333
+      },
+      "Thoughtful Head Shake_remap": {
+        "end": 3.1,
+        "start": 0.03333333333333333
+      },
+      "Victory_remap": {
+        "end": 4.533333333333333,
+        "start": 0.03333333333333333
+      },
+      "Walking_crouched_remap": {
+        "end": 1.0666666666666667,
+        "start": 0.03333333333333333
+      }
+    },
+    "expected_action_names": [
+      "Agreeing_remap",
+      "Defeat2_remap",
+      "Drunk Run Forward_remap",
+      "Hand Raising_remap",
+      "Idle_happy_remap",
+      "Jump_remap",
+      "Pointing Gesture_remap",
+      "Running3_remap",
+      "Running_scared_remap",
+      "Standing 2H Magic Attack 02_remap",
+      "Thoughtful Head Shake_remap",
+      "Victory_remap",
+      "Walking_crouched_remap"
+    ],
+    "expected_animation_count": 13,
+    "extra_animation_names": [],
+    "image_count": 2,
+    "image_dimensions": [
+      {
+        "height": 2048,
+        "index": 0,
+        "mime_type": "image/jpeg",
+        "name": "Image_0",
+        "width": 2048
+      },
+      {
+        "height": 2048,
+        "index": 1,
+        "mime_type": "image/png",
+        "name": "Image_1",
+        "width": 2048
+      }
+    ],
+    "joint_node_count": 256,
+    "material_count": 1,
+    "max_image_dimension": 2048,
+    "mesh_count": 1,
+    "renderable_mesh_node_count": 1,
+    "renderable_primitive_count": 1,
+    "size_bytes": 5452588,
+    "skin_count": 1,
+    "skinned_mesh_node_count": 1,
+    "texture_count": 2,
+    "valid": true,
+    "valid_animation_names": [
+      "Agreeing_remap",
+      "Defeat2_remap",
+      "Drunk Run Forward_remap",
+      "Hand Raising_remap",
+      "Idle_happy_remap",
+      "Jump_remap",
+      "Pointing Gesture_remap",
+      "Running3_remap",
+      "Running_scared_remap",
+      "Standing 2H Magic Attack 02_remap",
+      "Thoughtful Head Shake_remap",
+      "Victory_remap",
+      "Walking_crouched_remap"
+    ]
+  },
+  "version": 1
+}

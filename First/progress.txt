@@ -1,0 +1,25 @@
+2026-09-05 06:06:51.034 Conversion started.
+2026-09-05 06:06:52.079 Geometry: 26521 vertices, 40000 polygons.
+2026-09-05 06:06:52.214 Initial model alignment completed.
+2026-09-05 06:06:52.994 Model preparation completed.
+2026-09-05 06:06:54.044 OpenPose analysis: detecting arms, legs and fingers...
+2026-09-05 06:08:22.725 Arm (left): yes; Arm (right): yes.
+2026-09-05 06:08:22.727 Leg (left): yes; Leg (right): yes.
+2026-09-05 06:08:22.728 Fingers (left): yes; Fingers (right): yes.
+2026-09-05 06:08:22.729 OpenPose analysis completed: markers saved (137 markers).
+2026-09-05 06:08:25.079 Pose preparation: adjusting pose for rigging...
+2026-09-05 06:08:25.359 Clothing: legs open.
+2026-09-05 06:08:37.216 Markers positioned.
+2026-09-05 06:09:08.852 Leg pose corrected.
+2026-09-05 06:09:08.869 Hands straightened.
+2026-09-05 06:09:10.888 Fingers detected by raycast: left 2, right 2.
+2026-09-05 06:09:14.087 Pose correction completed.
+2026-09-05 06:09:16.205 Starting rigging process...
+2026-09-05 06:09:56.272 Rig created.
+2026-09-05 06:09:58.213 Starting animation retargeting...
+2026-09-05 06:10:04.836 Created 14 action tracks.
+2026-09-05 06:10:51.899 Animation retargeting completed.
+2026-09-05 06:10:52.979 Unity export started.
+2026-09-05 06:12:27.189 Unity package exported.
+2026-09-05 06:13:06.234 Preview video created.
+2026-09-05 06:13:59.159 Conversion completed. It took 7 min 8 sec.
