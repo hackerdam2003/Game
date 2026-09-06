@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape">
-    <title>Racing Universe | Perfect Aligned Mansion Scene</title>
+    <title>Racing Universe | Aligned Mansion & Big Characters</title>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #0f172a; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
@@ -33,7 +33,7 @@
     </div>
 
     <div id="status-text" class="status-hud">
-        ⏳ Loading Perfect Aligned Mansion Scene...
+        ⏳ Loading Mansion with Bigger Chairs & Hotgirl...
     </div>
 
     <canvas id="house-canvas"></canvas>
@@ -144,10 +144,10 @@
             });
         };
 
-        // 🌟 Full Mansion Scene (Aligned House, Horizontally Rotated Pool, Bigger Chairs & Big Hotgirl)
+        // 🌟 Full Mansion Scene (Bigger Chairs & Big Hotgirl)
         window.loadFullMansionScene = function() {
             clearScene();
-            statusEl.innerHTML = `⏳ Building Aligned Mansion & Pool Scene...`;
+            statusEl.innerHTML = `⏳ Building Mansion with Big Props...`;
             statusEl.style.color = "#38bdf8";
 
             // 1. House (Center)
@@ -161,19 +161,18 @@
                 currentGroup.add(house);
             });
 
-            // 2. Pool (Horizontally Rotated and placed right beside the house at ground level)
+            // 2. Pool (Horizontally Rotated & Aligned)
             gltfLoader.load('https://hackerdam2003.github.io/Game/Pool.glb', (gltf) => {
                 const pool = gltf.scene;
                 const box = new THREE.Box3().setFromObject(pool);
                 const scaleFactor = 18 / Math.max(box.getSize(new THREE.Vector3()).x, box.getSize(new THREE.Vector3()).y, box.getSize(new THREE.Vector3()).z);
                 pool.scale.set(scaleFactor, scaleFactor, scaleFactor);
                 
-                // 🔄 Pool ko horizontally modo (Rotate Y axis) aur ghar ke sath satha ke rakho
                 pool.rotation.y = Math.PI / 2; 
-                pool.position.set(18, 0, 2); // Ground level (Y = 0) par exact match
+                pool.position.set(18, 0, 2); 
                 currentGroup.add(pool);
 
-                // 3. Chairs around Pool (Size increased karke proper level par)
+                // 3. Chairs around Pool (🚀 Size kafi bada kiya: 7.5)
                 gltfLoader.load('https://hackerdam2003.github.io/Game/chair.glb', (chairGltf) => {
                     const chairBase = chairGltf.scene;
                     
@@ -186,19 +185,17 @@
 
                     chairPositions.forEach(pos => {
                         const chair = chairBase.clone();
-                        // 🚀 Chair ka size bada kiya (from 2 to 4.5)
-                        chair.scale.set(4.5, 4.5, 4.5);
+                        chair.scale.set(7.5, 7.5, 7.5); // 🚀 Size badha diya
                         chair.position.set(pos.x, 0, pos.z); 
                         chair.rotation.y = pos.rot;
                         currentGroup.add(chair);
                     });
 
-                    // 4. Hotgirl FBX (Size kafi bada kiya taaki choti na lage)
+                    // 4. Hotgirl FBX (🚀 Size aur bada kiya: 0.35 taaki insaan jaisi dikhe)
                     fbxLoader.load('./Hotgirl.fbx', (fbx) => {
                         const hotgirl = fbx;
-                        // 🚀 Hotgirl scale kafi bada kiya (0.06 se badha kar 0.18 kiya)
-                        hotgirl.scale.set(0.18, 0.18, 0.18); 
-                        hotgirl.position.set(10, 0, 4); // Chair ke paas ground level par
+                        hotgirl.scale.set(0.35, 0.35, 0.35); // 🚀 Bada scale
+                        hotgirl.position.set(10, 0, 4); 
                         hotgirl.rotation.y = -Math.PI / 2;
 
                         // Texture mapping
@@ -215,7 +212,7 @@
                         });
 
                         currentGroup.add(hotgirl);
-                        statusEl.innerHTML = `✅ Perfect Mansion, Aligned Pool, Big Chairs & Hotgirl Loaded!`;
+                        statusEl.innerHTML = `✅ Mansion, Pool, Big Chairs & Big Hotgirl Loaded!`;
                         statusEl.style.color = "#10b981";
                     }, undefined, (err) => {
                         statusEl.innerHTML = `⚠️ Scene loaded, but Hotgirl.fbx not found!`;
