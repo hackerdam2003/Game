@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape">
-    <title>Racing Universe | Mansion & Hotgirl Scene Test</title>
+    <title>Racing Universe | Perfect Mansion Scene</title>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #0f172a; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
@@ -26,14 +26,14 @@
     
     <div class="switch-container">
         <button id="btn-home" class="switch-btn">🏠 Home.glb</button>
-        <button id="btn-newhome" class="switch-btn active">🏡 newhome.glb</button>
+        <button id="btn-newhome" class="switch-btn">🏡 newhome.glb</button>
         <button id="btn-pool" class="switch-btn">🏊 Pool.glb</button>
         <button id="btn-chair" class="switch-btn">🪑 chair.glb</button>
-        <button id="btn-mansion" class="switch-btn" style="background: #ec4899;">🌟 Full Mansion Scene</button>
+        <button id="btn-mansion" class="switch-btn active" style="background: #ec4899;">🌟 Full Mansion Scene</button>
     </div>
 
     <div id="status-text" class="status-hud">
-        ⏳ Loading default newhome.glb...
+        ⏳ Loading Full Mansion Scene...
     </div>
 
     <canvas id="house-canvas"></canvas>
@@ -61,7 +61,7 @@
         scene.background = new THREE.Color(0x0f172a); 
 
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 10000);
-        camera.position.set(0, 15, 40); 
+        camera.position.set(0, 20, 45); 
 
         const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -69,7 +69,7 @@
         
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
-        controls.target.set(0, 0, 0);
+        controls.target.set(10, 0, 0);
 
         const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
         scene.add(ambientLight);
@@ -93,14 +93,13 @@
         let currentGroup = new THREE.Group();
         scene.add(currentGroup);
 
-        // Clear scene helper
         function clearScene() {
             while(currentGroup.children.length > 0){ 
                 currentGroup.remove(currentGroup.children[0]); 
             }
         }
 
-        // 1. Single GLB Loader function
+        // Single GLB Loader
         window.loadGLBModel = function(filename) {
             clearScene();
             statusEl.innerHTML = `⏳ Loading ${filename}...`;
@@ -110,7 +109,6 @@
             
             gltfLoader.load(url, (gltf) => {
                 const model = gltf.scene;
-
                 const box = new THREE.Box3().setFromObject(model);
                 const center = box.getCenter(new THREE.Vector3());
 
@@ -141,25 +139,19 @@
 
                 statusEl.innerHTML = `✅ SUCCESS: ${filename} Loaded Properly!`;
                 statusEl.style.color = "#10b981";
-            }, (xhr) => {
-                if (xhr.lengthComputable) {
-                    const percent = Math.floor((xhr.loaded / xhr.total) * 100);
-                    statusEl.innerHTML = `📦 Decoding ${filename}: ${percent}%`;
-                }
-            }, (error) => {
-                console.error("Error:", error);
+            }, undefined, (error) => {
                 statusEl.innerHTML = `❌ ERROR in ${filename}: File Not Found`;
                 statusEl.style.color = "#ef4444";
             });
         };
 
-        // 2. Full Mansion Scene (House + Pool + 3-4 Chairs + Hotgirl FBX)
+        // 🌟 Full Mansion Scene (House + Fixed Pool Level + 4 Chairs + Hotgirl FBX)
         window.loadFullMansionScene = function() {
             clearScene();
-            statusEl.innerHTML = `⏳ Building Mansion, Pool & Hotgirl Scene...`;
+            statusEl.innerHTML = `⏳ Building Perfect Mansion & Pool Scene...`;
             statusEl.style.color = "#38bdf8";
 
-            // House (Center)
+            // 1. House (Center)
             gltfLoader.load('https://hackerdam2003.github.io/Game/newhome.glb', (gltf) => {
                 const house = gltf.scene;
                 const box = new THREE.Box3().setFromObject(house);
@@ -170,39 +162,41 @@
                 currentGroup.add(house);
             });
 
-            // Pool (Right Side)
+            // 2. Pool (Right Side - Y level fixed so water matches yellow patti)
             gltfLoader.load('https://hackerdam2003.github.io/Game/Pool.glb', (gltf) => {
                 const pool = gltf.scene;
                 const box = new THREE.Box3().setFromObject(pool);
                 const scaleFactor = 15 / Math.max(box.getSize(new THREE.Vector3()).x, box.getSize(new THREE.Vector3()).y, box.getSize(new THREE.Vector3()).z);
                 pool.scale.set(scaleFactor, scaleFactor, scaleFactor);
-                pool.position.set(20, 0, 0);
+                
+                // 🔥 Pool ko ghar ki yellow patti ke barabar ground par set kiya
+                pool.position.set(22, 0, 0); 
                 currentGroup.add(pool);
 
-                // Chairs around Pool (3-4 locations)
+                // 3. Chairs around Pool (Upar surface par)
                 gltfLoader.load('https://hackerdam2003.github.io/Game/chair.glb', (chairGltf) => {
                     const chairBase = chairGltf.scene;
                     
-                    const positions = [
-                        { x: 15, z: 5, rot: Math.PI / 4 },
-                        { x: 15, z: -2, rot: Math.PI / 4 },
-                        { x: 25, z: 5, rot: -Math.PI / 4 },
-                        { x: 25, z: -2, rot: -Math.PI / 4 }
+                    const chairPositions = [
+                        { x: 16, z: 4, rot: Math.PI / 4 },
+                        { x: 16, z: -3, rot: Math.PI / 4 },
+                        { x: 26, z: 4, rot: -Math.PI / 4 },
+                        { x: 26, z: -3, rot: -Math.PI / 4 }
                     ];
 
-                    positions.forEach(pos => {
+                    chairPositions.forEach(pos => {
                         const chair = chairBase.clone();
                         chair.scale.set(2, 2, 2);
-                        chair.position.set(pos.x, 0, pos.z);
+                        chair.position.set(pos.x, 0, pos.z); // Zameen ke upar exact fit
                         chair.rotation.y = pos.rot;
                         currentGroup.add(chair);
                     });
 
-                    // Hotgirl FBX standing near chair
+                    // 4. Hotgirl FBX standing near pool/chair
                     fbxLoader.load('./Hotgirl.fbx', (fbx) => {
                         const hotgirl = fbx;
-                        hotgirl.scale.set(0.06, 0.06, 0.06); // Bada size taaki human lage
-                        hotgirl.position.set(13, 0, 6); // Chair ke paas
+                        hotgirl.scale.set(0.06, 0.06, 0.06); // Proper human size
+                        hotgirl.position.set(14, 0, 6); // Chair ke paas upar khadi hai
                         hotgirl.rotation.y = -Math.PI / 2;
 
                         // Texture mapping
@@ -219,11 +213,10 @@
                         });
 
                         currentGroup.add(hotgirl);
-                        statusEl.innerHTML = `✅ Full Mansion, Pool, Chairs & Hotgirl Loaded!`;
+                        statusEl.innerHTML = `✅ Mansion, Aligned Pool, Chairs & Hotgirl Loaded!`;
                         statusEl.style.color = "#10b981";
                     }, undefined, (err) => {
-                        console.warn("Hotgirl FBX missing or failed to load:", err);
-                        statusEl.innerHTML = `⚠️ Mansion loaded, but Hotgirl.fbx not found!`;
+                        statusEl.innerHTML = `⚠️ Scene loaded, but Hotgirl.fbx not found!`;
                         statusEl.style.color = "#f59e0b";
                     });
                 });
@@ -265,7 +258,6 @@
             window.loadFullMansionScene();
         });
 
-        // Animation loop
         function animate() {
             requestAnimationFrame(animate);
             controls.update();
@@ -279,8 +271,8 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        // Auto load newhome on start
-        window.loadGLBModel('newhome.glb');
+        // Auto load full mansion scene on start
+        window.loadFullMansionScene();
     </script>
 </body>
 </html>
