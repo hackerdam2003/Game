@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape">
-    <title>Racing Universe | Big Hotgirl & Spread Chairs</title>
+    <title>Racing Universe | Perfect Scaled Mansion Scene</title>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #0f172a; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
@@ -33,7 +33,7 @@
     </div>
 
     <div id="status-text" class="status-hud">
-        ⏳ Loading Mansion with Big Hotgirl & Spread Chairs...
+        ⏳ Loading Mansion with 60% Larger & 80% Elevated Props...
     </div>
 
     <canvas id="house-canvas"></canvas>
@@ -144,7 +144,7 @@
             });
         };
 
-        // 🌟 Full Mansion Scene (Bigger Hotgirl, Spread Chairs & Elevated Levels)
+        // 🌟 Full Mansion Scene (60% Larger & 80% Higher Elevated Props)
         window.loadFullMansionScene = async function() {
             clearScene();
             statusEl.innerHTML = `⏳ Loading House...`;
@@ -183,21 +183,21 @@
 
                 statusEl.innerHTML = `⏳ Loading Chairs & Hotgirl...`;
 
-                // 3. Load Chairs (🚀 Size 18.0 aur alag-alag corners me spread kiya)
+                // 3. Load Chairs (🚀 60% bigger size: 23.0 & 80% higher elevation: Y = 2.2)
                 await new Promise((resolve, reject) => {
                     gltfLoader.load('https://hackerdam2003.github.io/Game/chair.glb', (chairGltf) => {
                         const chairBase = chairGltf.scene;
                         const chairPositions = [
-                            { x: 10, z: 8, rot: Math.PI / 4 },    // Top-left pool side
-                            { x: 10, z: -6, rot: Math.PI / 3 },   // Bottom-left pool side
-                            { x: 26, z: 8, rot: -Math.PI / 4 },   // Top-right pool side
-                            { x: 26, z: -6, rot: -Math.PI / 3 }   // Bottom-right pool side
+                            { x: 10, z: 8, rot: Math.PI / 4 },
+                            { x: 10, z: -6, rot: Math.PI / 3 },
+                            { x: 26, z: 8, rot: -Math.PI / 4 },
+                            { x: 26, z: -6, rot: -Math.PI / 3 }
                         ];
 
                         chairPositions.forEach(pos => {
                             const chair = chairBase.clone();
-                            chair.scale.set(18.0, 18.0, 18.0); // 🚀 Bada size
-                            chair.position.set(pos.x, 1.2, pos.z); // 🚀 Pool deck ke level par upar
+                            chair.scale.set(23.0, 23.0, 23.0); // 🚀 60% larger
+                            chair.position.set(pos.x, 2.2, pos.z); // 🚀 80% higher upar
                             chair.rotation.y = pos.rot;
                             currentGroup.add(chair);
                         });
@@ -205,11 +205,11 @@
                     }, undefined, reject);
                 });
 
-                // 4. Load Hotgirl FBX (🚀 Size bada karke 1.8 kiya taaki human size lage)
+                // 4. Load Hotgirl FBX (🚀 60% bigger size: 2.8 & 80% higher elevation: Y = 2.2)
                 fbxLoader.load('./Hotgirl.fbx', (fbx) => {
                     const hotgirl = fbx;
-                    hotgirl.scale.set(1.8, 1.8, 1.8); // 🚀 Kafi bada size
-                    hotgirl.position.set(14, 1.2, 2); // 🚀 Pool ke paas center me khadi hogi
+                    hotgirl.scale.set(2.8, 2.8, 2.8); // 🚀 60% larger human size
+                    hotgirl.position.set(14, 2.2, 2); // 🚀 80% higher upar
                     hotgirl.rotation.y = -Math.PI / 2;
 
                     const textureLoader = new THREE.TextureLoader();
@@ -225,14 +225,14 @@
                     });
 
                     currentGroup.add(hotgirl);
-                    statusEl.innerHTML = `✅ Mansion with Big Hotgirl & Spread Chairs Loaded!`;
+                    statusEl.innerHTML = `✅ Mansion with 60% Larger & 80% Elevated Hotgirl Loaded!`;
                     statusEl.style.color = "#10b981";
                 }, undefined, (err) => {
                     statusEl.innerHTML = `⚠️ Scene loaded (Hotgirl FBX skipped/missing)`;
                     statusEl.style.color = "#f59e0b";
                 });
 
-                camera.position.set(0, 20, 45);
+                camera.position.set(0, 25, 50);
                 controls.target.set(10, 0, 0);
                 controls.update();
 
