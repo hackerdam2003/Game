@@ -1,14 +1,13 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
-// 🚨 NAYA: GLB files load karne ke liye GLTFLoader import kiya
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const container = document.getElementById('render-container');
 const scene = new THREE.Scene();
 
 const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
-camera.position.set(0, 1.0, 3.5); // Thoda door kiya taaki fight animation clear dikhe
+camera.position.set(0, 1.0, 3.5); 
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(container.clientWidth, container.clientHeight);
@@ -34,30 +33,31 @@ let mixer = null;
 const clock = new THREE.Clock();
 
 const fbxLoader = new FBXLoader();
-const gltfLoader = new GLTFLoader(); // GLB Loader
+const gltfLoader = new GLTFLoader(); 
 
 let actions = {};
 let currentActionName = 'idle';
 
-// 👤 CHARACTERS LIST (FBX & GLB)
+// 👤 CHARACTERS LIST
 const characterFiles = {
     'man': './Man.fbx',
     'girl': './Peasant%20Girl.fbx',
-    'exported': './exported-model.glb' // 🚨 Tumhara naya GLB model
+    'hotgirl': './Hotgirl.fbx', // Rename ki hui file ka naam
+    'exported': './exported-model.glb' 
 };
 
-// 🏃‍♂️ MOTIONS LIST (Animations)
+// 🏃‍♂️ MOTIONS LIST
 const motionFiles = {
     'run': './Running.fbx',
     'punch': './Punching.fbx',
     'dance': './Hip%20Hop%20Dancing.fbx',
-    'bounce': './bouncing%20fight.fbx' // 🚨 Nayi Fight animation
+    'bounce': './bouncing%20fight.fbx' 
 };
 
 let currentSelectedChar = 'man';
 
 // ==========================================
-// 1. EDITOR UI (Characters & Motions Buttons)
+// 1. EDITOR UI
 // ==========================================
 function createEditorUI() {
     const uiDiv = document.createElement('div');
@@ -68,7 +68,8 @@ function createEditorUI() {
             <span style="color: #38bdf8; font-size: 13px; font-weight: bold; display: block; margin-bottom: 6px;">👤 Characters</span>
             <button class='ui-btn' id='char-man' style='background:#3b82f6;'>Man</button>
             <button class='ui-btn' id='char-girl' style='background:#ec4899;'>Girl</button>
-            <button class='ui-btn' id='char-exp' style='background:#8b5cf6;'>Exported GLB</button>
+            <button class='ui-btn' id='char-hotgirl' style='background:#f43f5e;'>Hot Girl</button> 
+            <button class='ui-btn' id='char-exp' style='background:#8b5cf6;'>Export GLB</button>
         </div>
         <hr style="border-color:#334155; margin: 10px 0;">
         <div>
@@ -81,18 +82,16 @@ function createEditorUI() {
         </div>
     `;
     
-    // Style for buttons
     const style = document.createElement('style');
     style.innerHTML = `.ui-btn { color:#fff; border:none; padding:6px 10px; border-radius:4px; font-size:11px; cursor:pointer; margin: 0 4px 4px 0; font-weight:bold; } .ui-btn:active{ transform:scale(0.95); }`;
     document.head.appendChild(style);
     container.appendChild(uiDiv);
 
-    // Character Event Listeners
     document.getElementById('char-man').addEventListener('click', () => loadCharacter('man'));
     document.getElementById('char-girl').addEventListener('click', () => loadCharacter('girl'));
+    document.getElementById('char-hotgirl').addEventListener('click', () => loadCharacter('hotgirl'));
     document.getElementById('char-exp').addEventListener('click', () => loadCharacter('exported'));
 
-    // Motion Event Listeners
     document.getElementById('mo-idle').addEventListener('click', () => playMotion('idle'));
     document.getElementById('mo-run').addEventListener('click', () => playMotion('run'));
     document.getElementById('mo-punch').addEventListener('click', () => playMotion('punch'));
@@ -101,7 +100,7 @@ function createEditorUI() {
 }
 
 // ==========================================
-// 2. LOAD CHARACTER (Supports FBX & GLB)
+// 2. LOAD CHARACTER (With Texture Fix)
 // ==========================================
 function loadCharacter(charKey) {
     if (currentSelectedChar === charKey && characterModel) return;
@@ -112,12 +111,10 @@ function loadCharacter(charKey) {
     const loadingEl = document.getElementById('loading-text');
     if(loadingEl) { loadingEl.style.display = 'block'; loadingEl.innerText = "Loading Model..."; }
 
-    // Purana model hatao
     if (characterModel) { scene.remove(characterModel); characterModel = null; mixer = null; }
 
     const setupModel = (model, baseAnimations) => {
         characterModel = model;
-        // FBX usually needs 0.01 scale, GLB is usually 1.
         if (isGLB) characterModel.scale.set(1, 1, 1);
         else characterModel.scale.set(0.01, 0.01, 0.01);
         
@@ -125,11 +122,25 @@ function loadCharacter(charKey) {
         characterModel.traverse((node) => { if (node.isMesh) { node.castShadow = true; node.receiveShadow = true; }});
         scene.add(characterModel);
 
-        // Setup Animation Mixer
-        mixer = new THREE.AnimationMixer(characterModel);
-        actions = {}; // Clear purani animations
+        // 🚨 NAYA: Agar Hotgirl hai toh alag se texture lagao
+        if (charKey === 'hotgirl') {
+            const textureLoader = new THREE.TextureLoader();
+            textureLoader.load('./texture.jpg', (texture) => {
+                texture.colorSpace = THREE.SRGBColorSpace; // Real colors ke liye
+                characterModel.traverse((child) => {
+                    if (child.isMesh && child.material) {
+                        child.material.map = texture;
+                        // Agar material white na ho toh texture dark lagta hai, isliye white set kiya
+                        child.material.color.setHex(0xffffff);
+                        child.material.needsUpdate = true;
+                    }
+                });
+            });
+        }
 
-        // Set Base Idle (agar file me embedded hai)
+        mixer = new THREE.AnimationMixer(characterModel);
+        actions = {}; 
+
         if (baseAnimations && baseAnimations.length > 0) {
             actions['idle'] = mixer.clipAction(baseAnimations[0]);
             actions['idle'].play();
@@ -137,8 +148,6 @@ function loadCharacter(charKey) {
         }
 
         if(loadingEl) loadingEl.style.display = 'none';
-
-        // Ab is model ke upar baaki FBX motions load karo
         loadAllMotions();
     };
 
@@ -150,14 +159,14 @@ function loadCharacter(charKey) {
 }
 
 // ==========================================
-// 3. LOAD & PLAY MOTIONS ON CURRENT CHARACTER
+// 3. MOTIONS
 // ==========================================
 function loadAllMotions() {
     for (const [mKey, mUrl] of Object.entries(motionFiles)) {
         fbxLoader.load(mUrl, (animObj) => {
             if (animObj.animations && animObj.animations.length > 0) {
                 const action = mixer.clipAction(animObj.animations[0]);
-                if(mKey === 'punch') action.setLoop(THREE.LoopOnce); // Punch ek baar hoga
+                if(mKey === 'punch') action.setLoop(THREE.LoopOnce); 
                 actions[mKey] = action;
             }
         });
@@ -166,16 +175,11 @@ function loadAllMotions() {
 
 function playMotion(motionKey) {
     if (!mixer || !actions[motionKey] || currentActionName === motionKey) return;
-    
-    // Smooth transition from current animation to new one
-    if (actions[currentActionName]) {
-        actions[currentActionName].fadeOut(0.2);
-    }
+    if (actions[currentActionName]) actions[currentActionName].fadeOut(0.2);
     
     actions[motionKey].reset().fadeIn(0.2).play();
     currentActionName = motionKey;
 
-    // Agar punch hai toh khatam hone par wapas idle ho jaye
     if(motionKey === 'punch') {
         mixer.addEventListener('finished', function listener(e) {
             if (e.action === actions['punch']) {
@@ -187,12 +191,11 @@ function playMotion(motionKey) {
 }
 
 // ==========================================
-// 4. INITIALIZATION & RENDER
+// 4. INIT & RENDER
 // ==========================================
 createEditorUI();
 loadCharacter(currentSelectedChar);
 
-// Skin Color changer (GLB aur FBX dono me chalega)
 const colorSkinInput = document.getElementById('color-skin');
 if(colorSkinInput) {
     colorSkinInput.addEventListener('input', (e) => {
@@ -208,7 +211,6 @@ if(colorSkinInput) {
 }
 
 window.save3DDNA = function() {
-    // Game page ke liye character aur skin color save karna
     localStorage.setItem('selectedCharacter', currentSelectedChar);
     alert('3D Character DNA Saved! Entering Game...');
     window.location.href = "game.html";
@@ -228,3 +230,4 @@ window.addEventListener('resize', () => {
     camera.updateProjectionMatrix();
     renderer.setSize(container.clientWidth, container.clientHeight);
 });
+
