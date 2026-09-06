@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape">
-    <title>Racing Universe | Optimized Mansion Scene</title>
+    <title>Racing Universe | Aligned Mansion & Elevated Characters</title>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #0f172a; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
@@ -33,7 +33,7 @@
     </div>
 
     <div id="status-text" class="status-hud">
-        ⏳ Initializing Optimized Scene...
+        ⏳ Loading Mansion with Elevated & Bigger Props...
     </div>
 
     <canvas id="house-canvas"></canvas>
@@ -144,7 +144,7 @@
             });
         };
 
-        // 🌟 Optimized Full Mansion Scene (Smooth Async Loading)
+        // 🌟 Full Mansion Scene (Bigger & Higher Elevated Chairs & Hotgirl)
         window.loadFullMansionScene = async function() {
             clearScene();
             statusEl.innerHTML = `⏳ Loading House...`;
@@ -183,7 +183,7 @@
 
                 statusEl.innerHTML = `⏳ Loading Chairs & Hotgirl...`;
 
-                // 3. Load Chairs
+                // 3. Load Chairs (🚀 Size 14.0 aur height Y = 1.2 kar di taaki pool deck ke upar rahen)
                 await new Promise((resolve, reject) => {
                     gltfLoader.load('https://hackerdam2003.github.io/Game/chair.glb', (chairGltf) => {
                         const chairBase = chairGltf.scene;
@@ -196,8 +196,8 @@
 
                         chairPositions.forEach(pos => {
                             const chair = chairBase.clone();
-                            chair.scale.set(10.0, 10.0, 10.0);
-                            chair.position.set(pos.x, 0.1, pos.z);
+                            chair.scale.set(14.0, 14.0, 14.0); // 🚀 Aur bada size
+                            chair.position.set(pos.x, 1.2, pos.z); // 🚀 Pool deck ke level par upar kiya
                             chair.rotation.y = pos.rot;
                             currentGroup.add(chair);
                         });
@@ -205,11 +205,11 @@
                     }, undefined, reject);
                 });
 
-                // 4. Load Hotgirl FBX
+                // 4. Load Hotgirl FBX (🚀 Size 0.65 aur height Y = 1.2 kar di)
                 fbxLoader.load('./Hotgirl.fbx', (fbx) => {
                     const hotgirl = fbx;
-                    hotgirl.scale.set(0.35, 0.35, 0.35);
-                    hotgirl.position.set(10, 0.1, 4);
+                    hotgirl.scale.set(0.65, 0.65, 0.65); // 🚀 Kafi bada size
+                    hotgirl.position.set(10, 1.2, 4); // 🚀 Pool deck ke level par upar kiya
                     hotgirl.rotation.y = -Math.PI / 2;
 
                     const textureLoader = new THREE.TextureLoader();
@@ -225,7 +225,7 @@
                     });
 
                     currentGroup.add(hotgirl);
-                    statusEl.innerHTML = `✅ Fully Optimized Mansion Scene Loaded!`;
+                    statusEl.innerHTML = `✅ Mansion, Aligned Pool, Big & Elevated Chairs & Hotgirl Loaded!`;
                     statusEl.style.color = "#10b981";
                 }, undefined, (err) => {
                     statusEl.innerHTML = `⚠️ Scene loaded (Hotgirl FBX skipped/missing)`;
@@ -238,7 +238,7 @@
 
             } catch (err) {
                 console.error("Loading error:", err);
-                statusEl.innerHTML = `❌ Error loading optimized scene.`;
+                statusEl.innerHTML = `❌ Error loading scene.`;
                 statusEl.style.color = "#ef4444";
             }
         };
