@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js'; // 🚀 BLACK SCREEN FIX: Ye import add kiya!
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
@@ -18,7 +18,7 @@ const app = initializeApp(engineConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-console.log("🎮 [Game Engine] 360 Movement & Genshin Camera Active!");
+console.log("🎮 [Game Engine] Pro Genshin Movement & Wall Collisions Active!");
 
 const gameSocket = io(); 
 
@@ -28,7 +28,6 @@ let speed = 0.08;
 let moveVector = { x: 0, y: 0 };
 
 let currentEnvironment = "world";
-// 🚀 NAYA: controls variable add kiya
 let scene, camera, renderer, clock, controls;
 let worldGroup, houseGroup; 
 
@@ -53,8 +52,9 @@ const HOUSE_Y_OFFSET = -3.2;
 const CHAIR_POS = { x: -3, z: -2 };
 const BED_POS = { x: 3, z: -4 };
 
-// 🧗 Raycaster Setup (Zameen aur seedhiyon par chalne ke liye)
+// 🧗 Raycaster Setup (Floor + Wall Collision)
 const downRaycaster = new THREE.Raycaster();
+const forwardRaycaster = new THREE.Raycaster(); // NAYA: Wall sensor
 const downDirection = new THREE.Vector3(0, -1, 0);
 let worldHouseRef = null;
 let interiorHouseRef = null;
@@ -147,22 +147,20 @@ function init3DWorld() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
     
-    // 📸 NAYA: Genshin Style 360 Controls Add Kiya
-    renderer.domElement.style.touchAction = 'none'; // Screen dragging roki
+    renderer.domElement.style.touchAction = 'none'; 
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
     controls.enablePan = false; 
     controls.minDistance = 1.5; 
-    controls.maxDistance = 8; // Zoom limit
-    controls.maxPolarAngle = Math.PI / 2 - 0.05; // Zameen ke andar ghusne se rokega
+    controls.maxDistance = 8; 
+    controls.maxPolarAngle = Math.PI / 2 - 0.05; 
 
     worldGroup = new THREE.Group();
     houseGroup = new THREE.Group();
     scene.add(worldGroup);
     scene.add(houseGroup);
 
-    // World Lighting
     const ambientW = new THREE.AmbientLight(0xffffff, 1.5);
     const dirLightW = new THREE.DirectionalLight(0xfff0dd, 2);
     dirLightW.position.set(5, 10, 5);
@@ -170,7 +168,6 @@ function init3DWorld() {
     worldGroup.add(dirLightW);
     worldGroup.add(new THREE.GridHelper(100, 100, 0x3b82f6, 0x1e293b));
 
-    // House Lighting
     const ambientH = new THREE.AmbientLight(0xffffff, 1.5);
     const pointLightH = new THREE.PointLight(0xffddaa, 2, 30);
     pointLightH.position.set(0, 5, 0);
@@ -216,7 +213,6 @@ function loadAsliGhar() {
         
         originalHouse.traverse((node) => {
             if (node.isMesh) {
-                console.log("📦 Model Part Found:", node.name);
                 node.castShadow = true;
                 node.receiveShadow = true;
                 if (node.material) {
@@ -244,8 +240,6 @@ function loadAsliGhar() {
         interiorHouseRef.position.z = -center.z;
         houseGroup.add(interiorHouseRef);
 
-    }, undefined, (err) => {
-        console.error("Ghar load error:", err);
     });
 }
 
@@ -439,7 +433,6 @@ function setupJoystick() {
     if(!base || !knob) return;
     let isDragging = false, center = {x:0, y:0};
 
-    // 🚀 NAYA: stopPropagation se joystick touch karte waqt camera nahi ghumega
     base.addEventListener('touchstart', (e) => {
         e.stopPropagation(); 
         if(isBusy) return;
@@ -491,41 +484,59 @@ function renderLoop() {
 
         if (my3DCharacter) {
             
-            // ⚔️ 360 DEGREE CAMERA-RELATIVE MOVEMENT (GENSHIN IMPACT STYLE)
+            // ⚔️ 1. GENSHIN IMPACT STYLE 360 CAMERA-RELATIVE MOVEMENT (Smooth Turning)
             if (!isBusy && (moveVector.x !== 0 || moveVector.y !== 0)) {
-                // Camera kis disha me dekh raha hai uski y-rotation nikalte hain
                 const camEuler = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
-                
-                // Joystick kis disha me pressed hai uska angle (0 se PI)
                 const joyAngle = Math.atan2(moveVector.x, moveVector.y);
-                
-                // Dono angles mila kar final disha banti hai
                 const targetRotation = joyAngle + camEuler.y;
-                my3DCharacter.rotation.y = targetRotation;
 
-                // Aage badhao
+                // 🚀 NAYA: Shortest path angle interpolation (Smooth character turning)
+                let diff = targetRotation - my3DCharacter.rotation.y;
+                diff = Math.atan2(Math.sin(diff), Math.cos(diff)); // Normalize to [-PI, PI]
+                my3DCharacter.rotation.y += diff * 0.15; // Smooth turn factor
+
                 const currentSpeed = Math.min(Math.sqrt(moveVector.x*moveVector.x + moveVector.y*moveVector.y), 1) * speed;
-                my3DCharacter.position.x += Math.sin(targetRotation) * currentSpeed;
-                my3DCharacter.position.z += Math.cos(targetRotation) * currentSpeed;
+                
+                // 🛑 2. WALL COLLISION FIX (Aar-paar jana band)
+                let canMove = true;
+                if (currentHouseCollider) {
+                    // Check directly ahead of character's chest
+                    const moveDir = new THREE.Vector3(Math.sin(targetRotation), 0, Math.cos(targetRotation)).normalize();
+                    const chestPos = my3DCharacter.position.clone();
+                    chestPos.y += 0.8; // Chest level
+                    
+                    forwardRaycaster.set(chestPos, moveDir);
+                    const wallHits = forwardRaycaster.intersectObject(currentHouseCollider, true);
+                    
+                    // Agar diwar 0.5 meter se kareeb hai, toh movement block kardo
+                    if (wallHits.length > 0 && wallHits[0].distance < 0.5) {
+                        canMove = false;
+                    }
+                }
+
+                // Agar deewar aage nahi hai, tabhi move karo
+                if (canMove) {
+                    my3DCharacter.position.x += Math.sin(targetRotation) * currentSpeed;
+                    my3DCharacter.position.z += Math.cos(targetRotation) * currentSpeed;
+                }
                 
                 allPlayersData[myUid] = { x: my3DCharacter.position.x, y: my3DCharacter.position.z };
                 gameSocket.emit('player-moved', { uid: myUid, x: my3DCharacter.position.x, y: my3DCharacter.position.y, z: my3DCharacter.position.z, rot: my3DCharacter.rotation.y, action: currentAction, env: currentEnvironment });
                 renderMinimap(allPlayersData, myUid);
             }
 
-            // 🧗 Floor & Stairs Detection (Raycasting) - Same Purana Safe Logic
+            // 🧗 3. FLOOR DETECTION & SINKING FIX (Smooth Floor Snapping)
             if (currentHouseCollider && !isBusy) {
                 const rayOrigin = my3DCharacter.position.clone();
-                rayOrigin.y += 2.0; 
+                rayOrigin.y += 3.0; // Upar se ray check karenge taaki stairs miss na hon
 
                 downRaycaster.set(rayOrigin, downDirection);
                 const hits = downRaycaster.intersectObject(currentHouseCollider, true);
 
                 if (hits.length > 0) {
                     const floorHeight = hits[0].point.y;
-                    if (Math.abs(floorHeight - my3DCharacter.position.y) < 1.0) {
-                        my3DCharacter.position.y = floorHeight; 
-                    }
+                    // NAYA: Smooth Y-transition to prevent sinking during running bounce
+                    my3DCharacter.position.y += (floorHeight - my3DCharacter.position.y) * 0.2;
                 } else {
                     if (my3DCharacter.position.y > 0) {
                         my3DCharacter.position.y = Math.max(0, my3DCharacter.position.y - 0.1);
@@ -533,7 +544,7 @@ function renderLoop() {
                 }
             }
 
-            // 🎥 360 DEGREE SMOOTH CAMERA FOLLOW (Camera target update hota hai bina jump kiye)
+            // 🎥 Smooth Camera Follow (Camera pan hone par kheechegi nahi)
             if (controls) {
                 const charTarget = new THREE.Vector3(my3DCharacter.position.x, my3DCharacter.position.y + 1.2, my3DCharacter.position.z);
                 const posDelta = charTarget.clone().sub(controls.target);
@@ -573,7 +584,6 @@ function renderLoop() {
                 }
             }
 
-            // Floating Name Label
             const myLabel = document.getElementById('my-label');
             if(myLabel && myLabel.innerHTML !== "") {
                 const pos = my3DCharacter.position.clone();
@@ -617,3 +627,4 @@ window.addEventListener('resize', () => {
         renderer.setSize(window.innerWidth, window.innerHeight);
     }
 });
+
