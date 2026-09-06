@@ -2,6 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js'; // 🚀 BLACK SCREEN FIX: Ye import add kiya!
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
@@ -17,7 +18,7 @@ const app = initializeApp(engineConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-console.log("🎮 [Game Engine] Normal Controls & Floor Raycasting Active!");
+console.log("🎮 [Game Engine] 360 Movement & Genshin Camera Active!");
 
 const gameSocket = io(); 
 
@@ -27,7 +28,8 @@ let speed = 0.08;
 let moveVector = { x: 0, y: 0 };
 
 let currentEnvironment = "world";
-let scene, camera, renderer, clock;
+// 🚀 NAYA: controls variable add kiya
+let scene, camera, renderer, clock, controls;
 let worldGroup, houseGroup; 
 
 let my3DCharacter = null;
@@ -56,7 +58,7 @@ const downRaycaster = new THREE.Raycaster();
 const downDirection = new THREE.Vector3(0, -1, 0);
 let worldHouseRef = null;
 let interiorHouseRef = null;
-let currentHouseCollider = null; // Jo ghar abhi screen par hai, uska floor check karega
+let currentHouseCollider = null; 
 
 const characterFiles = { 'man': './Man.fbx', 'girl': './Peasant%20Girl.fbx' };
 let currentSelectedChar = localStorage.getItem('selectedCharacter') || 'man';
@@ -138,13 +140,22 @@ function init3DWorld() {
     scene.background = new THREE.Color(0x0f172a); 
     clock = new THREE.Clock();
 
-    // 🎥 Normal Follow Camera
     camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 1.4, 3.2); 
+    camera.position.set(0, 1.4, -3.2); 
 
     renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
+    
+    // 📸 NAYA: Genshin Style 360 Controls Add Kiya
+    renderer.domElement.style.touchAction = 'none'; // Screen dragging roki
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.enablePan = false; 
+    controls.minDistance = 1.5; 
+    controls.maxDistance = 8; // Zoom limit
+    controls.maxPolarAngle = Math.PI / 2 - 0.05; // Zameen ke andar ghusne se rokega
 
     worldGroup = new THREE.Group();
     houseGroup = new THREE.Group();
@@ -159,17 +170,15 @@ function init3DWorld() {
     worldGroup.add(dirLightW);
     worldGroup.add(new THREE.GridHelper(100, 100, 0x3b82f6, 0x1e293b));
 
-    // House Lighting (Interior)
+    // House Lighting
     const ambientH = new THREE.AmbientLight(0xffffff, 1.5);
     const pointLightH = new THREE.PointLight(0xffddaa, 2, 30);
     pointLightH.position.set(0, 5, 0);
     houseGroup.add(ambientH);
     houseGroup.add(pointLightH);
     
-    // Load Real Model
     loadAsliGhar();
 
-    // Invisible Exit Door Trigger
     exitDoorMesh = new THREE.Mesh(new THREE.BoxGeometry(4, 4, 4), new THREE.MeshBasicMaterial({ visible: false }));
     exitDoorMesh.position.set(0, 1, 6); 
     houseGroup.add(exitDoorMesh);
@@ -181,7 +190,6 @@ function init3DWorld() {
     requestAnimationFrame(renderLoop);
 }
 
-// 🏠 Ghar Loader (Yellow Patti Fix & Scanner Included)
 function loadAsliGhar() {
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/');
@@ -199,7 +207,7 @@ function loadAsliGhar() {
         
         const maxDim = Math.max(size.x, size.y, size.z);
         if (maxDim > 0) {
-            const scaleFactor = 30 / maxDim; // Real scale size
+            const scaleFactor = 30 / maxDim; 
             originalHouse.scale.set(scaleFactor, scaleFactor, scaleFactor);
         }
 
@@ -208,40 +216,34 @@ function loadAsliGhar() {
         
         originalHouse.traverse((node) => {
             if (node.isMesh) {
-                // 🔍 DEBUG: Scanner Console me saare parts ke naam print karega
                 console.log("📦 Model Part Found:", node.name);
-                
                 node.castShadow = true;
                 node.receiveShadow = true;
                 if (node.material) {
                     node.material.side = THREE.DoubleSide;
-                    node.material.alphaTest = 0.3; // Leaves transparency
+                    node.material.alphaTest = 0.3; 
                 }
             }
         });
 
-        // 1. Bahar Ka Ghar (World)
         worldHouseRef = originalHouse.clone();
         worldHouseRef.position.x = 2 - center.x;
         worldHouseRef.position.y = -scaledBox.min.y + HOUSE_Y_OFFSET; 
         worldHouseRef.position.z = -10 - center.z; 
         worldGroup.add(worldHouseRef);
         
-        currentHouseCollider = worldHouseRef; // Raycast ab ispar lagega
+        currentHouseCollider = worldHouseRef; 
 
-        // Door Trigger
         doorMesh = new THREE.Mesh(new THREE.BoxGeometry(4, 4, 4), new THREE.MeshBasicMaterial({ visible: false }));
         doorMesh.position.set(2, 1.5, -4); 
         worldGroup.add(doorMesh);
 
-        // 2. Andar Ka Ghar (Interior)
         interiorHouseRef = originalHouse.clone();
         interiorHouseRef.position.x = -center.x;
         interiorHouseRef.position.y = -scaledBox.min.y + HOUSE_Y_OFFSET; 
         interiorHouseRef.position.z = -center.z;
         houseGroup.add(interiorHouseRef);
 
-        console.log("✅ Home loaded and Scanner is active!");
     }, undefined, (err) => {
         console.error("Ghar load error:", err);
     });
@@ -256,14 +258,14 @@ function switchEnvironment(targetEnv) {
         houseGroup.visible = true;
         scene.background = new THREE.Color(0x1e293b); 
         my3DCharacter.position.set(0, 0, 4); 
-        currentHouseCollider = interiorHouseRef; // Interior Floor collision active
+        currentHouseCollider = interiorHouseRef; 
         enterHouseBtn.style.display = "none";
     } else {
         worldGroup.visible = true;
         houseGroup.visible = false;
         scene.background = new THREE.Color(0x0f172a); 
         my3DCharacter.position.set(2, 0, 0); 
-        currentHouseCollider = worldHouseRef; // World Floor collision active
+        currentHouseCollider = worldHouseRef; 
         enterHouseBtn.style.display = "none";
     }
     
@@ -432,21 +434,23 @@ function showChatBubble(uid, msg) {
     }
 }
 
-// 🕹️ Original Joystick Control (Ekdum Smooth)
 function setupJoystick() {
     const base = document.getElementById('joystick-base'), knob = document.getElementById('joystick-knob');
     if(!base || !knob) return;
     let isDragging = false, center = {x:0, y:0};
 
+    // 🚀 NAYA: stopPropagation se joystick touch karte waqt camera nahi ghumega
     base.addEventListener('touchstart', (e) => {
+        e.stopPropagation(); 
         if(isBusy) return;
         isDragging = true;
         const rect = base.getBoundingClientRect();
         center = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
         handleTouch(e);
     });
-    base.addEventListener('touchmove', (e) => { if(isDragging) handleTouch(e); });
-    base.addEventListener('touchend', () => {
+    base.addEventListener('touchmove', (e) => { e.stopPropagation(); if(isDragging) handleTouch(e); });
+    base.addEventListener('touchend', (e) => {
+        e.stopPropagation(); 
         isDragging = false; knob.style.transform = `translate(0, 0)`; moveVector = { x: 0, y: 0 };
         if(!isBusy) playAnim('idle'); 
     });
@@ -486,42 +490,58 @@ function renderLoop() {
         if (monsterMixer) monsterMixer.update(delta);
 
         if (my3DCharacter) {
-            // 🕹️ Original Smooth Character Movement
+            
+            // ⚔️ 360 DEGREE CAMERA-RELATIVE MOVEMENT (GENSHIN IMPACT STYLE)
             if (!isBusy && (moveVector.x !== 0 || moveVector.y !== 0)) {
-                my3DCharacter.position.x += moveVector.x * speed;
-                my3DCharacter.position.z += moveVector.y * speed;
-                my3DCharacter.rotation.y = Math.atan2(moveVector.x, moveVector.y);
+                // Camera kis disha me dekh raha hai uski y-rotation nikalte hain
+                const camEuler = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
+                
+                // Joystick kis disha me pressed hai uska angle (0 se PI)
+                const joyAngle = Math.atan2(moveVector.x, moveVector.y);
+                
+                // Dono angles mila kar final disha banti hai
+                const targetRotation = joyAngle + camEuler.y;
+                my3DCharacter.rotation.y = targetRotation;
+
+                // Aage badhao
+                const currentSpeed = Math.min(Math.sqrt(moveVector.x*moveVector.x + moveVector.y*moveVector.y), 1) * speed;
+                my3DCharacter.position.x += Math.sin(targetRotation) * currentSpeed;
+                my3DCharacter.position.z += Math.cos(targetRotation) * currentSpeed;
                 
                 allPlayersData[myUid] = { x: my3DCharacter.position.x, y: my3DCharacter.position.z };
                 gameSocket.emit('player-moved', { uid: myUid, x: my3DCharacter.position.x, y: my3DCharacter.position.y, z: my3DCharacter.position.z, rot: my3DCharacter.rotation.y, action: currentAction, env: currentEnvironment });
                 renderMinimap(allPlayersData, myUid);
             }
 
-            // 🧗 Floor & Stairs Detection (Raycasting)
+            // 🧗 Floor & Stairs Detection (Raycasting) - Same Purana Safe Logic
             if (currentHouseCollider && !isBusy) {
                 const rayOrigin = my3DCharacter.position.clone();
-                rayOrigin.y += 2.0; // Player ke sir ke thoda upar se check karega
+                rayOrigin.y += 2.0; 
 
                 downRaycaster.set(rayOrigin, downDirection);
                 const hits = downRaycaster.intersectObject(currentHouseCollider, true);
 
                 if (hits.length > 0) {
                     const floorHeight = hits[0].point.y;
-                    // Agar agla step player ki height ke paas hai toh uspar chadega
                     if (Math.abs(floorHeight - my3DCharacter.position.y) < 1.0) {
                         my3DCharacter.position.y = floorHeight; 
                     }
                 } else {
-                    // Agar ghar se bahar normal ground par hai
                     if (my3DCharacter.position.y > 0) {
                         my3DCharacter.position.y = Math.max(0, my3DCharacter.position.y - 0.1);
                     }
                 }
             }
 
-            // 🎥 Rock-Solid 3rd Person Follow Camera
-            camera.position.set(my3DCharacter.position.x, my3DCharacter.position.y + 1.6, my3DCharacter.position.z + 3.5);
-            camera.lookAt(my3DCharacter.position.x, my3DCharacter.position.y + 0.9, my3DCharacter.position.z);
+            // 🎥 360 DEGREE SMOOTH CAMERA FOLLOW (Camera target update hota hai bina jump kiye)
+            if (controls) {
+                const charTarget = new THREE.Vector3(my3DCharacter.position.x, my3DCharacter.position.y + 1.2, my3DCharacter.position.z);
+                const posDelta = charTarget.clone().sub(controls.target);
+                
+                controls.target.add(posDelta);
+                camera.position.add(posDelta);
+                controls.update(); 
+            }
 
             // 🏠 Door Interaction
             if (currentEnvironment === "world" && doorMesh) {
@@ -595,7 +615,5 @@ window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
-        const canvas = renderer.domElement;
-        canvas.style.width = '100vw'; canvas.style.height = '100vh';
     }
 });
