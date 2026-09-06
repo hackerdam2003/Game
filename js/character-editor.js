@@ -42,11 +42,10 @@ let currentActionName = 'idle';
 const characterFiles = {
     'man': './Man.fbx',
     'girl': './Peasant%20Girl.fbx',
-    'hotgirl': './Hotgirl.fbx', // Rename ki hui file ka naam
+    'hotgirl': './Hotgirl.fbx', 
     'exported': './exported-model.glb' 
 };
 
-// 🏃‍♂️ MOTIONS LIST
 const motionFiles = {
     'run': './Running.fbx',
     'punch': './Punching.fbx',
@@ -56,9 +55,6 @@ const motionFiles = {
 
 let currentSelectedChar = 'man';
 
-// ==========================================
-// 1. EDITOR UI
-// ==========================================
 function createEditorUI() {
     const uiDiv = document.createElement('div');
     uiDiv.style.cssText = 'position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; z-index: 10; max-width: 300px; border: 1px solid #3b82f6;';
@@ -99,9 +95,6 @@ function createEditorUI() {
     document.getElementById('mo-bounce').addEventListener('click', () => playMotion('bounce'));
 }
 
-// ==========================================
-// 2. LOAD CHARACTER (With Texture Fix)
-// ==========================================
 function loadCharacter(charKey) {
     if (currentSelectedChar === charKey && characterModel) return;
     currentSelectedChar = charKey;
@@ -115,22 +108,27 @@ function loadCharacter(charKey) {
 
     const setupModel = (model, baseAnimations) => {
         characterModel = model;
-        if (isGLB) characterModel.scale.set(1, 1, 1);
-        else characterModel.scale.set(0.01, 0.01, 0.01);
+        
+        // 🚀 NAYA: Size (Scale) Fix
+        if (isGLB) {
+            characterModel.scale.set(1, 1, 1);
+        } else if (charKey === 'hotgirl') {
+            characterModel.scale.set(1, 1, 1); // 👈 Isko 1 kiya, agar abhi bhi bada/chota lage toh 0.1 ya 2 karke dekhna
+        } else {
+            characterModel.scale.set(0.01, 0.01, 0.01);
+        }
         
         characterModel.position.set(0, 0, 0);
         characterModel.traverse((node) => { if (node.isMesh) { node.castShadow = true; node.receiveShadow = true; }});
         scene.add(characterModel);
 
-        // 🚨 NAYA: Agar Hotgirl hai toh alag se texture lagao
         if (charKey === 'hotgirl') {
             const textureLoader = new THREE.TextureLoader();
             textureLoader.load('./texture.jpg', (texture) => {
-                texture.colorSpace = THREE.SRGBColorSpace; // Real colors ke liye
+                texture.colorSpace = THREE.SRGBColorSpace;
                 characterModel.traverse((child) => {
                     if (child.isMesh && child.material) {
                         child.material.map = texture;
-                        // Agar material white na ho toh texture dark lagta hai, isliye white set kiya
                         child.material.color.setHex(0xffffff);
                         child.material.needsUpdate = true;
                     }
@@ -141,6 +139,7 @@ function loadCharacter(charKey) {
         mixer = new THREE.AnimationMixer(characterModel);
         actions = {}; 
 
+        // Play Native Animation if exists
         if (baseAnimations && baseAnimations.length > 0) {
             actions['idle'] = mixer.clipAction(baseAnimations[0]);
             actions['idle'].play();
@@ -158,9 +157,6 @@ function loadCharacter(charKey) {
     }
 }
 
-// ==========================================
-// 3. MOTIONS
-// ==========================================
 function loadAllMotions() {
     for (const [mKey, mUrl] of Object.entries(motionFiles)) {
         fbxLoader.load(mUrl, (animObj) => {
@@ -190,9 +186,6 @@ function playMotion(motionKey) {
     }
 }
 
-// ==========================================
-// 4. INIT & RENDER
-// ==========================================
 createEditorUI();
 loadCharacter(currentSelectedChar);
 
@@ -230,4 +223,3 @@ window.addEventListener('resize', () => {
     camera.updateProjectionMatrix();
     renderer.setSize(container.clientWidth, container.clientHeight);
 });
-
