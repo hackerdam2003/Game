@@ -18,7 +18,7 @@ const app = initializeApp(engineConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-console.log("🎮 [Game Engine] Pro Genshin Movement & Wall Collisions Active!");
+console.log("🎮 [Game Engine] Skybox, Fixed Ground & Dance Idle Active!");
 
 const gameSocket = io(); 
 
@@ -35,7 +35,8 @@ let my3DCharacter = null;
 let monsterCharacter = null;
 let mixer = null, monsterMixer = null;
 let actions = {}; 
-let currentAction = 'idle';
+// 🚀 NAYA: Default action ab 'dance' hai 'idle' ki jagah
+let currentAction = 'dance'; 
 
 const remotePlayers = {}; 
 let allPlayersData = {}; 
@@ -47,14 +48,14 @@ let doorMesh = null, exitDoorMesh = null;
 let enterHouseBtn = null, actionUI = null, playerListUI = null;
 let isBusy = false; 
 
-// 🏠 Ghar Setup
-const HOUSE_Y_OFFSET = -3.2; 
+// 🏠 Ghar Setup - 🚀 Y_OFFSET ko 0 kiya taaki ghar zameen par rahe
+const HOUSE_Y_OFFSET = 0; 
 const CHAIR_POS = { x: -3, z: -2 };
 const BED_POS = { x: 3, z: -4 };
 
-// 🧗 Raycaster Setup (Floor + Wall Collision)
+// 🧗 Raycaster Setup
 const downRaycaster = new THREE.Raycaster();
-const forwardRaycaster = new THREE.Raycaster(); // NAYA: Wall sensor
+const forwardRaycaster = new THREE.Raycaster();
 const downDirection = new THREE.Vector3(0, -1, 0);
 let worldHouseRef = null;
 let interiorHouseRef = null;
@@ -137,10 +138,10 @@ function init3DWorld() {
     canvas.style.zIndex = '0';
 
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0f172a); 
+    scene.background = new THREE.Color(0x87CEEB); // Default sky blue color before model loads
     clock = new THREE.Clock();
 
-    camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 5000); // 🚀 Max distance badhai sky dekhne ke liye
     camera.position.set(0, 1.4, -3.2); 
 
     renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
@@ -153,7 +154,7 @@ function init3DWorld() {
     controls.dampingFactor = 0.05;
     controls.enablePan = false; 
     controls.minDistance = 1.5; 
-    controls.maxDistance = 8; 
+    controls.maxDistance = 10; 
     controls.maxPolarAngle = Math.PI / 2 - 0.05; 
 
     worldGroup = new THREE.Group();
@@ -166,7 +167,9 @@ function init3DWorld() {
     dirLightW.position.set(5, 10, 5);
     worldGroup.add(ambientW);
     worldGroup.add(dirLightW);
-    worldGroup.add(new THREE.GridHelper(100, 100, 0x3b82f6, 0x1e293b));
+    
+    // NAYA: Removed GridHelper to make it look like a real game
+    // worldGroup.add(new THREE.GridHelper(100, 100, 0x3b82f6, 0x1e293b));
 
     const ambientH = new THREE.AmbientLight(0xffffff, 1.5);
     const pointLightH = new THREE.PointLight(0xffddaa, 2, 30);
@@ -174,6 +177,10 @@ function init3DWorld() {
     houseGroup.add(ambientH);
     houseGroup.add(pointLightH);
     
+    // ☁️ 1. LOAD CLOUDY SKYBOX
+    loadSkybox();
+
+    // 🏡 2. LOAD HOUSE
     loadAsliGhar();
 
     exitDoorMesh = new THREE.Mesh(new THREE.BoxGeometry(4, 4, 4), new THREE.MeshBasicMaterial({ visible: false }));
@@ -185,6 +192,35 @@ function init3DWorld() {
     loadCharacter(currentSelectedChar);
     loadMonster();
     requestAnimationFrame(renderLoop);
+}
+
+// ☁️ NAYA FUNCTION: Sky.glb Load karne ke liye
+function loadSkybox() {
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/');
+    const gltfLoader = new GLTFLoader();
+    gltfLoader.setDRACOLoader(dracoLoader);
+    
+    gltfLoader.load('https://hackerdam2003.github.io/Game/Sky.glb', (gltf) => {
+        const sky = gltf.scene;
+        // Bada scale taaki poori duniya cover ho jaye
+        sky.scale.set(500, 500, 500);
+        // Sky hamesha center me rahe
+        sky.position.set(0, 0, 0);
+        
+        // Disable shadow for sky so it doesn't affect ground lighting
+        sky.traverse((node) => {
+            if (node.isMesh) {
+                node.castShadow = false;
+                node.receiveShadow = false;
+                if(node.material) node.material.side = THREE.BackSide; // Andar se dikhega
+            }
+        });
+        worldGroup.add(sky);
+        console.log("☁️ Skybox Loaded Successfully!");
+    }, undefined, (err) => {
+        console.error("Skybox load error:", err);
+    });
 }
 
 function loadAsliGhar() {
@@ -224,7 +260,8 @@ function loadAsliGhar() {
 
         worldHouseRef = originalHouse.clone();
         worldHouseRef.position.x = 2 - center.x;
-        worldHouseRef.position.y = -scaledBox.min.y + HOUSE_Y_OFFSET; 
+        // 🚀 FIX: Ghar ko exactly ground level 0 par set kiya taaki hawa me na ude
+        worldHouseRef.position.y = -scaledBox.min.y; 
         worldHouseRef.position.z = -10 - center.z; 
         worldGroup.add(worldHouseRef);
         
@@ -236,7 +273,7 @@ function loadAsliGhar() {
 
         interiorHouseRef = originalHouse.clone();
         interiorHouseRef.position.x = -center.x;
-        interiorHouseRef.position.y = -scaledBox.min.y + HOUSE_Y_OFFSET; 
+        interiorHouseRef.position.y = -scaledBox.min.y; 
         interiorHouseRef.position.z = -center.z;
         houseGroup.add(interiorHouseRef);
 
@@ -251,19 +288,20 @@ function switchEnvironment(targetEnv) {
         worldGroup.visible = false;
         houseGroup.visible = true;
         scene.background = new THREE.Color(0x1e293b); 
-        my3DCharacter.position.set(0, 0, 4); 
+        my3DCharacter.position.set(0, 0.5, 4); 
         currentHouseCollider = interiorHouseRef; 
         enterHouseBtn.style.display = "none";
     } else {
         worldGroup.visible = true;
         houseGroup.visible = false;
-        scene.background = new THREE.Color(0x0f172a); 
-        my3DCharacter.position.set(2, 0, 0); 
+        scene.background = new THREE.Color(0x87CEEB); 
+        my3DCharacter.position.set(2, 0.5, 0); 
         currentHouseCollider = worldHouseRef; 
         enterHouseBtn.style.display = "none";
     }
     
-    gameSocket.emit('player-moved', { uid: myUid, x: my3DCharacter.position.x, y: my3DCharacter.position.y, z: my3DCharacter.position.z, rot: my3DCharacter.rotation.y, action: 'idle', env: currentEnvironment });
+    // 🚀 Update: Default animation is dance
+    gameSocket.emit('player-moved', { uid: myUid, x: my3DCharacter.position.x, y: my3DCharacter.position.y, z: my3DCharacter.position.z, rot: my3DCharacter.rotation.y, action: 'dance', env: currentEnvironment });
 }
 
 function loadCharacter(charKey) {
@@ -273,18 +311,17 @@ function loadCharacter(charKey) {
     fbxLoader.load(characterFiles[charKey] || characterFiles['man'], (object) => {
         my3DCharacter = object;
         my3DCharacter.scale.set(0.01, 0.01, 0.01);
-        my3DCharacter.position.set(0, 0, 0);
+        my3DCharacter.position.set(0, 0.5, 0); // 🚀 Y position slightly up to prevent immediate sinking
         scene.add(my3DCharacter);
         mixer = new THREE.AnimationMixer(my3DCharacter);
-        if (object.animations.length > 0) { 
-            actions.idle = mixer.clipAction(object.animations[0]); 
-            actions.idle.play(); 
-        }
-        loadAnimations(fbxLoader, mixer, actions);
+        loadAnimations(fbxLoader, mixer, actions, object);
     });
 }
 
-function loadAnimations(fbxLoader, targetMixer, targetActions) {
+function loadAnimations(fbxLoader, targetMixer, targetActions, baseObject) {
+    // Basic Animations Load
+    if (baseObject.animations.length > 0) targetActions.idle = targetMixer.clipAction(baseObject.animations[0]);
+    
     fbxLoader.load('./Running.fbx', (anim) => { 
         if(anim.animations.length) targetActions.run = targetMixer.clipAction(anim.animations[0]); 
     });
@@ -299,6 +336,18 @@ function loadAnimations(fbxLoader, targetMixer, targetActions) {
     });
     fbxLoader.load('./Sleeping.fbx', (anim) => { 
         if(anim.animations.length) targetActions.sleep = targetMixer.clipAction(anim.animations[0]); 
+    });
+    
+    // 💃 NAYA: Dance Animation Load
+    fbxLoader.load('./Hip%20Hop%20Dancing.fbx', (anim) => { 
+        if(anim.animations.length) {
+            targetActions.dance = targetMixer.clipAction(anim.animations[0]); 
+            // Play dance as default state once loaded
+            if(!isBusy) {
+                targetActions.dance.play();
+                currentAction = 'dance';
+            }
+        }
     });
 }
 
@@ -371,7 +420,7 @@ function addRemotePlayer(data) {
     label.innerText = data.name;
     floatingLabels.appendChild(label);
 
-    const rp = { group: group, label: label, targetPos: group.position.clone(), targetRot: 0, env: data.env || 'world', name: data.name, currentAction: 'idle', mixer: null, actions: {}, chatTimeout: null };
+    const rp = { group: group, label: label, targetPos: group.position.clone(), targetRot: 0, env: data.env || 'world', name: data.name, currentAction: 'dance', mixer: null, actions: {}, chatTimeout: null };
     remotePlayers[data.uid] = rp;
 
     const charKey = data.char || 'man';
@@ -380,8 +429,7 @@ function addRemotePlayer(data) {
         object.position.set(0, 0, 0);
         group.add(object);
         rp.mixer = new THREE.AnimationMixer(object);
-        if (object.animations.length > 0) { rp.actions.idle = rp.mixer.clipAction(object.animations[0]); rp.actions.idle.play(); }
-        loadAnimations(fbxLoader, rp.mixer, rp.actions);
+        loadAnimations(fbxLoader, rp.mixer, rp.actions, object);
     });
     updatePlayerListUI();
 }
@@ -445,7 +493,8 @@ function setupJoystick() {
     base.addEventListener('touchend', (e) => {
         e.stopPropagation(); 
         isDragging = false; knob.style.transform = `translate(0, 0)`; moveVector = { x: 0, y: 0 };
-        if(!isBusy) playAnim('idle'); 
+        // 🚀 NAYA: Jab rukega toh dance karega
+        if(!isBusy) playAnim('dance'); 
     });
 
     function handleTouch(e) {
@@ -471,7 +520,9 @@ function setupActionButtons() {
 
     document.getElementById('btn-sit').addEventListener('touchstart', () => { isBusy = true; my3DCharacter.position.set(CHAIR_POS.x, 0.5, CHAIR_POS.z); playAnim('sit'); });
     document.getElementById('btn-sleep').addEventListener('touchstart', () => { isBusy = true; my3DCharacter.position.set(BED_POS.x, 0.5, BED_POS.z); my3DCharacter.rotation.y = Math.PI / 2; playAnim('sleep'); });
-    document.getElementById('btn-stand').addEventListener('touchstart', () => { isBusy = false; my3DCharacter.position.set(0, 0, 0); playAnim('idle'); });
+    
+    // 🚀 NAYA: Stand karne par 'idle' ki jagah 'dance' shuru hoga
+    document.getElementById('btn-stand').addEventListener('touchstart', () => { isBusy = false; my3DCharacter.position.set(0, 0, 0); playAnim('dance'); });
 }
 
 function renderLoop() {
@@ -484,37 +535,32 @@ function renderLoop() {
 
         if (my3DCharacter) {
             
-            // ⚔️ 1. GENSHIN IMPACT STYLE 360 CAMERA-RELATIVE MOVEMENT (Smooth Turning)
+            // ⚔️ MOVEMENT
             if (!isBusy && (moveVector.x !== 0 || moveVector.y !== 0)) {
                 const camEuler = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
                 const joyAngle = Math.atan2(moveVector.x, moveVector.y);
                 const targetRotation = joyAngle + camEuler.y;
 
-                // 🚀 NAYA: Shortest path angle interpolation (Smooth character turning)
                 let diff = targetRotation - my3DCharacter.rotation.y;
-                diff = Math.atan2(Math.sin(diff), Math.cos(diff)); // Normalize to [-PI, PI]
-                my3DCharacter.rotation.y += diff * 0.15; // Smooth turn factor
+                diff = Math.atan2(Math.sin(diff), Math.cos(diff)); 
+                my3DCharacter.rotation.y += diff * 0.15; 
 
                 const currentSpeed = Math.min(Math.sqrt(moveVector.x*moveVector.x + moveVector.y*moveVector.y), 1) * speed;
                 
-                // 🛑 2. WALL COLLISION FIX (Aar-paar jana band)
                 let canMove = true;
                 if (currentHouseCollider) {
-                    // Check directly ahead of character's chest
                     const moveDir = new THREE.Vector3(Math.sin(targetRotation), 0, Math.cos(targetRotation)).normalize();
                     const chestPos = my3DCharacter.position.clone();
-                    chestPos.y += 0.8; // Chest level
+                    chestPos.y += 0.8; 
                     
                     forwardRaycaster.set(chestPos, moveDir);
                     const wallHits = forwardRaycaster.intersectObject(currentHouseCollider, true);
                     
-                    // Agar diwar 0.5 meter se kareeb hai, toh movement block kardo
                     if (wallHits.length > 0 && wallHits[0].distance < 0.5) {
                         canMove = false;
                     }
                 }
 
-                // Agar deewar aage nahi hai, tabhi move karo
                 if (canMove) {
                     my3DCharacter.position.x += Math.sin(targetRotation) * currentSpeed;
                     my3DCharacter.position.z += Math.cos(targetRotation) * currentSpeed;
@@ -525,26 +571,32 @@ function renderLoop() {
                 renderMinimap(allPlayersData, myUid);
             }
 
-            // 🧗 3. FLOOR DETECTION & SINKING FIX (Smooth Floor Snapping)
+            // 🧗 🚀 FLOOR DETECTION - Fix for Sinking
             if (currentHouseCollider && !isBusy) {
+                // Ray ko thoda aur upar se daala
                 const rayOrigin = my3DCharacter.position.clone();
-                rayOrigin.y += 3.0; // Upar se ray check karenge taaki stairs miss na hon
+                rayOrigin.y += 5.0; 
 
                 downRaycaster.set(rayOrigin, downDirection);
                 const hits = downRaycaster.intersectObject(currentHouseCollider, true);
 
                 if (hits.length > 0) {
                     const floorHeight = hits[0].point.y;
-                    // NAYA: Smooth Y-transition to prevent sinking during running bounce
-                    my3DCharacter.position.y += (floorHeight - my3DCharacter.position.y) * 0.2;
+                    
+                    // Agar surface player se zyada door nahi hai, toh snap kardo
+                    if (Math.abs(floorHeight - my3DCharacter.position.y) < 2.0) {
+                        // Hard snapping instantly prevent sinking
+                        my3DCharacter.position.y = floorHeight; 
+                    }
                 } else {
+                    // Fallback ground level
                     if (my3DCharacter.position.y > 0) {
                         my3DCharacter.position.y = Math.max(0, my3DCharacter.position.y - 0.1);
                     }
                 }
             }
 
-            // 🎥 Smooth Camera Follow (Camera pan hone par kheechegi nahi)
+            // 🎥 Smooth Camera Follow
             if (controls) {
                 const charTarget = new THREE.Vector3(my3DCharacter.position.x, my3DCharacter.position.y + 1.2, my3DCharacter.position.z);
                 const posDelta = charTarget.clone().sub(controls.target);
@@ -627,4 +679,3 @@ window.addEventListener('resize', () => {
         renderer.setSize(window.innerWidth, window.innerHeight);
     }
 });
-
