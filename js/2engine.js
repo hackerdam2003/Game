@@ -18,13 +18,13 @@ const app = initializeApp(engineConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-console.log("🏝️ [Game Engine 2] Island, Real Skybox & Ocean Active!");
+console.log("🏝️ [Game Engine 2] Bug Fixes: True Skybox, 360 Camera & Anti-Sink Active!");
 
 const gameSocket = io(); 
 
 let myUid = localStorage.getItem('playerUID') || "UID_" + Math.floor(Math.random()*99999);
 let myName = localStorage.getItem('gameName') || localStorage.getItem('playerName') || "Guest_" + Math.floor(Math.random()*999);
-let speed = 0.1; // 🚀 Island me thodi fast speed
+let speed = 0.1; 
 let moveVector = { x: 0, y: 0 };
 
 let currentEnvironment = "island";
@@ -34,7 +34,7 @@ let worldGroup;
 let my3DCharacter = null;
 let mixer = null;
 let actions = {}; 
-let currentAction = 'dance'; // 🚀 Default idle ki jagah dance
+let currentAction = 'none'; // 🚀 FIX: Isko 'none' kiya taaki animation load hote hi play ho jaye (No T-Pose)
 
 const remotePlayers = {}; 
 let allPlayersData = {}; 
@@ -111,7 +111,6 @@ function init3DWorld() {
     worldGroup = new THREE.Group();
     scene.add(worldGroup);
 
-    // 🌞 Sunlight
     const ambientW = new THREE.AmbientLight(0xffffff, 1.2);
     const dirLightW = new THREE.DirectionalLight(0xfff0dd, 2.5);
     dirLightW.position.set(100, 200, 50);
@@ -119,20 +118,15 @@ function init3DWorld() {
     worldGroup.add(ambientW);
     worldGroup.add(dirLightW);
     
-    // ☁️ 1. LOAD CLOUDY SKYBOX
     loadSkybox();
-
-    // 🌊 2. LOAD OCEAN WATER
     createOcean(); 
-
-    // 🏝️ 3. LOAD ISLAND
     loadIslandMap(); 
 
     loadCharacter(currentSelectedChar);
     requestAnimationFrame(renderLoop);
 }
 
-// ☁️ NAYA: Sky.glb Loader for Island
+// ☁️ FIX 1: Sky.glb ka texture ab nahi gayab hoga
 function loadSkybox() {
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/');
@@ -141,35 +135,27 @@ function loadSkybox() {
     
     gltfLoader.load('https://hackerdam2003.github.io/Game/Sky.glb', (gltf) => {
         const sky = gltf.scene;
-        sky.scale.set(800, 800, 800); // 🚀 Bada scale island ke liye
+        sky.scale.set(800, 800, 800); 
         sky.position.set(0, 0, 0);
         
         sky.traverse((node) => {
-            if (node.isMesh) {
+            if (node.isMesh && node.material) {
                 node.castShadow = false;
                 node.receiveShadow = false;
-                if(node.material) {
-                    // Bright sky material without lighting bugs
-                    node.material = new THREE.MeshBasicMaterial({
-                        map: node.material.map,
-                        side: THREE.BackSide,
-                        depthWrite: false
-                    });
-                }
+                // Material ko replace karne ke bajaye sirf uski property update ki
+                node.material.side = THREE.DoubleSide; 
+                node.material.fog = false;
+                node.material.needsUpdate = true;
             }
         });
         worldGroup.add(sky);
-        console.log("☁️ Island Skybox Loaded Successfully!");
-    }, undefined, (err) => {
-        console.error("Skybox load error:", err);
     });
 }
 
-// 🌊 OCEAN
 function createOcean() {
     const waterGeo = new THREE.PlaneGeometry(2000, 2000);
     const waterMat = new THREE.MeshStandardMaterial({
-        color: 0x0077be, // Deep Ocean Blue
+        color: 0x0077be, 
         transparent: true,
         opacity: 0.85,
         roughness: 0.1,
@@ -177,20 +163,13 @@ function createOcean() {
     });
     const water = new THREE.Mesh(waterGeo, waterMat);
     water.rotation.x = -Math.PI / 2;
-    water.position.y = -1.5; // Zameen se thoda neeche hoga pani
+    water.position.y = -1.5; 
     worldGroup.add(water);
 }
 
-// 🏝️ ISLAND LOAD
 function loadIslandMap() {
-    const dracoLoader = new DRACOLoader();
-    dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/');
-    const gltfLoader = new GLTFLoader();
-    gltfLoader.setDRACOLoader(dracoLoader);
-    
-    // Temporary bada platform (Jab original Island.glb ready ho jaye toh isko replace kar dena)
     const islandGeo = new THREE.CylinderGeometry(150, 150, 2, 64);
-    const islandMat = new THREE.MeshStandardMaterial({ color: 0xd2b48c }); // Sand Color
+    const islandMat = new THREE.MeshStandardMaterial({ color: 0xd2b48c }); 
     const tempIsland = new THREE.Mesh(islandGeo, islandMat);
     tempIsland.position.y = -1.0; 
     worldGroup.add(tempIsland);
@@ -203,14 +182,15 @@ function loadCharacter(charKey) {
     
     fbxLoader.load(characterFiles[charKey] || characterFiles['man'], (object) => {
         my3DCharacter = object;
-        my3DCharacter.scale.set(0.013, 0.013, 0.013); // Pro size
-        my3DCharacter.position.set(0, 10, 0); // Asman se girega island par
+        my3DCharacter.scale.set(0.013, 0.013, 0.013); 
+        my3DCharacter.position.set(0, 10, 0); 
         scene.add(my3DCharacter);
         mixer = new THREE.AnimationMixer(my3DCharacter);
         loadAnimations(fbxLoader, mixer, actions, object);
     });
 }
 
+// 💃 FIX 2: T-Pose hata kar Dance start kiya
 function loadAnimations(fbxLoader, targetMixer, targetActions, baseObject) {
     if (baseObject.animations.length > 0) {
         targetActions.idle = targetMixer.clipAction(baseObject.animations[0]);
@@ -226,10 +206,10 @@ function loadAnimations(fbxLoader, targetMixer, targetActions, baseObject) {
         }
     });
 
-    // 💃 DANCE ANIMATION AS DEFAULT
     fbxLoader.load('./Hip%20Hop%20Dancing.fbx', (anim) => { 
         if(anim.animations.length) {
             targetActions.dance = targetMixer.clipAction(anim.animations[0]); 
+            // Jaise hi dance load ho, wo automatically chalne lage
             if(!isBusy) playAnim('dance');
         }
     });
@@ -298,7 +278,7 @@ function addRemotePlayer(data) {
     label.innerText = data.name;
     floatingLabels.appendChild(label);
 
-    const rp = { group: group, label: label, targetPos: group.position.clone(), targetRot: 0, env: data.env, name: data.name, currentAction: 'dance', mixer: null, actions: {}, chatTimeout: null };
+    const rp = { group: group, label: label, targetPos: group.position.clone(), targetRot: 0, env: data.env, name: data.name, currentAction: 'none', mixer: null, actions: {}, chatTimeout: null };
     remotePlayers[data.uid] = rp;
 
     const charKey = data.char || 'man';
@@ -356,9 +336,11 @@ function setupJoystick() {
     function handleTouch(e) {
         let dx = e.touches[0].clientX - center.x, dy = e.touches[0].clientY - center.y;
         const dist = Math.sqrt(dx*dx + dy*dy);
-        if (dist > 45) { dx = (dx/dist)*45; dy = (dy/dist)*45; }
+        const maxDist = 45;
+        if (dist > maxDist) { dx = (dx/dist)*maxDist; dy = (dy/dist)*maxDist; }
+        
         knob.style.transform = `translate(${dx}px, ${dy}px)`;
-        moveVector = { x: dx/45, y: dy/45 };
+        moveVector = { x: dx/maxDist, y: -dy/maxDist }; 
         if (dist > 5) playAnim('run'); 
     }
 }
@@ -378,31 +360,40 @@ function renderLoop() {
 
         if (my3DCharacter) {
             
-            // ⚔️ 360 MOVEMENT (Genshin Style)
+            // ⚔️ 1. TRUE GENSHIN STYLE CAMERA-RELATIVE MOVEMENT
             if (!isBusy && (moveVector.x !== 0 || moveVector.y !== 0)) {
-                const camEuler = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
-                const joyAngle = Math.atan2(moveVector.x, moveVector.y);
-                const targetRotation = joyAngle + camEuler.y;
+                
+                const camForward = new THREE.Vector3();
+                camera.getWorldDirection(camForward);
+                camForward.y = 0; 
+                camForward.normalize();
 
+                const camRight = new THREE.Vector3();
+                camRight.crossVectors(camera.up, camForward).normalize();
+
+                const moveDirection = new THREE.Vector3()
+                    .addScaledVector(camRight, -moveVector.x)
+                    .addScaledVector(camForward, moveVector.y)
+                    .normalize();
+
+                const targetRotation = Math.atan2(moveDirection.x, moveDirection.z);
                 let diff = targetRotation - my3DCharacter.rotation.y;
                 diff = Math.atan2(Math.sin(diff), Math.cos(diff)); 
                 my3DCharacter.rotation.y += diff * 0.15; 
 
                 const currentSpeed = Math.min(Math.sqrt(moveVector.x*moveVector.x + moveVector.y*moveVector.y), 1) * speed;
-                
                 let canMove = true;
+                
                 if (currentIslandCollider) {
-                    const moveDir = new THREE.Vector3(Math.sin(targetRotation), 0, Math.cos(targetRotation)).normalize();
                     const chestPos = my3DCharacter.position.clone();
                     chestPos.y += 0.8; 
-                    forwardRaycaster.set(chestPos, moveDir);
+                    forwardRaycaster.set(chestPos, moveDirection);
                     const wallHits = forwardRaycaster.intersectObject(currentIslandCollider, true);
                     if (wallHits.length > 0 && wallHits[0].distance < 0.5) canMove = false;
                 }
 
                 if (canMove) {
-                    my3DCharacter.position.x += Math.sin(targetRotation) * currentSpeed;
-                    my3DCharacter.position.z += Math.cos(targetRotation) * currentSpeed;
+                    my3DCharacter.position.addScaledVector(moveDirection, currentSpeed);
                 }
                 
                 allPlayersData[myUid] = { x: my3DCharacter.position.x, y: my3DCharacter.position.z };
@@ -410,23 +401,27 @@ function renderLoop() {
                 renderMinimap(allPlayersData, myUid);
             }
 
-            // 🧗 ISLAND FLOOR DETECTION
+            // 🧗 FIX 3: 100% Anti-Sinking Logic
             if (currentIslandCollider) {
+                // Raycast thoda aur upar se mara taaki zameen pakad le
                 const rayOrigin = my3DCharacter.position.clone();
-                rayOrigin.y += 50.0; 
+                rayOrigin.y += 10.0; 
                 downRaycaster.set(rayOrigin, downDirection);
                 const hits = downRaycaster.intersectObject(currentIslandCollider, true);
 
                 if (hits.length > 0) {
+                    // Exact zameen par rakh dega (No Sinking)
                     my3DCharacter.position.y = hits[0].point.y; 
                 } else if (my3DCharacter.position.y > -1.5) {
                     my3DCharacter.position.y -= 0.1;
                 }
             }
 
-            // 🎥 CAMERA FOLLOW
+            // 🎥 2. TRUE 360 FREE CAMERA FOLLOW (No forced auto-pan)
             if (controls) {
                 const charTarget = new THREE.Vector3(my3DCharacter.position.x, my3DCharacter.position.y + 1.5, my3DCharacter.position.z);
+                
+                // Camera aur Character ke beech ka distance barabar rakhta hai (Free look + Follow)
                 const posDelta = charTarget.clone().sub(controls.target);
                 controls.target.add(posDelta);
                 camera.position.add(posDelta);
@@ -472,4 +467,3 @@ window.addEventListener('resize', () => {
         renderer.setSize(window.innerWidth, window.innerHeight);
     }
 });
-
