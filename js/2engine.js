@@ -18,13 +18,13 @@ const app = initializeApp(engineConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-console.log("🏝️ [Game Engine 2] Island & Beach Mode Active!");
+console.log("🏝️ [Game Engine 2] Island, Real Skybox & Ocean Active!");
 
 const gameSocket = io(); 
 
 let myUid = localStorage.getItem('playerUID') || "UID_" + Math.floor(Math.random()*99999);
 let myName = localStorage.getItem('gameName') || localStorage.getItem('playerName') || "Guest_" + Math.floor(Math.random()*999);
-let speed = 0.1; // 🚀 Island me bhagne ki speed thodi tez ki hai
+let speed = 0.1; // 🚀 Island me thodi fast speed
 let moveVector = { x: 0, y: 0 };
 
 let currentEnvironment = "island";
@@ -34,7 +34,7 @@ let worldGroup;
 let my3DCharacter = null;
 let mixer = null;
 let actions = {}; 
-let currentAction = 'idle'; 
+let currentAction = 'dance'; // 🚀 Default idle ki jagah dance
 
 const remotePlayers = {}; 
 let allPlayersData = {}; 
@@ -68,9 +68,10 @@ window.enterWorld = async function() {
     setupJoystick();
     setupActionButtons();
     setupMultiplayer();
+    setupChatAndVoice();
     
     gameSocket.emit('join-world', { 
-        gameRoomId: "ISLAND-MAP", // 🚀 Naya Room ID alag map ke liye
+        gameRoomId: "ISLAND-MAP", 
         uid: myUid, 
         name: myName, 
         char: currentSelectedChar, 
@@ -118,15 +119,20 @@ function init3DWorld() {
     worldGroup.add(ambientW);
     worldGroup.add(dirLightW);
     
+    // ☁️ 1. LOAD CLOUDY SKYBOX
     loadSkybox();
-    createOcean(); // 🌊 Pani Add Kiya
-    loadIslandMap(); // 🏝️ Island Add Kiya
+
+    // 🌊 2. LOAD OCEAN WATER
+    createOcean(); 
+
+    // 🏝️ 3. LOAD ISLAND
+    loadIslandMap(); 
 
     loadCharacter(currentSelectedChar);
     requestAnimationFrame(renderLoop);
 }
 
-// ☁️ SKYBOX (Badal)
+// ☁️ NAYA: Sky.glb Loader for Island
 function loadSkybox() {
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/');
@@ -135,17 +141,31 @@ function loadSkybox() {
     
     gltfLoader.load('https://hackerdam2003.github.io/Game/Sky.glb', (gltf) => {
         const sky = gltf.scene;
-        sky.scale.set(800, 800, 800);
+        sky.scale.set(800, 800, 800); // 🚀 Bada scale island ke liye
+        sky.position.set(0, 0, 0);
+        
         sky.traverse((node) => {
-            if (node.isMesh && node.material) {
-                node.material = new THREE.MeshBasicMaterial({ map: node.material.map, side: THREE.BackSide, depthWrite: false });
+            if (node.isMesh) {
+                node.castShadow = false;
+                node.receiveShadow = false;
+                if(node.material) {
+                    // Bright sky material without lighting bugs
+                    node.material = new THREE.MeshBasicMaterial({
+                        map: node.material.map,
+                        side: THREE.BackSide,
+                        depthWrite: false
+                    });
+                }
             }
         });
         worldGroup.add(sky);
+        console.log("☁️ Island Skybox Loaded Successfully!");
+    }, undefined, (err) => {
+        console.error("Skybox load error:", err);
     });
 }
 
-// 🌊 OCEAN (Real Game jaisa pani)
+// 🌊 OCEAN
 function createOcean() {
     const waterGeo = new THREE.PlaneGeometry(2000, 2000);
     const waterMat = new THREE.MeshStandardMaterial({
@@ -161,30 +181,20 @@ function createOcean() {
     worldGroup.add(water);
 }
 
-// 🏝️ ISLAND LOAD (Isme apni Island.glb dalna)
+// 🏝️ ISLAND LOAD
 function loadIslandMap() {
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/');
     const gltfLoader = new GLTFLoader();
     gltfLoader.setDRACOLoader(dracoLoader);
     
-    // 🔥 YAHAN APNI ISLAND/BEACH FILE KA LINK DALNA
-    // Abhi ke liye temporary ek bada platform bana diya hai
+    // Temporary bada platform (Jab original Island.glb ready ho jaye toh isko replace kar dena)
     const islandGeo = new THREE.CylinderGeometry(150, 150, 2, 64);
     const islandMat = new THREE.MeshStandardMaterial({ color: 0xd2b48c }); // Sand Color
     const tempIsland = new THREE.Mesh(islandGeo, islandMat);
     tempIsland.position.y = -1.0; 
     worldGroup.add(tempIsland);
     currentIslandCollider = tempIsland; 
-
-    /* JAB TUMHARE PAAS Island.glb AAYE, TAB YE CODE UNCOMMENT KAR LENA:
-    gltfLoader.load('https://hackerdam2003.github.io/Game/Island.glb', (gltf) => {
-        const island = gltf.scene;
-        island.scale.set(10, 10, 10); // Size check kar lena
-        worldGroup.add(island);
-        currentIslandCollider = island; 
-    });
-    */
 }
 
 function loadCharacter(charKey) {
@@ -193,7 +203,7 @@ function loadCharacter(charKey) {
     
     fbxLoader.load(characterFiles[charKey] || characterFiles['man'], (object) => {
         my3DCharacter = object;
-        my3DCharacter.scale.set(0.013, 0.013, 0.013);
+        my3DCharacter.scale.set(0.013, 0.013, 0.013); // Pro size
         my3DCharacter.position.set(0, 10, 0); // Asman se girega island par
         scene.add(my3DCharacter);
         mixer = new THREE.AnimationMixer(my3DCharacter);
@@ -204,14 +214,24 @@ function loadCharacter(charKey) {
 function loadAnimations(fbxLoader, targetMixer, targetActions, baseObject) {
     if (baseObject.animations.length > 0) {
         targetActions.idle = targetMixer.clipAction(baseObject.animations[0]);
-        if (!isBusy && currentAction === 'idle') targetActions.idle.play();
     }
     
     fbxLoader.load('./Running.fbx', (anim) => { 
         if(anim.animations.length) targetActions.run = targetMixer.clipAction(anim.animations[0]); 
     });
     fbxLoader.load('./Punching.fbx', (anim) => { 
-        if(anim.animations.length) targetActions.punch = targetMixer.clipAction(anim.animations[0]); 
+        if(anim.animations.length) {
+            targetActions.punch = targetMixer.clipAction(anim.animations[0]); 
+            targetActions.punch.setLoop(THREE.LoopOnce); 
+        }
+    });
+
+    // 💃 DANCE ANIMATION AS DEFAULT
+    fbxLoader.load('./Hip%20Hop%20Dancing.fbx', (anim) => { 
+        if(anim.animations.length) {
+            targetActions.dance = targetMixer.clipAction(anim.animations[0]); 
+            if(!isBusy) playAnim('dance');
+        }
     });
 }
 
@@ -226,7 +246,7 @@ function playAnim(animName) {
 function setupMultiplayer() {
     gameSocket.on('current-players', (players) => {
         for(let id in players) {
-            if(players[id].env === "island") { // Sirf Island wale players dikhenge
+            if(players[id].env === "island") { 
                 allPlayersData[id] = players[id];
                 if(id !== myUid && !remotePlayers[id]) addRemotePlayer(players[id]);
             }
@@ -260,6 +280,7 @@ function setupMultiplayer() {
             renderMinimap(allPlayersData, myUid);
         }
     });
+    gameSocket.on('chat-message', (data) => { showChatBubble(data.uid, data.msg); appendChatUI(data.name, data.msg, '#10b981'); });
     gameSocket.on('player-left', (uid) => {
         if(remotePlayers[uid]) { scene.remove(remotePlayers[uid].group); if(remotePlayers[uid].label) remotePlayers[uid].label.remove(); delete remotePlayers[uid]; }
         delete allPlayersData[uid]; renderMinimap(allPlayersData, myUid);
@@ -277,7 +298,7 @@ function addRemotePlayer(data) {
     label.innerText = data.name;
     floatingLabels.appendChild(label);
 
-    const rp = { group: group, label: label, targetPos: group.position.clone(), targetRot: 0, env: data.env, name: data.name, currentAction: 'idle', mixer: null, actions: {} };
+    const rp = { group: group, label: label, targetPos: group.position.clone(), targetRot: 0, env: data.env, name: data.name, currentAction: 'dance', mixer: null, actions: {}, chatTimeout: null };
     remotePlayers[data.uid] = rp;
 
     const charKey = data.char || 'man';
@@ -290,6 +311,39 @@ function addRemotePlayer(data) {
     });
 }
 
+function setupChatAndVoice() {
+    const chatToggle = document.getElementById('btn-chat-toggle'), chatBox = document.getElementById('game-chat-box'), sendBtn = document.getElementById('btn-send-chat'), input = document.getElementById('game-chat-input');
+
+    if(chatToggle && chatBox) { const toggleBox = () => { chatBox.style.display = chatBox.style.display === 'flex' ? 'none' : 'flex'; }; chatToggle.addEventListener('click', toggleBox); chatToggle.addEventListener('touchstart', toggleBox, {passive: true}); }
+
+    const sendChatMsg = () => {
+        if(!input) return;
+        const msg = input.value.trim();
+        if(msg !== "") {
+            gameSocket.emit('chat-message', { uid: myUid, name: myName, msg: msg });
+            showChatBubble(myUid, msg); appendChatUI('You', msg, '#3b82f6'); input.value = "";
+        }
+    };
+    if(sendBtn) { sendBtn.addEventListener('click', sendChatMsg); sendBtn.addEventListener('touchstart', sendChatMsg, {passive: true}); }
+    if(input) input.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendChatMsg(); });
+}
+
+function appendChatUI(name, msg, color) { const chatBox = document.getElementById('in-game-msgs'); if(chatBox) { chatBox.innerHTML += `<div><b style="color:${color}">${name}:</b> ${msg}</div>`; chatBox.scrollTop = chatBox.scrollHeight; } }
+
+function showChatBubble(uid, msg) {
+    let targetLabel = uid === myUid ? document.getElementById('my-label') : (remotePlayers[uid] ? remotePlayers[uid].label : null);
+    if(!targetLabel && uid === myUid) {
+        targetLabel = document.createElement('div'); targetLabel.id = 'my-label';
+        targetLabel.style.cssText = 'position: absolute; color: #3b82f6; background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; transform: translate(-50%, -100%); pointer-events: none; transition: 0.1s;';
+        floatingLabels.appendChild(targetLabel);
+    }
+    if(targetLabel) {
+        targetLabel.innerHTML = `${uid === myUid ? 'You' : remotePlayers[uid].name}: <span style="color:#fff;">${msg}</span>`;
+        if(uid !== myUid) { clearTimeout(remotePlayers[uid].chatTimeout); remotePlayers[uid].chatTimeout = setTimeout(() => { targetLabel.innerText = remotePlayers[uid].name; }, 5000);
+        } else { setTimeout(() => { targetLabel.innerHTML = ''; }, 5000); }
+    }
+}
+
 function setupJoystick() {
     const base = document.getElementById('joystick-base'), knob = document.getElementById('joystick-knob');
     if(!base || !knob) return;
@@ -297,7 +351,7 @@ function setupJoystick() {
 
     base.addEventListener('touchstart', (e) => { e.stopPropagation(); isDragging = true; center = { x: base.getBoundingClientRect().left + base.clientWidth / 2, y: base.getBoundingClientRect().top + base.clientHeight / 2 }; handleTouch(e); });
     base.addEventListener('touchmove', (e) => { e.stopPropagation(); if(isDragging) handleTouch(e); });
-    base.addEventListener('touchend', (e) => { e.stopPropagation(); isDragging = false; knob.style.transform = `translate(0, 0)`; moveVector = { x: 0, y: 0 }; playAnim('idle'); });
+    base.addEventListener('touchend', (e) => { e.stopPropagation(); isDragging = false; knob.style.transform = `translate(0, 0)`; moveVector = { x: 0, y: 0 }; playAnim('dance'); });
 
     function handleTouch(e) {
         let dx = e.touches[0].clientX - center.x, dy = e.touches[0].clientY - center.y;
@@ -366,7 +420,6 @@ function renderLoop() {
                 if (hits.length > 0) {
                     my3DCharacter.position.y = hits[0].point.y; 
                 } else if (my3DCharacter.position.y > -1.5) {
-                    // Agar galti se pani me gir gaya
                     my3DCharacter.position.y -= 0.1;
                 }
             }
