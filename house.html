@@ -1,304 +1,157 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape">
-    <title>Racing Universe | Multi-Model & FBX Switcher</title>
-    <style>
-        * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #0f172a; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
-        
-        #house-canvas { display: block; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 0; }
-        
-        .back-btn { position: absolute; top: 20px; left: 20px; background: #ef4444; color: white; border: none; padding: 10px 20px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-        
-        /* 🎛️ Switch Buttons Container (Multiline support for many models) */
-        .switch-container { position: absolute; top: 70px; left: 20px; z-index: 1000; display: flex; flex-wrap: wrap; gap: 10px; max-width: 600px; }
-        .switch-btn { background: #3b82f6; color: white; border: none; padding: 10px 15px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5); transition: 0.2s; }
-        .switch-btn:active { transform: scale(0.95); }
-        .switch-btn.active { background: #10b981; }
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 
-        .status-hud { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); color: #38bdf8; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: bold; z-index: 1000; border: 1px solid #3b82f6; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.7); max-width: 90%; word-wrap: break-word; }
-    </style>
-</head>
-<body>
+const canvas = document.getElementById('house-canvas');
+const statusEl = document.getElementById('status-text');
 
-    <button class="back-btn" onclick="window.location.href='game.html'">⬅ Back to World</button>
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0f172a); 
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 10000);
+camera.position.set(0, 15, 40); // Thoda upar aur peeche set kiya taaki poora scene dikhe
+
+const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.target.set(0, 0, 0);
+
+// Lighting
+const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+scene.add(ambientLight);
+const dirLight = new THREE.DirectionalLight(0xfff0dd, 2);
+dirLight.position.set(15, 30, 15);
+dirLight.castShadow = true;
+scene.add(dirLight);
+
+// Ground Grid
+const grid = new THREE.GridHelper(100, 100, 0x3b82f6, 0x1e293b);
+scene.add(grid);
+
+// Loaders
+const dracoLoader = new DRACOLoader();
+dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/');
+const gltfLoader = new GLTFLoader();
+gltfLoader.setDRACOLoader(dracoLoader); 
+const fbxLoader = new FBXLoader();
+
+let worldGroup = new THREE.Group();
+scene.add(worldGroup);
+
+// 🚀 MASTER FUNCTION: Load Full Mansion Scene (House + Pool + Chairs + Girl)
+window.loadFullMansionScene = function() {
     
-    <!-- 🎛️ Updated Switcher Panel with Pool, Chair, and Hotgirl (FBX) -->
-    <div class="switch-container">
-        <button id="btn-home" class="switch-btn">🏠 Home.glb</button>
-        <button id="btn-newhome" class="switch-btn">🏡 newhome.glb</button>
-        <button id="btn-pool" class="switch-btn">🏊 Pool.glb</button>
-        <button id="btn-chair" class="switch-btn">🪑 chair.glb</button>
-        <button id="btn-hotgirl" class="switch-btn" style="background: #ec4899;">💃 Hotgirl.fbx</button>
-    </div>
+    // Purana sab kuch hatao
+    while(worldGroup.children.length > 0){ 
+        worldGroup.remove(worldGroup.children[0]); 
+    }
 
-    <div id="status-text" class="status-hud">
-        Select a model to load...
-    </div>
+    statusEl.innerHTML = `⏳ Building Full Mansion Scene...`;
+    statusEl.style.color = "#38bdf8";
 
-    <canvas id="house-canvas"></canvas>
-
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-            }
-        }
-    </script>
-
-    <script type="module">
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-        import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
-        import { FBXLoader } from 'three/addons/loaders/FBXLoader.js'; // 💃 Added FBX Loader for Hotgirl
-
-        const canvas = document.getElementById('house-canvas');
-        const statusEl = document.getElementById('status-text');
+    // 1️⃣ Load House (Center)
+    gltfLoader.load('https://hackerdam2003.github.io/Game/newhome.glb', (gltf) => {
+        const house = gltf.scene;
+        // Scale House
+        const box = new THREE.Box3().setFromObject(house);
+        const size = box.getSize(new THREE.Vector3());
+        const scaleFactor = 30 / Math.max(size.x, size.y, size.z);
+        house.scale.set(scaleFactor, scaleFactor, scaleFactor);
         
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0f172a); 
+        // Position House
+        const center = new THREE.Box3().setFromObject(house).getCenter(new THREE.Vector3());
+        house.position.set(-center.x, 0, -center.z);
+        worldGroup.add(house);
+    });
 
-        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 10000);
-        camera.position.set(0, 10, 30); 
-
-        const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
+    // 2️⃣ Load Pool (Right side of house)
+    gltfLoader.load('https://hackerdam2003.github.io/Game/Pool.glb', (gltf) => {
+        const pool = gltf.scene;
+        // Scale Pool
+        const box = new THREE.Box3().setFromObject(pool);
+        const size = box.getSize(new THREE.Vector3());
+        const scaleFactor = 15 / Math.max(size.x, size.y, size.z);
+        pool.scale.set(scaleFactor, scaleFactor, scaleFactor);
         
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.target.set(0, 0, 0);
+        // Position Pool: Right side (X = 20), Ground (Y = 0)
+        pool.position.set(20, 0, 0); 
+        worldGroup.add(pool);
 
-        const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
-        scene.add(ambientLight);
-        
-        const dirLight = new THREE.DirectionalLight(0xffffff, 2.5);
-        dirLight.position.set(10, 20, 10);
-        scene.add(dirLight);
-
-        // Ground Grid
-        const grid = new THREE.GridHelper(100, 100, 0x3b82f6, 0x1e293b);
-        scene.add(grid);
-
-        // Loaders setup
-        const dracoLoader = new DRACOLoader();
-        dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/');
-
-        const gltfLoader = new GLTFLoader();
-        gltfLoader.setDRACOLoader(dracoLoader); 
-
-        const fbxLoader = new FBXLoader(); // FBX Loader instance
-
-        let currentModel = null; 
-
-        // 🔄 Generic Model Loader for GLB files (Home, newhome, Pool, chair)
-        window.loadGLBModel = function(filename) {
-            if (currentModel) {
-                scene.remove(currentModel);
-                currentModel = null;
-            }
-
-            statusEl.innerHTML = `⏳ Loading ${filename}...`;
-            statusEl.style.color = "#38bdf8";
-
-            const url = `https://hackerdam2003.github.io/Game/${filename}`;
+        // 3️⃣ Load Chairs around Pool
+        gltfLoader.load('https://hackerdam2003.github.io/Game/chair.glb', (chairGltf) => {
+            const chairBase = chairGltf.scene;
             
-            gltfLoader.load(
-                url, 
-                (gltf) => {
-                    currentModel = gltf.scene;
+            // Chair 1 (Near Pool Edge)
+            const chair1 = chairBase.clone();
+            chair1.scale.set(2, 2, 2); 
+            chair1.position.set(15, 0, 5); 
+            chair1.rotation.y = Math.PI / 4;
+            worldGroup.add(chair1);
 
-                    const box = new THREE.Box3().setFromObject(currentModel);
-                    const center = box.getCenter(new THREE.Vector3());
+            // Chair 2 (Next to Chair 1)
+            const chair2 = chairBase.clone();
+            chair2.scale.set(2, 2, 2);
+            chair2.position.set(15, 0, -1);
+            chair2.rotation.y = Math.PI / 4;
+            worldGroup.add(chair2);
 
-                    currentModel.position.x = -center.x;
-                    currentModel.position.y = -box.min.y; 
-                    currentModel.position.z = -center.z;
+            // Chair 3 (Opposite side of pool)
+            const chair3 = chairBase.clone();
+            chair3.scale.set(2, 2, 2);
+            chair3.position.set(25, 0, 5);
+            chair3.rotation.y = -Math.PI / 4;
+            worldGroup.add(chair3);
 
-                    currentModel.traverse((node) => {
-                        if (node.isMesh) {
-                            node.castShadow = true;
-                            node.receiveShadow = true;
-                            if (node.material) {
-                                node.material.side = THREE.DoubleSide;
-                                node.material.alphaTest = 0.3; 
-                            }
+            // 4️⃣ Load Hotgirl next to Chair 1
+            fbxLoader.load('./Hotgirl.fbx', (fbx) => {
+                const hotgirl = fbx;
+                // 🚀 SCALE FIX: Hotgirl ko bahut bada kiya (0.05 se 0.08 ke beech test karna)
+                hotgirl.scale.set(0.06, 0.06, 0.06); 
+                
+                // Position: Chair 1 ke thoda aage
+                hotgirl.position.set(14, 0, 7); 
+                hotgirl.rotation.y = -Math.PI / 2; // Pool ki taraf dekhegi
+
+                // Texture Fix
+                const textureLoader = new THREE.TextureLoader();
+                textureLoader.load('./texture.jpg', (texture) => {
+                    texture.colorSpace = THREE.SRGBColorSpace;
+                    hotgirl.traverse((child) => {
+                        if (child.isMesh && child.material) {
+                            child.material.map = texture;
+                            child.material.color.setHex(0xffffff);
+                            child.material.needsUpdate = true;
                         }
                     });
+                });
 
-                    scene.add(currentModel);
-                    
-                    const size = box.getSize(new THREE.Vector3());
-                    const maxDim = Math.max(size.x, size.y, size.z);
-                    const camDistance = maxDim > 0 ? maxDim * 1.5 : 30; 
-
-                    camera.position.set(0, maxDim * 0.5, camDistance);
-                    controls.target.set(0, maxDim * 0.2, 0);
-                    controls.update();
-
-                    statusEl.innerHTML = `✅ SUCCESS: ${filename} Loaded Properly!`;
-                    statusEl.style.color = "#10b981";
-                }, 
-                (xhr) => {
-                    if (xhr.lengthComputable) {
-                        const percent = Math.floor((xhr.loaded / xhr.total) * 100);
-                        statusEl.innerHTML = `📦 Decoding ${filename}: ${percent}%`;
-                    }
-                }, 
-                (error) => {
-                    console.error("Exact Error:", error);
-                    statusEl.innerHTML = `❌ ERROR in ${filename}: File Not Found or Invalid`;
-                    statusEl.style.color = "#ef4444";
-                }
-            );
-        };
-
-        // 💃 Specific FBX Loader for Hotgirl with Chair Placement Logic
-        window.loadHotgirlFBX = function() {
-            if (currentModel) {
-                scene.remove(currentModel);
-                currentModel = null;
-            }
-
-            statusEl.innerHTML = `⏳ Loading Hotgirl.fbx...`;
-            statusEl.style.color = "#38bdf8";
-
-            // First load the chair reference so we can place the girl right next to it
-            const chairUrl = `https://hackerdam2003.github.io/Game/chair.glb`;
-            
-            gltfLoader.load(chairUrl, (chairGltf) => {
-                const chairModel = chairGltf.scene;
-                chairModel.position.set(0, 0, 0);
-                scene.add(chairModel);
-                currentModel = chairModel; // Track it as part of scene group temporarily or group them
-
-                // Now load Hotgirl FBX
-                const fbxUrl = './Hotgirl.fbx'; // Adjust path if hosted on github or relative
-                fbxLoader.load(
-                    fbxUrl,
-                    (fbx) => {
-                        const hotgirl = fbx;
-                        hotgirl.scale.set(0.01, 0.01, 0.01); // Standard FBX scale adjustment
-                        
-                        // Position hotgirl right next to the chair (e.g., offset on X axis)
-                        hotgirl.position.set(2, 0, 0);
-
-                        hotgirl.traverse((node) => {
-                            if (node.isMesh) {
-                                node.castShadow = true;
-                                node.receiveShadow = true;
-                            }
-                        });
-
-                        // Load external texture if present
-                        const textureLoader = new THREE.TextureLoader();
-                        textureLoader.load('./texture.jpg', (texture) => {
-                            texture.colorSpace = THREE.SRGBColorSpace;
-                            hotgirl.traverse((child) => {
-                                if (child.isMesh && child.material) {
-                                    child.material.map = texture;
-                                    child.material.color.setHex(0xffffff);
-                                    child.material.needsUpdate = true;
-                                }
-                            });
-                        });
-
-                        // Create a combined group for both chair and hotgirl
-                        const group = new THREE.Group();
-                        group.add(chairModel);
-                        group.add(hotgirl);
-                        
-                        scene.remove(chairModel); // Remove single instance to avoid duplication
-                        scene.add(group);
-                        currentModel = group;
-
-                        camera.position.set(0, 5, 10);
-                        controls.target.set(1, 1, 0);
-                        controls.update();
-
-                        statusEl.innerHTML = `✅ SUCCESS: chair.glb & Hotgirl.fbx Loaded Together!`;
-                        statusEl.style.color = "#10b981";
-                    },
-                    undefined,
-                    (fbxError) => {
-                        console.warn("FBX local load failed, trying raw path or fallback:", fbxError);
-                        statusEl.innerHTML = `❌ Hotgirl.fbx load failed. Check filename/path!`;
-                        statusEl.style.color = "#ef4444";
-                    }
-                );
-            }, undefined, () => {
-                // If chair fails, just load Hotgirl standalone
-                loadStandaloneHotgirl();
-            });
-        };
-
-        function loadStandaloneHotgirl() {
-            const fbxUrl = './Hotgirl.fbx';
-            fbxLoader.load(fbxUrl, (fbx) => {
-                currentModel = fbx;
-                currentModel.scale.set(0.01, 0.01, 0.01);
-                currentModel.position.set(0, 0, 0);
-                scene.add(currentModel);
-
-                camera.position.set(0, 5, 10);
-                controls.target.set(0, 1, 0);
-                controls.update();
-                statusEl.innerHTML = `✅ SUCCESS: Hotgirl.fbx Loaded!`;
+                worldGroup.add(hotgirl);
+                statusEl.innerHTML = `✅ Full Mansion Scene Assembled!`;
                 statusEl.style.color = "#10b981";
-            }, undefined, (err) => {
-                statusEl.innerHTML = `❌ Error loading Hotgirl.fbx`;
-                statusEl.style.color = "#ef4444";
-            });
-        }
 
-        // Button Event Listeners
-        document.getElementById('btn-home').addEventListener('click', (e) => {
-            document.querySelectorAll('.switch-btn').forEach(b => b.classList.remove('active'));
-            e.target.classList.add('active');
-            window.loadGLBModel('Home.glb');
+            }, undefined, (err) => console.error("Hotgirl error:", err));
         });
+    });
+};
 
-        document.getElementById('btn-newhome').addEventListener('click', (e) => {
-            document.querySelectorAll('.switch-btn').forEach(b => b.classList.remove('active'));
-            e.target.classList.add('active');
-            window.loadGLBModel('newhome.glb');
-        });
+// Start animation loop
+function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
+}
+animate();
 
-        document.getElementById('btn-pool').addEventListener('click', (e) => {
-            document.querySelectorAll('.switch-btn').forEach(b => b.classList.remove('active'));
-            e.target.classList.add('active');
-            window.loadGLBModel('Pool.glb');
-        });
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
 
-        document.getElementById('btn-chair').addEventListener('click', (e) => {
-            document.querySelectorAll('.switch-btn').forEach(b => b.classList.remove('active'));
-            e.target.classList.add('active');
-            window.loadGLBModel('chair.glb');
-        });
-
-        document.getElementById('btn-hotgirl').addEventListener('click', (e) => {
-            document.querySelectorAll('.switch-btn').forEach(b => b.classList.remove('active'));
-            e.target.classList.add('active');
-            window.loadHotgirlFBX();
-        });
-
-        // Start animation loop
-        function animate() {
-            requestAnimationFrame(animate);
-            controls.update();
-            renderer.render(scene, camera);
-        }
-        animate();
-        
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-    </script>
-</body>
-</html>
-
+// Auto-Load the full scene when script runs
+window.loadFullMansionScene();
