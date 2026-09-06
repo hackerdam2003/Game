@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 
-console.log("💃 [Testing Lab] Girl Character Animation Tester Active!");
+console.log("💃 [Testing Lab] Correct Folder Path & Character Switcher Active!");
 
 let scene, camera, renderer, clock, controls;
 let my3DCharacter = null;
@@ -10,7 +10,7 @@ let mixer = null;
 let actions = {}; 
 let currentAction = null;
 
-// 📜 SAARE ANIMATIONS KI LIST
+// 📜 SAARE ANIMATIONS KI LIST (Ab ye sab 'First/' folder se load honge)
 const animationList = [
     "Agreeing", "Breakdance Uprock Var 1", "Cheering", "Chicken Dance", 
     "Crazy Gesture", "Defeat2", "Drunk Run Forward", "Dying", 
@@ -37,13 +37,10 @@ initLab();
 
 function initLab() {
     const canvas = document.getElementById('game-canvas');
-    if (!canvas) {
-        console.error("Canvas element not found!");
-        return;
-    }
+    if (!canvas) return;
 
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x334155); 
+    scene.background = new THREE.Color(0x1e293b); 
     clock = new THREE.Clock();
 
     camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000); 
@@ -70,47 +67,51 @@ function initLab() {
     const gridHelper = new THREE.GridHelper(20, 20, 0x10b981, 0x475569);
     scene.add(gridHelper);
 
-    // Pehle buttons generate karo, taaki UI aa jaye
     generateUIButtons();
 
-    // Phir character load karo
-    loadCharacter();
+    // 🚀 Character Change Event Listener
+    const charSelector = document.getElementById('char-selector');
+    charSelector.addEventListener('change', () => {
+        loadCharacter(charSelector.value);
+    });
+
+    // Pehli baar default character load karo
+    loadCharacter(charSelector.value);
 
     requestAnimationFrame(renderLoop);
 }
 
 function generateUIButtons() {
     const container = document.getElementById('btn-container');
-    if (!container) {
-        console.error("Button container not found!");
-        return;
-    }
-    
-    container.innerHTML = ''; // Clear previous if any
+    container.innerHTML = ''; 
 
     animationList.forEach(animName => {
         const btn = document.createElement('div');
         btn.className = 'anim-btn';
-        btn.id = `btn-${animName.replace(/ /g, '-')}`; // Safe ID
+        btn.id = `btn-${animName.replace(/ /g, '-')}`; 
         btn.innerHTML = `<span>${animName}</span> <span style="font-size:10px; color:#94a3b8;">▶</span>`;
         
         btn.onclick = () => loadAndPlayAnimation(animName);
         container.appendChild(btn);
     });
-    console.log("✅ Animation Buttons Generated!");
 }
 
-function loadCharacter() {
+function loadCharacter(charName) {
     const fbxLoader = new FBXLoader();
     const loadingUI = document.getElementById('loading-overlay');
-    if(loadingUI) {
-        loadingUI.style.display = 'block';
-        loadingUI.innerText = "⏳ Loading Character...";
-    }
+    loadingUI.style.display = 'block';
+    loadingUI.innerText = `⏳ Loading ${charName}...`;
 
-    // Attempting to load the character. If this fails, the screen will stay blank.
-    // Replace 'Peasant Girl.fbx' with the EXACT filename you have on GitHub if it's different.
-    const characterUrl = './Peasant%20Girl.fbx'; 
+    // 🚀 NAYA: Ab file 'First' folder se load hogi
+    const characterUrl = `./First/${charName.replace(/ /g, '%20')}.fbx`; 
+
+    // Purana character hatao
+    if (my3DCharacter) {
+        scene.remove(my3DCharacter);
+        mixer = null;
+        actions = {};
+        currentAction = null;
+    }
 
     fbxLoader.load(characterUrl, (object) => {
         my3DCharacter = object;
@@ -127,26 +128,20 @@ function loadCharacter() {
         scene.add(my3DCharacter);
         mixer = new THREE.AnimationMixer(my3DCharacter);
 
-        if(loadingUI) loadingUI.style.display = 'none';
-        console.log("✅ Character Loaded!");
+        loadingUI.style.display = 'none';
         
         // Auto-play Idle
         loadAndPlayAnimation("Idle");
 
     }, undefined, (err) => {
-        console.error("❌ Character Load Error. Make sure the file exists at:", characterUrl, err);
-        if(loadingUI) {
-            loadingUI.innerText = "❌ Error Loading Character!";
-            setTimeout(() => loadingUI.style.display = 'none', 3000);
-        }
+        console.error("❌ Character Load Error:", characterUrl, err);
+        loadingUI.innerText = "❌ Character File Not Found in 'First' folder!";
+        setTimeout(() => loadingUI.style.display = 'none', 3000);
     });
 }
 
 function loadAndPlayAnimation(animName) {
-    if (!my3DCharacter || !mixer) {
-        console.warn("Character not loaded yet. Cannot play animation.");
-        return;
-    }
+    if (!my3DCharacter || !mixer) return;
 
     // UI Update
     document.querySelectorAll('.anim-btn').forEach(b => b.classList.remove('active'));
@@ -160,13 +155,12 @@ function loadAndPlayAnimation(animName) {
     }
 
     const loadingUI = document.getElementById('loading-overlay');
-    if(loadingUI) {
-        loadingUI.style.display = 'block';
-        loadingUI.innerText = `⏳ Loading: ${animName}...`;
-    }
+    loadingUI.style.display = 'block';
+    loadingUI.innerText = `⏳ Loading: ${animName}...`;
 
     const fbxLoader = new FBXLoader();
-    const fileUrl = `./${animName.replace(/ /g, '%20')}.fbx`;
+    // 🚀 NAYA: Animation file bhi 'First' folder se load hogi
+    const fileUrl = `./First/${animName.replace(/ /g, '%20')}.fbx`;
 
     fbxLoader.load(fileUrl, (anim) => {
         if (anim.animations.length > 0) {
@@ -185,15 +179,12 @@ function loadAndPlayAnimation(animName) {
             playAnim(animName);
         } else {
             console.warn(`No animation found in ${fileUrl}`);
-            alert(`⚠️ No animation track in ${animName}.fbx`);
         }
-        if(loadingUI) loadingUI.style.display = 'none';
+        loadingUI.style.display = 'none';
     }, undefined, (err) => {
         console.error(`Error loading ${fileUrl}:`, err);
-        if(loadingUI) {
-            loadingUI.innerText = `❌ Error: ${animName} not found!`;
-            setTimeout(() => loadingUI.style.display = 'none', 3000);
-        }
+        loadingUI.innerText = `❌ Error: Animation Not Found!`;
+        setTimeout(() => loadingUI.style.display = 'none', 3000);
     });
 }
 
@@ -206,7 +197,6 @@ function playAnim(animName) {
     
     actions[animName].reset().fadeIn(0.3).play();
     currentAction = animName;
-    console.log("▶ Playing:", animName);
 }
 
 // Auto-return to Idle
@@ -237,4 +227,3 @@ window.addEventListener('resize', () => {
         renderer.setSize(window.innerWidth, window.innerHeight);
     }
 });
-
