@@ -5,27 +5,77 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Racing Universe | Login</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: #0f172a; color: white; padding-top: 80px; margin: 0; }
-        .box { background: #1e293b; padding: 40px 20px; border-radius: 12px; width: 90%; max-width: 400px; margin: auto; border: 1px solid #334155; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-        h2 { color: #3b82f6; margin-top: 0; text-transform: uppercase; letter-spacing: 1px; }
-        button { width: 100%; padding: 15px; border-radius: 8px; background: #ef4444; color: white; font-weight: 900; cursor: pointer; border: none; font-size: 16px; margin-top: 20px; text-transform: uppercase; }
-        button:hover { background: #dc2626; }
-        #statusText { color: #fbbf24; font-size: 14px; margin-top: 20px; font-weight: bold; }
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
+        
+        /* 🚀 Pro Game Animated Background */
+        body { 
+            margin: 0; padding: 0; height: 100vh; display: flex; align-items: center; justify-content: center;
+            background: linear-gradient(-45deg, #0f172a, #1e1b4b, #0f172a, #020617);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            color: white; overflow: hidden;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .box { 
+            background: rgba(15, 23, 42, 0.85); 
+            padding: 40px 30px; 
+            border-radius: 16px; 
+            width: 90%; max-width: 400px; 
+            text-align: center;
+            border: 1px solid rgba(59, 130, 246, 0.4); 
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.2); 
+            backdrop-filter: blur(10px);
+        }
+
+        h2 { 
+            color: #38bdf8; margin-top: 0; text-transform: uppercase; letter-spacing: 2px; 
+            font-size: 24px; text-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+        }
+
+        button { 
+            width: 100%; padding: 15px; border-radius: 8px; 
+            background: linear-gradient(90deg, #ef4444, #dc2626); 
+            color: white; font-weight: 900; cursor: pointer; border: none; 
+            font-size: 16px; margin-top: 25px; text-transform: uppercase; 
+            transition: 0.3s; box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);
+        }
+
+        button:hover { 
+            transform: translateY(-2px); box-shadow: 0 8px 20px rgba(239, 68, 68, 0.6); 
+        }
+
+        button:active { transform: translateY(1px); }
+
+        #statusText { 
+            color: #fbbf24; font-size: 13px; margin-top: 20px; font-weight: bold; 
+            min-height: 20px; letter-spacing: 0.5px;
+        }
+
+        .version {
+            position: absolute; bottom: 10px; right: 15px; font-size: 10px; color: #64748b;
+        }
     </style>
 </head>
 <body>
 
     <div class="box">
         <h2>🏎️ Racing Universe</h2>
-        <p style="color: #cbd5e1; font-size: 14px;">Anti-Scam Servers Active.</p>
+        <p style="color: #94a3b8; font-size: 13px; margin-top: -10px;">Open World Multiplayer Engine</p>
         
         <button id="googleLoginBtn">🔐 Login with Google</button>
         <p id="statusText">System Ready...</p>
     </div>
 
+    <div class="version">v2.0 Island Update</div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        // signInWithPopup import kiya gaya hai
         import { getAuth, signInWithPopup, onAuthStateChanged, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -47,44 +97,56 @@
         const loginBtn = document.getElementById('googleLoginBtn');
         const statusText = document.getElementById('statusText');
 
-        // 🚀 THE FIX: DIRECT POPUP & REDIRECT LOGIC
         loginBtn.addEventListener('click', async (e) => {
             e.preventDefault(); 
             statusText.innerText = "Opening Google Login...";
             
             try {
-                // Code yahan rukega jab tak aap account select nahi karte
                 const result = await signInWithPopup(auth, provider);
                 const user = result.user;
                 
-                // Account select hote hi yeh text aayega
                 statusText.innerText = "Login Done! Checking Profile...";
                 
-                // Turant Database check hoga
                 const docSnap = await getDoc(doc(db, "Users", user.uid));
                 
                 if (docSnap.exists() && docSnap.data().gender) {
+                    const data = docSnap.data();
+                    
+                    // 🚀 CRITICAL FIX: Save data to LocalStorage for 3D Game Engine (2engine.js)
+                    localStorage.setItem('playerUID', user.uid);
+                    localStorage.setItem('gameName', data.gameName || user.displayName);
+                    localStorage.setItem('selectedCharacter', data.selectedCharacter || 'man');
+
                     statusText.innerText = "Profile Found! Entering Lobby...";
-                    window.location.href = "lobby.html";
+                    setTimeout(() => { window.location.href = "lobby.html"; }, 500);
                 } else {
+                    // New User -> Redirect to profile creation
+                    localStorage.setItem('playerUID', user.uid);
                     statusText.innerText = "New Player! Redirecting to setup...";
-                    window.location.href = "profile.html";
+                    setTimeout(() => { window.location.href = "profile.html"; }, 500);
                 }
             } catch (error) {
-                // Agar popup band kar diya ya error aaya toh screen par code chhap jayega
                 statusText.innerText = "❌ Error: " + error.message;
             }
         });
 
-        // Agar user pehle se login hai aur page refresh karta hai (Auto-Login)
+        // 🔄 AUTO-LOGIN LOGIC
         onAuthStateChanged(auth, async (user) => {
             if (user && statusText.innerText === "System Ready...") {
                 statusText.innerText = "Auto-Login detected. Verifying...";
                 try {
                     const docSnap = await getDoc(doc(db, "Users", user.uid));
                     if (docSnap.exists() && docSnap.data().gender) {
+                        const data = docSnap.data();
+                        
+                        // 🚀 CRITICAL FIX: Ensure LocalStorage is populated on Auto-Login too
+                        localStorage.setItem('playerUID', user.uid);
+                        localStorage.setItem('gameName', data.gameName || user.displayName);
+                        localStorage.setItem('selectedCharacter', data.selectedCharacter || 'man');
+
                         window.location.href = "lobby.html";
                     } else {
+                        localStorage.setItem('playerUID', user.uid);
                         window.location.href = "profile.html";
                     }
                 } catch (error) {
