@@ -2,77 +2,134 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Racing Universe | Login</title>
     <style>
         * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
         
-        /* 🚀 Pro Game Animated Background */
+        /* 🌌 Genshin-Style Magical Background */
         body { 
             margin: 0; padding: 0; height: 100vh; display: flex; align-items: center; justify-content: center;
-            background: linear-gradient(-45deg, #0f172a, #1e1b4b, #0f172a, #020617);
-            background-size: 400% 400%;
-            animation: gradientBG 15s ease infinite;
-            color: white; overflow: hidden;
+            /* Rich magical night colors based on the screenshot */
+            background: radial-gradient(circle at top right, #3b2164, #1b1236, #0a081a);
+            color: #fdfbf7; overflow: hidden;
+            position: relative;
         }
 
-        @keyframes gradientBG {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
+        /* 🌟 Floating Stars/Magic Dust Effect */
+        .stars {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none;
+            background-image: 
+                radial-gradient(2px 2px at 20px 30px, #eee, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 40px 70px, #fff, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 50px 160px, #ddd, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 90px 40px, #fff, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 130px 80px, #fff, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 160px 120px, #ddd, rgba(0,0,0,0));
+            background-repeat: repeat;
+            background-size: 200px 200px;
+            animation: drift 60s linear infinite;
+            opacity: 0.4;
+        }
+        @keyframes drift { from { transform: translateY(0); } to { transform: translateY(-200px); } }
+
+        .main-container {
+            z-index: 10;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            width: 100%; max-width: 400px; padding: 20px;
         }
 
-        .box { 
-            background: rgba(15, 23, 42, 0.85); 
-            padding: 40px 30px; 
-            border-radius: 16px; 
-            width: 90%; max-width: 400px; 
-            text-align: center;
-            border: 1px solid rgba(59, 130, 246, 0.4); 
-            box-shadow: 0 0 30px rgba(59, 130, 246, 0.2); 
-            backdrop-filter: blur(10px);
+        /* 👑 Elegant Typography */
+        h1 {
+            font-family: 'Georgia', serif; /* Elegant serif font */
+            font-size: 42px; font-weight: normal; font-style: italic;
+            margin: 0 0 10px 0; text-align: center;
+            color: #fffaf0;
+            text-shadow: 0 0 15px rgba(255, 235, 180, 0.6), 0 0 30px rgba(180, 140, 255, 0.4);
+            letter-spacing: 2px;
         }
 
-        h2 { 
-            color: #38bdf8; margin-top: 0; text-transform: uppercase; letter-spacing: 2px; 
-            font-size: 24px; text-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+        .subtitle {
+            font-family: 'Georgia', serif;
+            color: #d1c5e6; font-size: 14px; letter-spacing: 4px;
+            text-transform: uppercase; margin-bottom: 50px;
         }
 
-        button { 
-            width: 100%; padding: 15px; border-radius: 8px; 
-            background: linear-gradient(90deg, #ef4444, #dc2626); 
-            color: white; font-weight: 900; cursor: pointer; border: none; 
-            font-size: 16px; margin-top: 25px; text-transform: uppercase; 
-            transition: 0.3s; box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);
+        /* 🔘 Genshin-Style Elegant Button */
+        button.login-btn { 
+            position: relative; width: 220px; padding: 15px 30px; 
+            background: rgba(255, 255, 255, 0.1); 
+            color: #fcebc4; font-size: 18px; font-weight: bold; letter-spacing: 1px;
+            font-family: 'Georgia', serif;
+            border: 2px solid #b69865; border-radius: 40px; 
+            cursor: pointer; text-transform: uppercase; 
+            box-shadow: 0 0 15px rgba(182, 152, 101, 0.3), inset 0 0 20px rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(5px);
+            transition: all 0.3s ease;
+            overflow: hidden;
         }
-
-        button:hover { 
-            transform: translateY(-2px); box-shadow: 0 8px 20px rgba(239, 68, 68, 0.6); 
+        
+        button.login-btn::before {
+            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0) 100%);
+            transform: rotate(45deg); animation: shine 3s infinite;
         }
+        @keyframes shine { 0% { left: -100%; } 100% { left: 100%; } }
 
-        button:active { transform: translateY(1px); }
+        button.login-btn:hover { 
+            background: rgba(182, 152, 101, 0.2); 
+            box-shadow: 0 0 25px rgba(182, 152, 101, 0.6); 
+            transform: scale(1.05);
+        }
 
         #statusText { 
-            color: #fbbf24; font-size: 13px; margin-top: 20px; font-weight: bold; 
-            min-height: 20px; letter-spacing: 0.5px;
+            color: #d1c5e6; font-size: 13px; margin-top: 30px; 
+            min-height: 20px; letter-spacing: 1px; font-style: italic;
         }
 
-        .version {
-            position: absolute; bottom: 10px; right: 15px; font-size: 10px; color: #64748b;
+        .version { position: absolute; bottom: 15px; left: 15px; font-size: 11px; color: #73678c; }
+
+        /* 🎵 Genshin-Style Side Buttons (Music/Settings) */
+        .side-buttons {
+            position: absolute; right: 20px; top: 50%; transform: translateY(-50%);
+            display: flex; flex-direction: column; gap: 15px; z-index: 20;
         }
+
+        .icon-btn {
+            width: 45px; height: 45px; border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid #b69865; color: #b69865;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px; cursor: pointer; backdrop-filter: blur(5px);
+            box-shadow: 0 0 10px rgba(0,0,0,0.5); transition: 0.3s;
+        }
+        .icon-btn:hover { background: rgba(182, 152, 101, 0.3); color: #fff; transform: scale(1.1); }
+        .icon-btn.playing { border-color: #4ade80; color: #4ade80; box-shadow: 0 0 15px rgba(74, 222, 128, 0.4); }
     </style>
 </head>
 <body>
 
-    <div class="box">
-        <h2>🏎️ Racing Universe</h2>
-        <p style="color: #94a3b8; font-size: 13px; margin-top: -10px;">Open World Multiplayer Engine</p>
+    <div class="stars"></div>
+
+    <div class="main-container">
+        <h1>Racing Universe</h1>
+        <div class="subtitle">Open World Engine</div>
         
-        <button id="googleLoginBtn">🔐 Login with Google</button>
-        <p id="statusText">System Ready...</p>
+        <button id="googleLoginBtn" class="login-btn">Enter Game</button>
+        <p id="statusText">Awaiting connection...</p>
+    </div>
+
+    <!-- Right Side Floating Icons -->
+    <div class="side-buttons">
+        <div id="music-toggle-btn" class="icon-btn" title="Toggle Music">🔇</div>
     </div>
 
     <div class="version">v2.0 Island Update</div>
+
+    <!-- Hidden Audio Element -->
+    <audio id="bg-music" loop>
+        <source src="Sound/Music/BGM.mp3" type="audio/mpeg">
+    </audio>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -97,60 +154,88 @@
         const loginBtn = document.getElementById('googleLoginBtn');
         const statusText = document.getElementById('statusText');
 
+        // 🎵 Music Logic (Autoplay workaround)
+        const bgMusic = document.getElementById('bg-music');
+        const musicBtn = document.getElementById('music-toggle-btn');
+        bgMusic.volume = 0.4; // Softer volume for login screen
+        let isMusicPlaying = false;
+
+        // Attempt to play music on the very first tap/click anywhere on the screen
+        document.body.addEventListener('click', () => {
+            if(!isMusicPlaying) {
+                bgMusic.play().then(() => {
+                    isMusicPlaying = true;
+                    musicBtn.innerHTML = '🎵';
+                    musicBtn.classList.add('playing');
+                }).catch(e => console.log("Autoplay blocked by browser. User must click the music icon."));
+            }
+        }, { once: true });
+
+        // Manual Music Toggle Button
+        musicBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent the body click event from firing twice
+            if(isMusicPlaying) {
+                bgMusic.pause();
+                isMusicPlaying = false;
+                musicBtn.innerHTML = '🔇';
+                musicBtn.classList.remove('playing');
+            } else {
+                bgMusic.play();
+                isMusicPlaying = true;
+                musicBtn.innerHTML = '🎵';
+                musicBtn.classList.add('playing');
+            }
+        });
+
+        // 🔐 Login Logic
         loginBtn.addEventListener('click', async (e) => {
             e.preventDefault(); 
-            statusText.innerText = "Opening Google Login...";
+            statusText.innerText = "Connecting to servers...";
             
             try {
                 const result = await signInWithPopup(auth, provider);
                 const user = result.user;
                 
-                statusText.innerText = "Login Done! Checking Profile...";
+                statusText.innerText = "Connection Established! Retrieving data...";
                 
                 const docSnap = await getDoc(doc(db, "Users", user.uid));
                 
                 if (docSnap.exists() && docSnap.data().gender) {
                     const data = docSnap.data();
-                    
-                    // 🚀 CRITICAL FIX: Save data to LocalStorage for 3D Game Engine (2engine.js)
                     localStorage.setItem('playerUID', user.uid);
                     localStorage.setItem('gameName', data.gameName || user.displayName);
                     localStorage.setItem('selectedCharacter', data.selectedCharacter || 'man');
 
-                    statusText.innerText = "Profile Found! Entering Lobby...";
-                    setTimeout(() => { window.location.href = "lobby.html"; }, 500);
+                    statusText.innerText = "Welcome back! Entering Lobby...";
+                    setTimeout(() => { window.location.href = "lobby.html"; }, 800);
                 } else {
-                    // New User -> Redirect to profile creation
                     localStorage.setItem('playerUID', user.uid);
-                    statusText.innerText = "New Player! Redirecting to setup...";
-                    setTimeout(() => { window.location.href = "profile.html"; }, 500);
+                    statusText.innerText = "New Traveler Detected! Redirecting...";
+                    setTimeout(() => { window.location.href = "profile.html"; }, 800);
                 }
             } catch (error) {
-                statusText.innerText = "❌ Error: " + error.message;
+                statusText.innerText = "❌ Connection Failed: " + error.message;
             }
         });
 
         // 🔄 AUTO-LOGIN LOGIC
         onAuthStateChanged(auth, async (user) => {
-            if (user && statusText.innerText === "System Ready...") {
-                statusText.innerText = "Auto-Login detected. Verifying...";
+            if (user && statusText.innerText === "Awaiting connection...") {
+                statusText.innerText = "Session restored. Verifying data...";
                 try {
                     const docSnap = await getDoc(doc(db, "Users", user.uid));
                     if (docSnap.exists() && docSnap.data().gender) {
                         const data = docSnap.data();
-                        
-                        // 🚀 CRITICAL FIX: Ensure LocalStorage is populated on Auto-Login too
                         localStorage.setItem('playerUID', user.uid);
                         localStorage.setItem('gameName', data.gameName || user.displayName);
                         localStorage.setItem('selectedCharacter', data.selectedCharacter || 'man');
-
                         window.location.href = "lobby.html";
                     } else {
                         localStorage.setItem('playerUID', user.uid);
                         window.location.href = "profile.html";
                     }
                 } catch (error) {
-                    statusText.innerText = "❌ DB Error: " + error.message;
+                    statusText.innerText = "❌ Data Sync Error: " + error.message;
                 }
             }
         });
