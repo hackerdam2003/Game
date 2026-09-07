@@ -23,11 +23,20 @@
         #btn-friends { bottom: 25px; right: 25px; }
         #btn-party-create { top: 20px; left: 20px; font-size: 18px; }
         
-        /* 🛑 MIC & MUSIC BUTTONS */
         #btn-mic-toggle { bottom: 95px; left: 25px; z-index: 20; }
         #btn-music-toggle { bottom: 165px; left: 25px; z-index: 20; font-size: 20px; }
         .music-playing { border-color: #10b981 !important; color: #10b981 !important; box-shadow: 0 0 15px rgba(16, 185, 129, 0.4) !important; }
         
+        /* 🚀 NAYA: Music Volume Popup UI */
+        .volume-popup {
+            position: absolute; bottom: 165px; left: 95px; background: #1e293b;
+            border: 1px solid #3b82f6; border-radius: 8px; padding: 12px;
+            display: none; flex-direction: column; align-items: center; z-index: 30;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+        }
+        .volume-popup label { color: #38bdf8; font-size: 11px; font-weight: bold; margin-bottom: 8px; text-transform: uppercase; }
+        .volume-popup input[type="range"] { width: 120px; accent-color: #10b981; outline: none; }
+
         .match-bar { padding: 15px 20px; background: #1e293b; border-top: 1px solid #334155; display: flex; flex-direction: column; gap: 10px; z-index: 10; }
         .btn-play { background: #10b981; color: white; border: none; padding: 14px; border-radius: 10px; font-size: 16px; font-weight: 900; text-transform: uppercase; width: 100%; cursor: pointer; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4); }
         .drawer { position: fixed; top: 0; left: -100%; width: 85%; max-width: 340px; height: 100%; background: #1e293b; border-right: 1px solid #334155; z-index: 100; transition: 0.3s ease-in-out; display: flex; flex-direction: column; padding: 20px; box-shadow: 5px 0 25px rgba(0,0,0,0.6); }
@@ -69,9 +78,15 @@
         <div class="icon-btn" id="btn-chat" title="Chat Hub">💬</div>
         <div class="icon-btn" id="btn-friends" title="Friends">👥</div>
         
-        <!-- 🎵 Music & Mic Toggles -->
-        <div class="icon-btn" id="btn-music-toggle" title="Toggle Music">🎵</div>
+        <!-- 🎵 Music Toggles -->
+        <div class="icon-btn" id="btn-music-toggle" title="Toggle Music (Hold for Volume)">🎵</div>
         <div class="icon-btn" id="btn-mic-toggle" title="Voice Chat" onclick="window.toggleVoiceChat()">🔇</div>
+        
+        <!-- 🚀 NAYA: Hidden Volume Popup -->
+        <div class="volume-popup" id="music-volume-popup">
+            <label>Music Volume</label>
+            <input type="range" id="music-volume-slider" min="0" max="1" step="0.05">
+        </div>
         
         <div class="party-stage" id="party-stage-container">
             <div class="character-stage" onclick="window.showMyProfile()">
@@ -171,7 +186,7 @@
     </div>
 
     <!-- 🎵 Hidden Audio Element for Background Music -->
-    <audio id="bg-music" loop>
+    <audio id="bg-music" loop preload="auto">
         <source src="Sound/Music/BGM.mp3" type="audio/mpeg">
     </audio>
 
@@ -187,35 +202,32 @@
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { getFirestore, doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
         import { getDatabase, ref, onValue, onDisconnect, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+        
+        // 🚀 NAYA: Music Script Import kar liya Volume Set karne ke liye
+        import { setVolume, getVolume } from './js/music.js';
 
-        // 🎵 SMART AUTOPLAY MUSIC LOGIC
-        const bgMusic = document.getElementById('bg-music');
+        // Long Press UI Handler
+        const volPopup = document.getElementById('music-volume-popup');
+        const volSlider = document.getElementById('music-volume-slider');
         const musicBtn = document.getElementById('btn-music-toggle');
-        bgMusic.volume = 0.4; 
-        let isMusicPlaying = false;
+        
+        // Popup me slider ko purane saved volume par set karo
+        volSlider.value = getVolume();
 
-        document.body.addEventListener('click', () => {
-            if(!isMusicPlaying) {
-                bgMusic.play().then(() => {
-                    isMusicPlaying = true;
-                    musicBtn.innerHTML = '🎵';
-                    musicBtn.classList.add('music-playing');
-                }).catch(e => console.log("Autoplay blocked. Tap music icon manually."));
-            }
-        }, { once: true });
+        // Music.js se aaya hua custom 'longpress' event suno
+        musicBtn.addEventListener('longpress', () => {
+            volPopup.style.display = volPopup.style.display === 'flex' ? 'none' : 'flex';
+        });
 
-        musicBtn.addEventListener('click', (e) => {
-            e.stopPropagation(); 
-            if(isMusicPlaying) {
-                bgMusic.pause();
-                isMusicPlaying = false;
-                musicBtn.innerHTML = '⏸️';
-                musicBtn.classList.remove('music-playing');
-            } else {
-                bgMusic.play();
-                isMusicPlaying = true;
-                musicBtn.innerHTML = '🎵';
-                musicBtn.classList.add('music-playing');
+        // Volume Change
+        volSlider.addEventListener('input', (e) => {
+            setVolume(e.target.value);
+        });
+
+        // Click outside to hide popup
+        document.addEventListener('click', (e) => {
+            if(!musicBtn.contains(e.target) && !volPopup.contains(e.target)) {
+                volPopup.style.display = 'none';
             }
         });
 
@@ -359,4 +371,3 @@
     </script>
 </body>
 </html>
-
