@@ -23,6 +23,7 @@
         #btn-friends { bottom: 25px; right: 25px; }
         #btn-party-create { top: 20px; left: 20px; font-size: 18px; }
         
+        /* 🛑 MIC & MUSIC BUTTONS */
         #btn-mic-toggle { bottom: 95px; left: 25px; z-index: 20; }
         #btn-music-toggle { bottom: 165px; left: 25px; z-index: 20; font-size: 20px; }
         .music-playing { border-color: #10b981 !important; color: #10b981 !important; box-shadow: 0 0 15px rgba(16, 185, 129, 0.4) !important; }
@@ -190,6 +191,8 @@
         <source src="Sound/Music/BGM.mp3" type="audio/mpeg">
     </audio>
 
+    <!-- 🚀 NAYA: Music script ko yahan ek line me import kar liya -->
+    <script type="module" src="js/music.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script type="module" src="js/chat.js"></script>
     <script type="module" src="js/friends.js"></script>
@@ -212,21 +215,25 @@
         const musicBtn = document.getElementById('btn-music-toggle');
         
         // Popup me slider ko purane saved volume par set karo
-        volSlider.value = getVolume();
+        if (volSlider) volSlider.value = getVolume();
 
         // Music.js se aaya hua custom 'longpress' event suno
-        musicBtn.addEventListener('longpress', () => {
-            volPopup.style.display = volPopup.style.display === 'flex' ? 'none' : 'flex';
-        });
+        if (musicBtn) {
+            musicBtn.addEventListener('longpress', () => {
+                volPopup.style.display = volPopup.style.display === 'flex' ? 'none' : 'flex';
+            });
+        }
 
         // Volume Change
-        volSlider.addEventListener('input', (e) => {
-            setVolume(e.target.value);
-        });
+        if (volSlider) {
+            volSlider.addEventListener('input', (e) => {
+                setVolume(e.target.value);
+            });
+        }
 
         // Click outside to hide popup
         document.addEventListener('click', (e) => {
-            if(!musicBtn.contains(e.target) && !volPopup.contains(e.target)) {
+            if(musicBtn && volPopup && !musicBtn.contains(e.target) && !volPopup.contains(e.target)) {
                 volPopup.style.display = 'none';
             }
         });
