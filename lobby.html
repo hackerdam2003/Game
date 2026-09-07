@@ -191,8 +191,9 @@
         <source src="Sound/Music/BGM.mp3" type="audio/mpeg">
     </audio>
 
-    <!-- 🚀 NAYA: Music script ko yahan ek line me import kar liya -->
+    <!-- 🚀 Music Script Import -->
     <script type="module" src="js/music.js"></script>
+    
     <script src="/socket.io/socket.io.js"></script>
     <script type="module" src="js/chat.js"></script>
     <script type="module" src="js/friends.js"></script>
@@ -206,7 +207,7 @@
         import { getFirestore, doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
         import { getDatabase, ref, onValue, onDisconnect, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
         
-        // 🚀 NAYA: Music Script Import kar liya Volume Set karne ke liye
+        // 🚀 Music Script Import for Volume Slider
         import { setVolume, getVolume } from './js/music.js';
 
         // Long Press UI Handler
@@ -214,24 +215,20 @@
         const volSlider = document.getElementById('music-volume-slider');
         const musicBtn = document.getElementById('btn-music-toggle');
         
-        // Popup me slider ko purane saved volume par set karo
         if (volSlider) volSlider.value = getVolume();
 
-        // Music.js se aaya hua custom 'longpress' event suno
         if (musicBtn) {
             musicBtn.addEventListener('longpress', () => {
                 volPopup.style.display = volPopup.style.display === 'flex' ? 'none' : 'flex';
             });
         }
 
-        // Volume Change
         if (volSlider) {
             volSlider.addEventListener('input', (e) => {
                 setVolume(e.target.value);
             });
         }
 
-        // Click outside to hide popup
         document.addEventListener('click', (e) => {
             if(musicBtn && volPopup && !musicBtn.contains(e.target) && !volPopup.contains(e.target)) {
                 volPopup.style.display = 'none';
