@@ -4,15 +4,16 @@ import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
-console.log("💃 [Testing Lab] Exact GitHub File Sync Active!");
+console.log("💃 [Testing Lab] AI Bone Auto-Fixer Active! (GLB + FBX Sync)");
 
 let scene, camera, renderer, clock, controls;
 let my3DCharacter = null;
 let mixer = null;
 let actions = {}; 
 let currentAction = null;
+let characterBones = []; // 🚀 NAYA: Character ki haddiyon ko store karne ke liye
 
-// 📜 EXACT FILES FROM YOUR FOLDER (Without .fbx extension)
+// 📜 EXACT FILES FROM YOUR FOLDER
 const animationList = [
     "Agreeing", "Breakdance Uprock Var 1", "Cheering", "Chicken_Dance", 
     "Crazy Gesture", "Defeat2", "Drunk Run Forward", "Dying", 
@@ -85,7 +86,7 @@ function generateUIButtons() {
     if (!container) return;
     container.innerHTML = ''; 
 
-    animationList.forEach(animName => {
+    animationList.sort().forEach(animName => {
         const btn = document.createElement('div');
         btn.className = 'anim-btn';
         btn.id = `btn-${animName.replace(/ /g, '-')}`; 
@@ -111,9 +112,7 @@ function loadCharacter(filePath) {
     }
 
     const isGLB = filePath.toLowerCase().endsWith('.glb');
-    
-    // Properly encode the path to handle spaces in names
-    const characterUrl = `./${filePath.split('/').map(part => encodeURIComponent(part)).join('/')}`; 
+    const characterUrl = `./${encodeURIComponent(filePath)}`; 
 
     const onLoadSuccess = (object) => {
         my3DCharacter = isGLB ? object.scene : object;
@@ -122,15 +121,29 @@ function loadCharacter(filePath) {
         my3DCharacter.scale.set(scaleSize, scaleSize, scaleSize); 
         my3DCharacter.position.set(0, 0, 0); 
         
+        characterBones = []; // Reset bones
         my3DCharacter.traverse((child) => {
             if (child.isMesh) {
                 child.castShadow = true;
                 child.receiveShadow = true;
             }
+            // 🚀 Character ki saari parts/bones ka naam save kar lo
+            if (child.name) {
+                characterBones.push(child.name);
+            }
         });
 
         scene.add(my3DCharacter);
         mixer = new THREE.AnimationMixer(my3DCharacter);
+
+        // 🚀 AGAR GLB FILE ME PEHLE SE ANIMATION HAI TOH USKO SAVE KARLO
+        const embeddedAnims = isGLB ? object.animations : object.animations;
+        if (embeddedAnims && embeddedAnims.length > 0) {
+            console.log(`✅ Found ${embeddedAnims.length} Built-in Animations!`);
+            embeddedAnims.forEach(anim => {
+                actions[anim.name] = mixer.clipAction(anim);
+            });
+        }
 
         if (loadingUI) loadingUI.style.display = 'none';
         
@@ -177,12 +190,38 @@ function loadAndPlayAnimation(animName) {
     }
 
     const fbxLoader = new FBXLoader();
-    // Safely encode URL for spaces and symbols
     const fileUrl = `./First/${encodeURIComponent(animName)}.fbx`;
 
     fbxLoader.load(fileUrl, (anim) => {
         if (anim.animations.length > 0) {
-            const clipAction = mixer.clipAction(anim.animations[0]);
+            let clip = anim.animations[0];
+
+            // 🚀 BONE AUTO-FIXER LOGIC (Yeh T-Pose fix karega)
+            clip.tracks.forEach(track => {
+                const parts = track.name.split('.');
+                let boneName = parts[0];
+                const property = parts[1];
+
+                // Remove FBX specific prefixes like "Armature|"
+                if (boneName.includes('|')) {
+                    boneName = boneName.split('|').pop();
+                }
+
+                // Agar exact bone nahi mili, toh fuzzy matching karo
+                if (!characterBones.includes(boneName)) {
+                    const simpleTrackName = boneName.replace(/[^a-zA-Z]/g, '').toLowerCase();
+                    const matchedBone = characterBones.find(b => {
+                        const simpleBoneName = b.replace(/[^a-zA-Z]/g, '').toLowerCase();
+                        return simpleBoneName === simpleTrackName || simpleBoneName.includes(simpleTrackName) || simpleTrackName.includes(simpleBoneName);
+                    });
+                    
+                    if (matchedBone) {
+                        track.name = `${matchedBone}.${property}`;
+                    }
+                }
+            });
+
+            const clipAction = mixer.clipAction(clip);
             
             if (animName.toLowerCase().includes("jump") || 
                 animName.toLowerCase().includes("punch") || 
@@ -247,4 +286,3 @@ window.addEventListener('resize', () => {
         renderer.setSize(window.innerWidth, window.innerHeight);
     }
 });
-
