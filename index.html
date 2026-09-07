@@ -125,10 +125,13 @@
 
     <div class="version">v2.0 Island Update</div>
 
-    <!-- 🚀 FIX 1: preload="auto" add kiya mobile support ke liye -->
+    <!-- 🎵 Hidden Audio Element for Background Music -->
     <audio id="bg-music" loop preload="auto">
         <source src="Sound/Music/BGM.mp3" type="audio/mpeg">
     </audio>
+
+    <!-- 🚀 NAYA: Music script ko yahan ek line me import kar liya -->
+    <script type="module" src="js/music.js"></script>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -152,43 +155,7 @@
         const loginBtn = document.getElementById('googleLoginBtn');
         const statusText = document.getElementById('statusText');
 
-        // 🎵 FIX 2: Bulletproof Autoplay Logic for Mobile & PC
-        const bgMusic = document.getElementById('bg-music');
-        const musicBtn = document.getElementById('music-toggle-btn');
-        bgMusic.volume = 0.4; 
-        let isMusicPlaying = false;
-
-        const forcePlayMusic = () => {
-            if(!isMusicPlaying) {
-                bgMusic.play().then(() => {
-                    isMusicPlaying = true;
-                    musicBtn.innerHTML = '🎵';
-                    musicBtn.classList.add('playing');
-                    document.body.removeEventListener('click', forcePlayMusic);
-                    document.body.removeEventListener('touchstart', forcePlayMusic);
-                }).catch(e => console.log("Waiting for user tap to play music..."));
-            }
-        };
-
-        document.body.addEventListener('click', forcePlayMusic);
-        document.body.addEventListener('touchstart', forcePlayMusic, { passive: true });
-
-        musicBtn.addEventListener('click', (e) => {
-            e.stopPropagation(); 
-            if(isMusicPlaying) {
-                bgMusic.pause();
-                isMusicPlaying = false;
-                musicBtn.innerHTML = '🔇';
-                musicBtn.classList.remove('playing');
-            } else {
-                bgMusic.play();
-                isMusicPlaying = true;
-                musicBtn.innerHTML = '🎵';
-                musicBtn.classList.add('playing');
-            }
-        });
-
-        // 🚀 FIX 3: GENSHIN STYLE LOGIN LOGIC (No Instant Redirect)
+        // 🚀 GENSHIN STYLE LOGIN LOGIC (No Instant Redirect)
         let isLoggedIn = false;
         let currentUser = null;
 
@@ -249,3 +216,4 @@
     </script>
 </body>
 </html>
+
