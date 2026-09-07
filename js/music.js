@@ -1,8 +1,9 @@
 // js/music.js
-console.log("🎵 Universal Music & Volume System Loaded!");
+console.log("🎵 Universal Music & Volume System Loaded! (Bulletproof Version)");
 
-// Local storage se purana volume nikalo (default 0.4 hai)
-let currentVolume = parseFloat(localStorage.getItem('gameMusicVolume')) || 0.4;
+// FIX: Volume 0 bug fixed. Ab properly local storage se data lega
+let storedVol = localStorage.getItem('gameMusicVolume');
+let currentVolume = storedVol !== null ? parseFloat(storedVol) : 0.4;
 let isMusicPlaying = false;
 let bgMusic = null;
 let musicBtn = null;
@@ -11,26 +12,39 @@ export function initMusic() {
     bgMusic = document.getElementById('bg-music');
     musicBtn = document.getElementById('btn-music-toggle') || document.getElementById('music-toggle-btn');
 
-    if (!bgMusic) return;
+    if (!bgMusic) {
+        console.warn("⚠️ Music System: <audio id='bg-music'> not found on this page.");
+        return;
+    }
 
     bgMusic.volume = currentVolume;
 
+    // 🚀 BULLETPROOF AUTOPLAY LOGIC (iOS & Android)
     const forcePlayMusic = () => {
-        if (!isMusicPlaying) {
-            bgMusic.play().then(() => {
-                isMusicPlaying = true;
-                updateButtonUI();
-                document.body.removeEventListener('click', forcePlayMusic);
-                document.body.removeEventListener('touchstart', forcePlayMusic);
-            }).catch(e => console.log("🎵 Autoplay waiting..."));
+        if (!isMusicPlaying && bgMusic.paused) {
+            let playPromise = bgMusic.play();
+            
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    isMusicPlaying = true;
+                    updateButtonUI();
+                    // Event listeners hata do ek baar play hone ke baad
+                    window.removeEventListener('click', forcePlayMusic);
+                    window.removeEventListener('touchend', forcePlayMusic);
+                }).catch(e => {
+                    console.log("🎵 Autoplay waiting for direct screen tap...");
+                });
+            }
         }
     };
 
-    document.body.addEventListener('click', forcePlayMusic);
-    document.body.addEventListener('touchstart', forcePlayMusic, { passive: true });
+    // FIX: document.body ki jagah 'window' par listener lagaya (Puri screen cover)
+    // FIX: 'touchstart' ki jagah 'touchend' lagaya (iPhone/Safari ke liye zaroori)
+    window.addEventListener('click', forcePlayMusic);
+    window.addEventListener('touchend', forcePlayMusic, { passive: true });
 
+    // 🎛️ LONG PRESS & MANUAL TOGGLE BUTTON LOGIC
     if (musicBtn) {
-        // 🚀 LONG PRESS LOGIC (Touch & Mouse)
         let pressTimer;
         let isLongPress = false;
 
@@ -38,8 +52,8 @@ export function initMusic() {
             isLongPress = false;
             pressTimer = setTimeout(() => {
                 isLongPress = true;
-                musicBtn.dispatchEvent(new CustomEvent('longpress')); // Custom event trigger kiya
-            }, 500); // 500ms daba ke rakhne par volume khulega
+                musicBtn.dispatchEvent(new CustomEvent('longpress')); // Popup kholne ke liye
+            }, 500); // 500ms hold
         };
 
         const cancelPress = () => clearTimeout(pressTimer);
@@ -54,12 +68,12 @@ export function initMusic() {
         musicBtn.addEventListener('mouseup', cancelPress);
         musicBtn.addEventListener('mouseleave', cancelPress);
 
-        // Click Event (Agar long press hua hai toh click cancel ho jayega)
+        // Standard Click (Toggle)
         musicBtn.addEventListener('click', (e) => {
-            e.stopPropagation(); 
+            e.stopPropagation(); // Screen tap ko double trigger hone se roko
             if (isLongPress) {
                 isLongPress = false; 
-                return; // Long press me gaana band nahi hoga, sirf slider aayega
+                return; // Long press me pause nahi hoga
             }
             toggleMusic();
         });
@@ -68,19 +82,24 @@ export function initMusic() {
 
 export function toggleMusic() {
     if (!bgMusic) return;
-    if (isMusicPlaying) {
+    
+    // Agar gaana chal raha hai, toh pause karo
+    if (isMusicPlaying || !bgMusic.paused) {
         bgMusic.pause();
         isMusicPlaying = false;
     } else {
-        bgMusic.play();
-        isMusicPlaying = true;
+        // Agar band hai, toh play karo
+        bgMusic.play().then(() => {
+            isMusicPlaying = true;
+            updateButtonUI();
+        }).catch(e => console.log("Manual play blocked:", e));
     }
     updateButtonUI();
 }
 
 export function setVolume(val) {
     currentVolume = parseFloat(val);
-    localStorage.setItem('gameMusicVolume', currentVolume); // Game me aage ke liye save ho gaya
+    localStorage.setItem('gameMusicVolume', currentVolume); // Game me save rahega
     if (bgMusic) bgMusic.volume = currentVolume;
 }
 
@@ -99,8 +118,10 @@ function updateButtonUI() {
     }
 }
 
+// Auto Init on Page Load
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initMusic);
 } else {
     initMusic();
 }
+
