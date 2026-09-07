@@ -10,7 +10,6 @@
         /* 🌌 Genshin-Style Magical Background */
         body { 
             margin: 0; padding: 0; height: 100vh; display: flex; align-items: center; justify-content: center;
-            /* Rich magical night colors based on the screenshot */
             background: radial-gradient(circle at top right, #3b2164, #1b1236, #0a081a);
             color: #fdfbf7; overflow: hidden;
             position: relative;
@@ -41,7 +40,7 @@
 
         /* 👑 Elegant Typography */
         h1 {
-            font-family: 'Georgia', serif; /* Elegant serif font */
+            font-family: 'Georgia', serif; 
             font-size: 42px; font-weight: normal; font-style: italic;
             margin: 0 0 10px 0; text-align: center;
             color: #fffaf0;
@@ -89,7 +88,7 @@
 
         .version { position: absolute; bottom: 15px; left: 15px; font-size: 11px; color: #73678c; }
 
-        /* 🎵 Genshin-Style Side Buttons (Music/Settings) */
+        /* 🎵 Genshin-Style Side Buttons (Music) */
         .side-buttons {
             position: absolute; right: 20px; top: 50%; transform: translateY(-50%);
             display: flex; flex-direction: column; gap: 15px; z-index: 20;
@@ -115,8 +114,8 @@
         <h1>Racing Universe</h1>
         <div class="subtitle">Open World Engine</div>
         
-        <button id="googleLoginBtn" class="login-btn">Enter Game</button>
-        <p id="statusText">Awaiting connection...</p>
+        <button id="googleLoginBtn" class="login-btn">Loading...</button>
+        <p id="statusText">Checking Connection...</p>
     </div>
 
     <!-- Right Side Floating Icons -->
@@ -126,8 +125,8 @@
 
     <div class="version">v2.0 Island Update</div>
 
-    <!-- Hidden Audio Element -->
-    <audio id="bg-music" loop>
+    <!-- 🚀 FIX 1: preload="auto" add kiya mobile support ke liye -->
+    <audio id="bg-music" loop preload="auto">
         <source src="Sound/Music/BGM.mp3" type="audio/mpeg">
     </audio>
 
@@ -136,7 +135,6 @@
         import { getAuth, signInWithPopup, onAuthStateChanged, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-        // 🔥 RACING ENGINE DATABASE KEYS 
         const engineConfig = {
             apiKey: "AIzaSyCuYPugV4qIsu9ZT9E5l63bFLgIbte_S8I",
             authDomain: "racing-universe-engine.firebaseapp.com",
@@ -154,26 +152,29 @@
         const loginBtn = document.getElementById('googleLoginBtn');
         const statusText = document.getElementById('statusText');
 
-        // 🎵 Music Logic (Autoplay workaround)
+        // 🎵 FIX 2: Bulletproof Autoplay Logic for Mobile & PC
         const bgMusic = document.getElementById('bg-music');
         const musicBtn = document.getElementById('music-toggle-btn');
-        bgMusic.volume = 0.4; // Softer volume for login screen
+        bgMusic.volume = 0.4; 
         let isMusicPlaying = false;
 
-        // Attempt to play music on the very first tap/click anywhere on the screen
-        document.body.addEventListener('click', () => {
+        const forcePlayMusic = () => {
             if(!isMusicPlaying) {
                 bgMusic.play().then(() => {
                     isMusicPlaying = true;
                     musicBtn.innerHTML = '🎵';
                     musicBtn.classList.add('playing');
-                }).catch(e => console.log("Autoplay blocked by browser. User must click the music icon."));
+                    document.body.removeEventListener('click', forcePlayMusic);
+                    document.body.removeEventListener('touchstart', forcePlayMusic);
+                }).catch(e => console.log("Waiting for user tap to play music..."));
             }
-        }, { once: true });
+        };
 
-        // Manual Music Toggle Button
+        document.body.addEventListener('click', forcePlayMusic);
+        document.body.addEventListener('touchstart', forcePlayMusic, { passive: true });
+
         musicBtn.addEventListener('click', (e) => {
-            e.stopPropagation(); // Prevent the body click event from firing twice
+            e.stopPropagation(); 
             if(isMusicPlaying) {
                 bgMusic.pause();
                 isMusicPlaying = false;
@@ -187,16 +188,42 @@
             }
         });
 
-        // 🔐 Login Logic
+        // 🚀 FIX 3: GENSHIN STYLE LOGIN LOGIC (No Instant Redirect)
+        let isLoggedIn = false;
+        let currentUser = null;
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                // User already logged in, wait for them to click "Enter Game"
+                isLoggedIn = true;
+                currentUser = user;
+                loginBtn.innerText = "Enter Game";
+                statusText.innerText = "Session Restored. Click to enter!";
+            } else {
+                // Not logged in
+                isLoggedIn = false;
+                currentUser = null;
+                loginBtn.innerText = "Login with Google";
+                statusText.innerText = "Awaiting connection...";
+            }
+        });
+
         loginBtn.addEventListener('click', async (e) => {
             e.preventDefault(); 
-            statusText.innerText = "Connecting to servers...";
             
             try {
-                const result = await signInWithPopup(auth, provider);
-                const user = result.user;
+                let user = currentUser;
+
+                // Agar login nahi hai, tabhi Google popup kholo
+                if (!isLoggedIn) {
+                    statusText.innerText = "Opening Google Login...";
+                    const result = await signInWithPopup(auth, provider);
+                    user = result.user;
+                }
                 
                 statusText.innerText = "Connection Established! Retrieving data...";
+                loginBtn.style.opacity = '0.5';
+                loginBtn.style.pointerEvents = 'none';
                 
                 const docSnap = await getDoc(doc(db, "Users", user.uid));
                 
@@ -215,28 +242,8 @@
                 }
             } catch (error) {
                 statusText.innerText = "❌ Connection Failed: " + error.message;
-            }
-        });
-
-        // 🔄 AUTO-LOGIN LOGIC
-        onAuthStateChanged(auth, async (user) => {
-            if (user && statusText.innerText === "Awaiting connection...") {
-                statusText.innerText = "Session restored. Verifying data...";
-                try {
-                    const docSnap = await getDoc(doc(db, "Users", user.uid));
-                    if (docSnap.exists() && docSnap.data().gender) {
-                        const data = docSnap.data();
-                        localStorage.setItem('playerUID', user.uid);
-                        localStorage.setItem('gameName', data.gameName || user.displayName);
-                        localStorage.setItem('selectedCharacter', data.selectedCharacter || 'man');
-                        window.location.href = "lobby.html";
-                    } else {
-                        localStorage.setItem('playerUID', user.uid);
-                        window.location.href = "profile.html";
-                    }
-                } catch (error) {
-                    statusText.innerText = "❌ Data Sync Error: " + error.message;
-                }
+                loginBtn.style.opacity = '1';
+                loginBtn.style.pointerEvents = 'auto';
             }
         });
     </script>
