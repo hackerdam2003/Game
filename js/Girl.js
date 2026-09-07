@@ -1,8 +1,10 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
-console.log("💃 [Testing Lab] Correct Folder Path & Character Switcher Active!");
+console.log("💃 [Testing Lab] Exact GitHub File Sync Active!");
 
 let scene, camera, renderer, clock, controls;
 let my3DCharacter = null;
@@ -10,9 +12,9 @@ let mixer = null;
 let actions = {}; 
 let currentAction = null;
 
-// 📜 SAARE ANIMATIONS KI LIST (Ab ye sab 'First/' folder se load honge)
+// 📜 EXACT FILES FROM YOUR FOLDER (Without .fbx extension)
 const animationList = [
-    "Agreeing", "Breakdance Uprock Var 1", "Cheering", "Chicken Dance", 
+    "Agreeing", "Breakdance Uprock Var 1", "Cheering", "Chicken_Dance", 
     "Crazy Gesture", "Defeat2", "Drunk Run Forward", "Dying", 
     "Fist Fight A", "Getting Up", "Hand Raising", "Happy Walk", 
     "Head Hit", "Hip Hop Dancing", "Idle", "Idle2", 
@@ -29,8 +31,7 @@ const animationList = [
     "Victory", "Walking_backwards", "Walking_backwards_happy", 
     "Walking_crouched", "Walking_drunk", "Walking_limp", 
     "Walking_lumber", "Walking_tiptoe", "Walking_zombie", 
-    "Waving1", "Waving2", "Yelling", "Swimming", "Treading Water", 
-    "Lying Down", "Female Laying Pose", "Male Laying Pose", "Sitting Dazed"
+    "Waving1", "Waving2", "Yelling", "e_Walking"
 ];
 
 initLab();
@@ -44,7 +45,7 @@ function initLab() {
     clock = new THREE.Clock();
 
     camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000); 
-    camera.position.set(0, 2.5, 6); 
+    camera.position.set(0, 1.5, 3.5); 
 
     renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -53,13 +54,12 @@ function initLab() {
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
-    controls.target.set(0, 1.2, 0); 
+    controls.target.set(0, 1.0, 0); 
 
-    // Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
     scene.add(ambientLight);
     
-    const dirLight = new THREE.DirectionalLight(0xffffff, 2);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 2.5);
     dirLight.position.set(5, 10, 5);
     dirLight.castShadow = true;
     scene.add(dirLight);
@@ -69,20 +69,20 @@ function initLab() {
 
     generateUIButtons();
 
-    // 🚀 Character Change Event Listener
     const charSelector = document.getElementById('char-selector');
-    charSelector.addEventListener('change', () => {
+    if (charSelector) {
+        charSelector.addEventListener('change', () => {
+            loadCharacter(charSelector.value);
+        });
         loadCharacter(charSelector.value);
-    });
-
-    // Pehli baar default character load karo
-    loadCharacter(charSelector.value);
+    }
 
     requestAnimationFrame(renderLoop);
 }
 
 function generateUIButtons() {
     const container = document.getElementById('btn-container');
+    if (!container) return;
     container.innerHTML = ''; 
 
     animationList.forEach(animName => {
@@ -96,16 +96,13 @@ function generateUIButtons() {
     });
 }
 
-function loadCharacter(charName) {
-    const fbxLoader = new FBXLoader();
+function loadCharacter(filePath) {
     const loadingUI = document.getElementById('loading-overlay');
-    loadingUI.style.display = 'block';
-    loadingUI.innerText = `⏳ Loading ${charName}...`;
+    if (loadingUI) {
+        loadingUI.style.display = 'block';
+        loadingUI.innerText = `⏳ Loading Character...`;
+    }
 
-    // 🚀 NAYA: Ab file 'First' folder se load hogi
-    const characterUrl = `./First/${charName.replace(/ /g, '%20')}.fbx`; 
-
-    // Purana character hatao
     if (my3DCharacter) {
         scene.remove(my3DCharacter);
         mixer = null;
@@ -113,9 +110,16 @@ function loadCharacter(charName) {
         currentAction = null;
     }
 
-    fbxLoader.load(characterUrl, (object) => {
-        my3DCharacter = object;
-        my3DCharacter.scale.set(0.013, 0.013, 0.013); 
+    const isGLB = filePath.toLowerCase().endsWith('.glb');
+    
+    // Properly encode the path to handle spaces in names
+    const characterUrl = `./${filePath.split('/').map(part => encodeURIComponent(part)).join('/')}`; 
+
+    const onLoadSuccess = (object) => {
+        my3DCharacter = isGLB ? object.scene : object;
+        
+        const scaleSize = isGLB ? 1.0 : 0.013; 
+        my3DCharacter.scale.set(scaleSize, scaleSize, scaleSize); 
         my3DCharacter.position.set(0, 0, 0); 
         
         my3DCharacter.traverse((child) => {
@@ -128,22 +132,34 @@ function loadCharacter(charName) {
         scene.add(my3DCharacter);
         mixer = new THREE.AnimationMixer(my3DCharacter);
 
-        loadingUI.style.display = 'none';
+        if (loadingUI) loadingUI.style.display = 'none';
         
-        // Auto-play Idle
         loadAndPlayAnimation("Idle");
+    };
 
-    }, undefined, (err) => {
+    const onLoadError = (err) => {
         console.error("❌ Character Load Error:", characterUrl, err);
-        loadingUI.innerText = "❌ Character File Not Found in 'First' folder!";
-        setTimeout(() => loadingUI.style.display = 'none', 3000);
-    });
+        if (loadingUI) {
+            loadingUI.innerText = `❌ Character Not Found! Check path.`;
+            setTimeout(() => loadingUI.style.display = 'none', 3000);
+        }
+    };
+
+    if (isGLB) {
+        const gltfLoader = new GLTFLoader();
+        const dracoLoader = new DRACOLoader();
+        dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/');
+        gltfLoader.setDRACOLoader(dracoLoader);
+        gltfLoader.load(characterUrl, onLoadSuccess, undefined, onLoadError);
+    } else {
+        const fbxLoader = new FBXLoader();
+        fbxLoader.load(characterUrl, onLoadSuccess, undefined, onLoadError);
+    }
 }
 
 function loadAndPlayAnimation(animName) {
     if (!my3DCharacter || !mixer) return;
 
-    // UI Update
     document.querySelectorAll('.anim-btn').forEach(b => b.classList.remove('active'));
     const btnId = `btn-${animName.replace(/ /g, '-')}`;
     const btn = document.getElementById(btnId);
@@ -155,12 +171,14 @@ function loadAndPlayAnimation(animName) {
     }
 
     const loadingUI = document.getElementById('loading-overlay');
-    loadingUI.style.display = 'block';
-    loadingUI.innerText = `⏳ Loading: ${animName}...`;
+    if (loadingUI) {
+        loadingUI.style.display = 'block';
+        loadingUI.innerText = `⏳ Loading: ${animName}...`;
+    }
 
     const fbxLoader = new FBXLoader();
-    // 🚀 NAYA: Animation file bhi 'First' folder se load hogi
-    const fileUrl = `./First/${animName.replace(/ /g, '%20')}.fbx`;
+    // Safely encode URL for spaces and symbols
+    const fileUrl = `./First/${encodeURIComponent(animName)}.fbx`;
 
     fbxLoader.load(fileUrl, (anim) => {
         if (anim.animations.length > 0) {
@@ -170,7 +188,8 @@ function loadAndPlayAnimation(animName) {
                 animName.toLowerCase().includes("punch") || 
                 animName.toLowerCase().includes("hit") || 
                 animName.toLowerCase().includes("attack") || 
-                animName.toLowerCase().includes("dying")) {
+                animName.toLowerCase().includes("dying") ||
+                animName.toLowerCase().includes("getting up")) {
                 clipAction.setLoop(THREE.LoopOnce);
                 clipAction.clampWhenFinished = true;
             }
@@ -178,13 +197,15 @@ function loadAndPlayAnimation(animName) {
             actions[animName] = clipAction;
             playAnim(animName);
         } else {
-            console.warn(`No animation found in ${fileUrl}`);
+            console.warn(`No animation track found in ${fileUrl}`);
         }
-        loadingUI.style.display = 'none';
+        if (loadingUI) loadingUI.style.display = 'none';
     }, undefined, (err) => {
-        console.error(`Error loading ${fileUrl}:`, err);
-        loadingUI.innerText = `❌ Error: Animation Not Found!`;
-        setTimeout(() => loadingUI.style.display = 'none', 3000);
+        console.error(`Error loading animation ${fileUrl}:`, err);
+        if (loadingUI) {
+            loadingUI.innerText = `❌ Animation Not Found!`;
+            setTimeout(() => loadingUI.style.display = 'none', 3000);
+        }
     });
 }
 
@@ -199,11 +220,10 @@ function playAnim(animName) {
     currentAction = animName;
 }
 
-// Auto-return to Idle
 setInterval(() => {
     if(mixer) {
         mixer.addEventListener('finished', (e) => {
-            if(currentAction && !currentAction.toLowerCase().includes("dying")) {
+            if(currentAction && !currentAction.toLowerCase().includes("dying") && !currentAction.toLowerCase().includes("pose")) {
                 loadAndPlayAnimation("Idle");
             }
         });
@@ -227,3 +247,4 @@ window.addEventListener('resize', () => {
         renderer.setSize(window.innerWidth, window.innerHeight);
     }
 });
+
