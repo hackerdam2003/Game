@@ -22,11 +22,16 @@
         .magic-btn { background: linear-gradient(45deg, #a855f7, #ec4899); color: white; border: none; padding: 10px; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 13px; box-shadow: 0 4px 15px rgba(236, 72, 153, 0.4); }
         .magic-btn:active { transform: scale(0.98); }
 
-        /* 👇 Fully Mobile-Friendly Media Query 👇 */
+        /* Dynamic Parts List Styling */
+        #parts-list-container { background: rgba(255,255,255,0.05); border: 1px solid #334155; border-radius: 6px; padding: 8px; margin-top: 10px; max-height: 150px; overflow-y: auto; }
+        .part-row { display: flex; justify-content: space-between; align-items: center; font-size: 10px; margin-bottom: 5px; background: rgba(0,0,0,0.4); padding: 4px 8px; border-radius: 4px; }
+        .part-row button { background: #ef4444; color: white; border: none; padding: 2px 6px; border-radius: 3px; cursor: pointer; font-size: 9px; font-weight: bold; }
+        .part-row button.show { background: #10b981; }
+
         @media (max-width: 768px) {
             body { flex-direction: column; height: 100vh; }
-            #render-container { flex: 1; width: 100%; height: 50vh; }
-            .controls-box { flex: 1; width: 100%; height: 50vh; border-left: none; border-top: 2px solid #1f2937; padding: 12px; }
+            #render-container { flex: 1; width: 100%; height: 45vh; }
+            .controls-box { flex: 1.2; width: 100%; height: 55vh; border-left: none; border-top: 2px solid #1f2937; padding: 12px; }
         }
     </style>
 </head>
@@ -38,8 +43,6 @@
 
     <div class="controls-box">
         <h3>🧬 3D Anatomy Morphing</h3>
-        <p style="font-size: 9px; color: #ef4444; margin: 4px 0;">*Requires 3D .glb model with Blendshapes</p>
-        
         <div class="slider-row">
             <span>Chest / Bust</span>
             <input type="range" id="morph-chest" min="0" max="1" step="0.01" value="0.5">
@@ -53,12 +56,13 @@
             <input type="range" id="morph-hips" min="0" max="1" step="0.01" value="0.5">
         </div>
         
-        <h3>🎨 Advanced Texturing</h3>
-        <div class="slider-row">
-            <span>Skin Tone</span>
-            <input type="color" id="color-skin" value="#d28965">
+        <h3>👗 Model Parts & Wardrobe Inspector</h3>
+        <p style="font-size: 9px; color: #38bdf8; margin: 2px 0;">Click 'Hide' to remove specific clothes/parts instantly:</p>
+        <div id="parts-list-container">
+            <span style="font-size: 10px; color: #9ca3af;">Load a model to see parts list...</span>
         </div>
 
+        <h3>🎨 Advanced Texturing</h3>
         <button class="magic-btn" onclick="applyMagicTexture()">✨ Magic (Apply Skin Texture)</button>
         <button class="btn-save" onclick="save3DDNA()">💾 Save 3D DNA & Enter World</button>
     </div>
@@ -75,8 +79,7 @@
     <script type="module" src="js/character-editor.js"></script>
     <script>
         window.applyMagicTexture = function() {
-            const event = new CustomEvent('applyMagicSkin');
-            window.dispatchEvent(event);
+            window.dispatchEvent(new CustomEvent('applyMagicSkin'));
         };
         window.save3DDNA = function() {
             alert('Settings Saved! Proceeding...');
