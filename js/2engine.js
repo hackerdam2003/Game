@@ -1,555 +1,264 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
-import { renderMinimap } from './minimap.js';
 
-// Setup Firebase
-const engineConfig = {
-    apiKey: "AIzaSyCuYPugV4qIsu9ZT9E5l63bFLgIbte_S8I",
-    authDomain: "racing-universe-engine.firebaseapp.com",
-    projectId: "racing-universe-engine",
-};
-const app = initializeApp(engineConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+const container = document.getElementById('render-container');
+const scene = new THREE.Scene();
 
-console.log("🏝️ [Island Engine] Sky/Ground Removed, Big Pool & Original Joystick Restored!");
+const camera = new THREE.PerspectiveCamera(40, container.clientWidth / container.clientHeight, 0.1, 100);
+camera.position.set(0, 1.4, 3.5); 
 
-const gameSocket = io(); 
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(container.clientWidth, container.clientHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+container.appendChild(renderer.domElement);
 
-let myUid = localStorage.getItem('playerUID') || "UID_" + Math.floor(Math.random()*99999);
-let myName = localStorage.getItem('gameName') || localStorage.getItem('playerName') || "Guest_" + Math.floor(Math.random()*999);
-let speed = 0.08; 
-let moveVector = { x: 0, y: 0 };
+const ambientLight = new THREE.AmbientLight(0xffffff, 2.5);
+scene.add(ambientLight);
+const keyLight = new THREE.DirectionalLight(0xffffff, 2.5);
+keyLight.position.set(3, 5, 3);
+keyLight.castShadow = true;
+scene.add(keyLight);
+const fillLight = new THREE.DirectionalLight(0xffffff, 1.5);
+fillLight.position.set(-3, 2, -3);
+scene.add(fillLight);
 
-let currentEnvironment = "island";
-let scene, camera, renderer, clock, controls;
-let worldGroup; 
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.target.set(0, 1.2, 0);
 
-let my3DCharacter = null;
+let characterModel = null;
 let mixer = null;
-let actions = {}; 
-let currentAction = 'dance'; 
+const clock = new THREE.Clock();
 
-const remotePlayers = {}; 
-let allPlayersData = {}; 
-let floatingLabels = document.createElement('div');
-document.body.appendChild(floatingLabels);
+const fbxLoader = new FBXLoader();
+const gltfLoader = new GLTFLoader(); 
+const textureLoader = new THREE.TextureLoader();
 
-let isBusy = false; 
-let inWater = false; 
+let actions = {};
+let currentActionName = 'idle';
 
-// 🚀 FIXED HEIGHTS & POOL SCALE
-const GROUND_Y = -2.5;  // Invisible Ground Level
-const POOL_Y = -4.0;    // Pool pushed completely down
-const WATER_Y = -3.5;   // Swimming level
-const POOL_CENTER_X = 0;
-const POOL_CENTER_Z = -10;
-const POOL_RADIUS = 15; // Increased radius because pool is bigger
-
-const characterFiles = { 
-    'man': './Man.fbx', 
+const characterFiles = {
+    'man': './Man.fbx',
     'girl': './Peasant%20Girl.fbx',
     'hotgirl': './Hotgirl.fbx', 
-    'mymodel': 'assets/all_animations.glb'
-};
-let currentSelectedChar = localStorage.getItem('selectedCharacter') || 'man';
-
-window.enterWorld = async function() {
-    const overlay = document.getElementById('enter-overlay');
-    const hud = document.getElementById('hud');
-    
-    try {
-        if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
-        if (screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape').catch(() => {});
-    } catch (err) {}
-
-    if(overlay) overlay.style.display = 'none';
-    if(hud) hud.style.display = 'block';
-
-    createCharSwitcherUI(); 
-    createPoseUI(); 
-    init3DWorld(); 
-    setupJoystick(); // 🚀 Old original joystick is back!
-    setupActionButtons();
-    setupMultiplayer();
-    setupChatAndVoice();
-    
-    gameSocket.emit('join-world', { 
-        gameRoomId: "ISLAND-MAP", 
-        uid: myUid, 
-        name: myName, 
-        char: currentSelectedChar, 
-        env: currentEnvironment
-    });
+    'misaki': 'assets/character/misaki.fbx',
+    'mymodel': 'assets/all_animations.glb' 
 };
 
-// 🌟 Left Column Character Switcher
-function createCharSwitcherUI() {
-    if(document.getElementById('char-switch-menu')) return;
-    const charSwitchMenu = document.createElement('div');
-    charSwitchMenu.id = 'char-switch-menu';
-    charSwitchMenu.style.cssText = 'position: fixed; top: 50%; left: 15px; transform: translateY(-50%); z-index: 100000; pointer-events: auto; display: flex; flex-direction: column; gap: 15px;';
+const defaultMotionFiles = {
+    'idle': './Idle.fbx',
+    'run': './Running.fbx',
+    'punch': './Punching.fbx',
+    'dance': './Hip%20Hop%20Dancing.fbx',
+    'bounce': './bouncing%20fight.fbx' 
+};
+
+let currentSelectedChar = 'misaki'; 
+
+function createEditorUI() {
+    const uiDiv = document.createElement('div');
+    uiDiv.style.cssText = 'position: absolute; top: 12px; left: 12px; background: rgba(0,0,0,0.85); padding: 12px; border-radius: 8px; z-index: 10; max-width: 260px; border: 1px solid #3b82f6; backdrop-filter: blur(5px);';
     
-    charSwitchMenu.innerHTML = `
-        <button onclick="window.switchGameCharacter('man')" style="background: rgba(30,41,59,0.8); border: 2px solid #3b82f6; color: white; border-radius: 50%; width: 45px; height: 45px; font-size: 20px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">👦</button>
-        <button onclick="window.switchGameCharacter('girl')" style="background: rgba(30,41,59,0.8); border: 2px solid #ec4899; color: white; border-radius: 50%; width: 45px; height: 45px; font-size: 20px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">👧</button>
-        <button onclick="window.switchGameCharacter('hotgirl')" style="background: rgba(30,41,59,0.8); border: 2px solid #10b981; color: white; border-radius: 50%; width: 45px; height: 45px; font-size: 20px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">💃</button>
+    uiDiv.innerHTML = `
+        <div style="margin-bottom: 8px;">
+            <span style="color: #38bdf8; font-size: 11px; font-weight: bold; display: block; margin-bottom: 5px;">👤 Characters</span>
+            <button class='ui-btn' id='char-man' style='background:#3b82f6;'>Man</button>
+            <button class='ui-btn' id='char-girl' style='background:#ec4899;'>Girl</button>
+            <button class='ui-btn' id='char-hotgirl' style='background:#f43f5e;'>Hot Girl</button> 
+            <button class='ui-btn' id='char-misaki' style='background:#a855f7;'>Misaki</button>
+            <button class='ui-btn' id='char-mymodel' style='background:#10b981;'>My GLB</button>
+        </div>
+        <hr style="border-color:#334155; margin: 8px 0;">
+        <div>
+            <span style="color: #10b981; font-size: 11px; font-weight: bold; display: block; margin-bottom: 5px;">🎬 Motions</span>
+            <div id="motion-buttons-container"></div>
+        </div>
     `;
-    document.body.appendChild(charSwitchMenu);
-}
-
-window.switchGameCharacter = function(charKey) {
-    currentSelectedChar = charKey;
-    localStorage.setItem('selectedCharacter', charKey);
-    loadCharacter(charKey);
-};
-
-// 🌟 Emotes Menu (Right Side)
-function createPoseUI() {
-    if(document.getElementById('pose-menu')) return;
-    const poseMenu = document.createElement('div');
-    poseMenu.id = 'pose-menu';
-    poseMenu.style.cssText = 'position: fixed; bottom: 160px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 10000; pointer-events: auto; align-items: flex-end;';
-    poseMenu.innerHTML = `
-        <button id="btn-sitDazed" style="padding: 6px 12px; background: rgba(59,130,246,0.8); color: white; border: 1px solid #fff; border-radius: 8px; font-weight: bold; cursor: pointer;">🧘 Sit</button>
-        <button id="btn-lieDown" style="padding: 6px 12px; background: rgba(139,92,246,0.8); color: white; border: 1px solid #fff; border-radius: 8px; font-weight: bold; cursor: pointer;">🛌 Lie</button>
-        <button id="btn-layM" style="padding: 6px 12px; background: rgba(6,182,212,0.8); color: white; border: 1px solid #fff; border-radius: 8px; font-weight: bold; cursor: pointer;">🧍‍♂️ Pose</button>
-        <button id="btn-stand" style="padding: 8px 16px; background: #ef4444; color: white; border: 2px solid #fff; border-radius: 8px; font-weight: bold; cursor: pointer; display: none;">🧍 Stand</button>
-    `;
-    document.body.appendChild(poseMenu);
-}
-
-function resetPoseUI() {
-    isBusy = false;
-    document.getElementById('btn-sitDazed').style.display = 'block';
-    document.getElementById('btn-lieDown').style.display = 'block';
-    document.getElementById('btn-layM').style.display = 'block';
-    document.getElementById('btn-stand').style.display = 'none';
-}
-
-function init3DWorld() {
-    const canvas = document.getElementById('game-canvas');
-    canvas.style.width = '100vw';
-    canvas.style.height = '100vh';
-    canvas.style.position = 'absolute';
-    canvas.style.top = '0';
-    canvas.style.left = '0';
-    canvas.style.zIndex = '0';
-
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x87CEEB); 
-    clock = new THREE.Clock();
-
-    camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 15000); 
-    camera.position.set(0, 2, 8); 
-
-    renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.shadowMap.enabled = true;
     
-    renderer.domElement.style.touchAction = 'none'; 
-    controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.1;
-    controls.rotateSpeed = 0.8; 
-    controls.enablePan = false; 
-    controls.minDistance = 3.0; 
-    controls.maxDistance = 15; 
-    controls.maxPolarAngle = Math.PI / 2; 
+    const style = document.createElement('style');
+    style.innerHTML = `.ui-btn { color:#fff; border:none; padding:5px 8px; border-radius:4px; font-size:10px; cursor:pointer; margin: 0 3px 3px 0; font-weight:bold; } .ui-btn:active{ transform:scale(0.95); }`;
+    document.head.appendChild(style);
+    container.appendChild(uiDiv);
 
-    worldGroup = new THREE.Group();
-    scene.add(worldGroup);
-
-    const ambientW = new THREE.AmbientLight(0xffffff, 1.2);
-    const dirLightW = new THREE.DirectionalLight(0xfff0dd, 2.5);
-    dirLightW.position.set(100, 200, 50);
-    dirLightW.castShadow = true;
-    worldGroup.add(ambientW);
-    worldGroup.add(dirLightW);
-    
-    loadIslandMap(); 
-
-    loadCharacter(currentSelectedChar);
-    requestAnimationFrame(renderLoop);
-}
-
-function loadIslandMap() {
-    // 🚀 YELLOW GROUND COMPLETELY REMOVED!
-
-    // 🏊 POOL ONLY (Big Size and Lowered to -4.0)
-    const dracoLoader = new DRACOLoader();
-    dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/');
-    const gltfLoader = new GLTFLoader();
-    gltfLoader.setDRACOLoader(dracoLoader);
-
-    gltfLoader.load('https://hackerdam2003.github.io/Game/Pool.glb', (gltf) => {
-        const pool = gltf.scene;
-        const box = new THREE.Box3().setFromObject(pool);
-        const maxDim = Math.max(box.max.x - box.min.x, box.max.z - box.min.z);
-        // 🚀 Doubled the scale of the pool to make it BIG
-        const scaleFactor = 60 / maxDim; 
-        pool.scale.set(scaleFactor, scaleFactor, scaleFactor);
-        
-        // 🚀 Pushed Pool down to -4.0
-        pool.position.set(POOL_CENTER_X, POOL_Y, POOL_CENTER_Z); 
-        worldGroup.add(pool);
-    });
+    document.getElementById('char-man').addEventListener('click', () => loadCharacter('man'));
+    document.getElementById('char-girl').addEventListener('click', () => loadCharacter('girl'));
+    document.getElementById('char-hotgirl').addEventListener('click', () => loadCharacter('hotgirl'));
+    document.getElementById('char-misaki').addEventListener('click', () => loadCharacter('misaki'));
+    document.getElementById('char-mymodel').addEventListener('click', () => loadCharacter('mymodel'));
 }
 
 function loadCharacter(charKey) {
-    const fbxLoader = new FBXLoader();
-    const gltfLoader = new GLTFLoader();
-    if (my3DCharacter) scene.remove(my3DCharacter);
-    
-    const url = characterFiles[charKey] || characterFiles['man'];
-    const isGLB = url.toLowerCase().endsWith('.glb');
+    if (currentSelectedChar === charKey && characterModel) return;
+    currentSelectedChar = charKey;
+    const url = characterFiles[charKey];
+    const isGLB = charKey === 'mymodel';
 
-    let scaleVal = 0.013;
-    if(charKey === 'girl' || charKey === 'hotgirl') scaleVal = 0.025; 
-    
-    if(isGLB) {
-        gltfLoader.load(url, (gltf) => {
-            my3DCharacter = gltf.scene;
-            my3DCharacter.scale.set(1, 1, 1);
-            my3DCharacter.position.set(0, GROUND_Y, 5); 
-            scene.add(my3DCharacter);
-            mixer = new THREE.AnimationMixer(my3DCharacter);
-            if(gltf.animations.length > 0) {
-                actions.dance = mixer.clipAction(gltf.animations[0]);
-                actions.dance.play();
-                currentAction = 'dance';
+    const loadingEl = document.getElementById('loading-text');
+    if(loadingEl) { 
+        loadingEl.style.color = '#3b82f6';
+        loadingEl.style.display = 'block'; 
+        loadingEl.innerText = "Loading Model & Motion..."; 
+    }
+
+    if (characterModel) { scene.remove(characterModel); characterModel = null; mixer = null; }
+
+    const setupModel = (model, baseAnimations) => {
+        characterModel = model;
+        
+        characterModel.scale.set(1.0, 1.0, 1.0);
+        characterModel.position.set(0, 0, 0);
+        
+        characterModel.traverse((node) => { 
+            if (node.isMesh) { 
+                node.castShadow = true; 
+                node.receiveShadow = true; 
+                if (node.material) {
+                    node.material.roughness = 0.6;
+                    node.material.metalness = 0.1;
+                    node.material.needsUpdate = true;
+                }
             }
-            loadAdditionalAnimations(fbxLoader, mixer, actions);
+        });
+        scene.add(characterModel);
+        mixer = new THREE.AnimationMixer(characterModel);
+        actions = {}; 
+        
+        const btnContainer = document.getElementById('motion-buttons-container');
+        btnContainer.innerHTML = '';
+
+        if (isGLB) {
+            if (baseAnimations && baseAnimations.length > 0) {
+                baseAnimations.forEach(clip => {
+                    actions[clip.name] = mixer.clipAction(clip);
+                    const btn = document.createElement('button');
+                    btn.className = 'ui-btn';
+                    btn.style.background = '#8b5cf6';
+                    btn.innerText = clip.name;
+                    btn.onclick = () => playMotion(clip.name);
+                    btnContainer.appendChild(btn);
+                });
+                const firstAnim = baseAnimations[0].name;
+                actions[firstAnim].play();
+                currentActionName = firstAnim;
+            } else {
+                btnContainer.innerHTML = '<span style="color:red; font-size:10px;">No animations found</span>';
+            }
+        } else {
+            const fbxButtons = [
+                { id: 'idle', label: 'Idle', color: '#64748b' },
+                { id: 'run', label: 'Run', color: '#f59e0b' },
+                { id: 'punch', label: 'Punch', color: '#ef4444' },
+                { id: 'dance', label: 'Dance', color: '#10b981' }
+            ];
+            fbxButtons.forEach(b => {
+                const btn = document.createElement('button');
+                btn.className = 'ui-btn';
+                btn.style.background = b.color;
+                btn.innerText = b.label;
+                btn.onclick = () => playMotion(b.id);
+                btnContainer.appendChild(btn);
+            });
+            loadExternalFbxMotions();
+        }
+
+        if(loadingEl) loadingEl.style.display = 'none';
+    };
+
+    if (isGLB) {
+        gltfLoader.load(url, (gltf) => setupModel(gltf.scene, gltf.animations), undefined, () => {
+            if(loadingEl) {
+                loadingEl.style.color = '#ef4444';
+                loadingEl.innerText = "❌ Error loading GLB!";
+            }
         });
     } else {
-        fbxLoader.load(url, (object) => {
-            my3DCharacter = object;
-            my3DCharacter.scale.set(scaleVal, scaleVal, scaleVal); 
-            my3DCharacter.position.set(0, GROUND_Y, 5); 
-            scene.add(my3DCharacter);
-            mixer = new THREE.AnimationMixer(my3DCharacter);
-            loadAnimations(fbxLoader, mixer, actions, object);
+        fbxLoader.load(url, (fbx) => setupModel(fbx, fbx.animations), undefined, console.error);
+    }
+}
+
+function loadExternalFbxMotions() {
+    for (const [mKey, mUrl] of Object.entries(defaultMotionFiles)) {
+        fbxLoader.load(mUrl, (animObj) => {
+            if (animObj.animations && animObj.animations.length > 0) {
+                const action = mixer.clipAction(animObj.animations[0]);
+                if(mKey === 'punch') action.setLoop(THREE.LoopOnce); 
+                actions[mKey] = action;
+                if (mKey === 'idle') playMotion('idle');
+            }
         });
     }
 }
 
-function loadAnimations(fbxLoader, targetMixer, targetActions, baseObject) {
-    if (baseObject.animations.length > 0) targetActions.idle = targetMixer.clipAction(baseObject.animations[0]);
-    loadAdditionalAnimations(fbxLoader, targetMixer, targetActions);
+function playMotion(motionKey) {
+    if (!mixer || !actions[motionKey] || currentActionName === motionKey) return;
+    if (actions[currentActionName]) actions[currentActionName].fadeOut(0.2);
+    actions[motionKey].reset().fadeIn(0.2).play();
+    currentActionName = motionKey;
 }
 
-function loadAdditionalAnimations(fbxLoader, targetMixer, targetActions) {
-    fbxLoader.load('./Running.fbx', (anim) => { if(anim.animations.length) targetActions.run = targetMixer.clipAction(anim.animations[0]); });
-    fbxLoader.load('./Hip%20Hop%20Dancing.fbx', (anim) => { 
-        if(anim.animations.length) { 
-            targetActions.dance = targetMixer.clipAction(anim.animations[0]); 
-            if(!isBusy && !targetActions.idle) { targetActions.dance.play(); currentAction = 'dance'; }
-        }
-    });
-    
-    fbxLoader.load('./Swimming.fbx', (anim) => { if(anim.animations.length) targetActions.swim = targetMixer.clipAction(anim.animations[0]); });
-    fbxLoader.load('./Treading%20Water.fbx', (anim) => { if(anim.animations.length) targetActions.treadWater = targetMixer.clipAction(anim.animations[0]); });
-    
-    fbxLoader.load('./Sitting%20Dazed.fbx', (anim) => { if(anim.animations.length) targetActions.sitDazed = targetMixer.clipAction(anim.animations[0]); });
-    fbxLoader.load('./Lying%20Down.fbx', (anim) => { if(anim.animations.length) targetActions.lieDown = targetMixer.clipAction(anim.animations[0]); });
-    fbxLoader.load('./Male%20Laying%20Pose.fbx', (anim) => { if(anim.animations.length) targetActions.layMale = targetMixer.clipAction(anim.animations[0]); });
-    
-    fbxLoader.load('./Jump.fbx', (anim) => { 
-        if(anim.animations.length) { 
-            targetActions.jump = targetMixer.clipAction(anim.animations[0]); 
-            targetActions.jump.setLoop(THREE.LoopOnce); 
-            targetActions.jump.clampWhenFinished = true;
-        }
-    });
-    fbxLoader.load('./Punching.fbx', (anim) => { 
-        if(anim.animations.length) { 
-            targetActions.punch = targetMixer.clipAction(anim.animations[0]); 
-            targetActions.punch.setLoop(THREE.LoopOnce); 
-            targetActions.punch.clampWhenFinished = true;
-        }
-    });
+// 🚀 ADVANCED MAGIC TEXTURE & CLOTHES REMOVAL LOGIC
+window.addEventListener('applyMagicSkin', () => {
+    if(!characterModel) return;
 
-    targetMixer.addEventListener('finished', (e) => {
-        if(e.action === targetActions.jump || e.action === targetActions.punch) {
-            if(moveVector.x !== 0 || moveVector.y !== 0) playAnim(inWater ? 'swim' : 'run');
-            else playAnim(inWater ? 'treadWater' : 'dance');
-        }
-    });
-}
+    textureLoader.load('assets/character/mis_body_base.png', (texture) => {
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.flipY = false;
 
-function playAnim(animName) {
-    if (!mixer || !actions[animName] || currentAction === animName) return;
-    if(actions[currentAction]) actions[currentAction].fadeOut(0.2);
-    actions[animName].reset().fadeIn(0.2).play();
-    currentAction = animName;
-    gameSocket.emit('player-moved', { uid: myUid, x: my3DCharacter.position.x, y: my3DCharacter.position.y, z: my3DCharacter.position.z, rot: my3DCharacter.rotation.y, action: currentAction, env: currentEnvironment });
-}
+        characterModel.traverse((node) => {
+            if (node.isMesh) {
+                const matName = node.material && node.material.name ? node.material.name.toLowerCase() : '';
+                const nodeName = node.name ? node.name.toLowerCase() : '';
+                
+                // Sabhi possible clothing keywords ko target kiya hai taaki shirt, panties, bra, cloth sab hat jayein
+                const isClothing = matName.includes('shirt') || matName.includes('panty') || matName.includes('panties') || 
+                                 matName.includes('cloth') || matName.includes('bottom') || matName.includes('top') ||
+                                 matName.includes('bra') || matName.includes('skirt') || matName.includes('dress') ||
+                                 nodeName.includes('shirt') || nodeName.includes('panty') || nodeName.includes('panties') || 
+                                 nodeName.includes('cloth') || nodeName.includes('bottom') || nodeName.includes('top') ||
+                                 nodeName.includes('bra') || nodeName.includes('skirt') || nodeName.includes('dress');
 
-function setupMultiplayer() {
-    gameSocket.on('current-players', (players) => {
-        for(let id in players) {
-            if(players[id].env === "island") { 
-                allPlayersData[id] = players[id];
-                if(id !== myUid && !remotePlayers[id]) addRemotePlayer(players[id]);
-            }
-        }
-        renderMinimap(allPlayersData, myUid);
-    });
-    gameSocket.on('player-joined', (data) => {
-        if(data.env === "island") {
-            allPlayersData[data.uid] = data;
-            if(data.uid !== myUid) addRemotePlayer(data);
-            renderMinimap(allPlayersData, myUid);
-        }
-    });
-    gameSocket.on('player-moved', (data) => {
-        if(data.env === "island") {
-            allPlayersData[data.uid] = data;
-            if(remotePlayers[data.uid]) {
-                remotePlayers[data.uid].targetPos = new THREE.Vector3(data.x, data.y, data.z);
-                remotePlayers[data.uid].targetRot = data.rot;
-                if(remotePlayers[data.uid].mixer && remotePlayers[data.uid].actions[data.action]) {
-                    const actionToPlay = remotePlayers[data.uid].actions[data.action];
-                    if(remotePlayers[data.uid].currentAction !== data.action) {
-                        if(remotePlayers[data.uid].actions[remotePlayers[data.uid].currentAction]) {
-                            remotePlayers[data.uid].actions[remotePlayers[data.uid].currentAction].fadeOut(0.2);
-                        }
-                        actionToPlay.reset().fadeIn(0.2).play();
-                        remotePlayers[data.uid].currentAction = data.action;
+                if (isClothing) {
+                    // Kapde poori tarah hide ho jayenge
+                    node.visible = false;
+                    console.log("👗 Hidden Clothing Mesh:", node.name || matName);
+                } else {
+                    // Body ya face part par texture apply hoga
+                    const isBodyPart = matName.includes('body') || matName.includes('skin') || nodeName.includes('body') || 
+                                       matName.includes('face') || nodeName.includes('face') || matName.includes('arm') || 
+                                       matName.includes('leg') || matName.includes('head');
+                                       
+                    if (isBodyPart && node.material) {
+                        node.material.map = texture;
+                        node.material.needsUpdate = true;
+                        console.log("✨ Applied Skin Texture to:", node.name || matName);
                     }
                 }
             }
-            renderMinimap(allPlayersData, myUid);
-        }
+        });
+        console.log("✨ Magic Action Completed Successfully!");
+    }, undefined, (err) => {
+        console.error("Failed to load texture", err);
     });
-    gameSocket.on('chat-message', (data) => { showChatBubble(data.uid, data.msg); appendChatUI(data.name, data.msg, '#10b981'); });
-    gameSocket.on('player-left', (uid) => {
-        if(remotePlayers[uid]) { scene.remove(remotePlayers[uid].group); if(remotePlayers[uid].label) remotePlayers[uid].label.remove(); delete remotePlayers[uid]; }
-        delete allPlayersData[uid]; renderMinimap(allPlayersData, myUid);
-    });
+});
+
+createEditorUI();
+loadCharacter(currentSelectedChar);
+
+function animate() {
+    requestAnimationFrame(animate);
+    const delta = clock.getDelta();
+    if (mixer) mixer.update(delta);
+    controls.update();
+    renderer.render(scene, camera);
 }
-
-function addRemotePlayer(data) {
-    const fbxLoader = new FBXLoader();
-    const group = new THREE.Group(); 
-    group.position.set(data.x || 0, 0, data.z || 0); 
-    scene.add(group);
-
-    const label = document.createElement('div');
-    label.style.cssText = 'position: absolute; color: white; background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; transform: translate(-50%, -100%); pointer-events: none;';
-    label.innerText = data.name;
-    floatingLabels.appendChild(label);
-
-    const rp = { group: group, label: label, targetPos: group.position.clone(), targetRot: 0, env: data.env, name: data.name, currentAction: 'dance', mixer: null, actions: {}, chatTimeout: null };
-    remotePlayers[data.uid] = rp;
-
-    let scaleVal = 0.013;
-    if(data.char === 'girl' || data.char === 'hotgirl') scaleVal = 0.025;
-
-    const charKey = data.char || 'man';
-    fbxLoader.load(characterFiles[charKey] || characterFiles['man'], (object) => {
-        object.scale.set(scaleVal, scaleVal, scaleVal);
-        object.position.set(0, 0, 0);
-        group.add(object);
-        rp.mixer = new THREE.AnimationMixer(object);
-        loadAnimations(fbxLoader, rp.mixer, rp.actions, object);
-    });
-}
-
-function setupChatAndVoice() {
-    const chatToggle = document.getElementById('btn-chat-toggle'), chatBox = document.getElementById('game-chat-box'), sendBtn = document.getElementById('btn-send-chat'), input = document.getElementById('game-chat-input');
-    if(chatToggle && chatBox) { const toggleBox = () => { chatBox.style.display = chatBox.style.display === 'flex' ? 'none' : 'flex'; }; chatToggle.addEventListener('click', toggleBox); chatToggle.addEventListener('touchstart', toggleBox, {passive: true}); }
-    const sendChatMsg = () => {
-        if(!input) return;
-        const msg = input.value.trim();
-        if(msg !== "") {
-            gameSocket.emit('chat-message', { uid: myUid, name: myName, msg: msg });
-            showChatBubble(myUid, msg); appendChatUI('You', msg, '#3b82f6'); input.value = "";
-        }
-    };
-    if(sendBtn) { sendBtn.addEventListener('click', sendChatMsg); sendBtn.addEventListener('touchstart', sendChatMsg, {passive: true}); }
-    if(input) input.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendChatMsg(); });
-}
-
-function appendChatUI(name, msg, color) { const chatBox = document.getElementById('in-game-msgs'); if(chatBox) { chatBox.innerHTML += `<div><b style="color:${color}">${name}:</b> ${msg}</div>`; chatBox.scrollTop = chatBox.scrollHeight; } }
-
-function showChatBubble(uid, msg) {
-    let targetLabel = uid === myUid ? document.getElementById('my-label') : (remotePlayers[uid] ? remotePlayers[uid].label : null);
-    if(!targetLabel && uid === myUid) {
-        targetLabel = document.createElement('div'); targetLabel.id = 'my-label';
-        targetLabel.style.cssText = 'position: absolute; color: #3b82f6; background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; transform: translate(-50%, -100%); pointer-events: none; transition: 0.1s;';
-        floatingLabels.appendChild(targetLabel);
-    }
-    if(targetLabel) {
-        targetLabel.innerHTML = `${uid === myUid ? 'You' : remotePlayers[uid].name}: <span style="color:#fff;">${msg}</span>`;
-        if(uid !== myUid) { clearTimeout(remotePlayers[uid].chatTimeout); remotePlayers[uid].chatTimeout = setTimeout(() => { targetLabel.innerText = remotePlayers[uid].name; }, 5000);
-        } else { setTimeout(() => { targetLabel.innerHTML = ''; }, 5000); }
-    }
-}
-
-// 🚀 TERA ORIGINAL JOYSTICK WAPAS AA GAYA HAI 100% SAME!
-function setupJoystick() {
-    const base = document.getElementById('joystick-base'), knob = document.getElementById('joystick-knob');
-    if(!base || !knob) return;
-    let isDragging = false, center = {x:0, y:0};
-
-    base.addEventListener('touchstart', (e) => {
-        e.stopPropagation(); 
-        if(isBusy) return;
-        isDragging = true;
-        const rect = base.getBoundingClientRect();
-        center = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-        handleTouch(e);
-    });
-    base.addEventListener('touchmove', (e) => { e.stopPropagation(); if(isDragging) handleTouch(e); });
-    base.addEventListener('touchend', (e) => {
-        e.stopPropagation(); 
-        isDragging = false; knob.style.transform = `translate(0, 0)`; moveVector = { x: 0, y: 0 };
-        if(!isBusy) playAnim('dance'); 
-    });
-
-    function handleTouch(e) {
-        let dx = e.touches[0].clientX - center.x, dy = e.touches[0].clientY - center.y;
-        const dist = Math.sqrt(dx*dx + dy*dy);
-        if (dist > 45) { dx = (dx/dist)*45; dy = (dy/dist)*45; }
-        knob.style.transform = `translate(${dx}px, ${dy}px)`;
-        moveVector = { x: dx/45, y: dy/45 }; // Exactly tera purana code (No inversion)
-        if (dist > 5) playAnim('run'); 
-    }
-}
-
-function setupActionButtons() {
-    document.getElementById('btn-attack')?.addEventListener('touchstart', () => {
-        if(actions.punch && !inWater) { isBusy=false; actions.punch.reset().fadeIn(0.1).play(); currentAction = 'punch'; resetPoseUI();}
-    });
-    document.getElementById('btn-skill')?.addEventListener('touchstart', () => {
-        if(actions.jump && !inWater) { isBusy=false; actions.jump.reset().fadeIn(0.1).play(); currentAction = 'jump'; resetPoseUI();}
-    });
-
-    const triggerPose = (anim) => {
-        if(inWater || currentAction === 'jump') return; 
-        isBusy = true;
-        playAnim(anim);
-        document.getElementById('btn-sitDazed').style.display = 'none';
-        document.getElementById('btn-lieDown').style.display = 'none';
-        document.getElementById('btn-layM').style.display = 'none';
-        document.getElementById('btn-stand').style.display = 'block';
-    };
-
-    document.getElementById('btn-sitDazed')?.addEventListener('touchstart', () => triggerPose('sitDazed'));
-    document.getElementById('btn-lieDown')?.addEventListener('touchstart', () => triggerPose('lieDown'));
-    document.getElementById('btn-layM')?.addEventListener('touchstart', () => triggerPose('layMale'));
-
-    document.getElementById('btn-stand')?.addEventListener('touchstart', () => {
-        resetPoseUI();
-        my3DCharacter.position.y = GROUND_Y; // Hamesha zameen par rahega
-        playAnim(inWater ? 'treadWater' : 'dance');
-    });
-}
-
-function renderLoop() {
-    requestAnimationFrame(renderLoop);
-    
-    try {
-        const delta = clock ? clock.getDelta() : 0;
-        if (mixer) mixer.update(delta);
-
-        if (my3DCharacter) {
-            
-            // 🚀 TERA ORIGINAL MOVEMENT CODE WAPAS LAGA DIYA
-            if (!isBusy && (moveVector.x !== 0 || moveVector.y !== 0)) {
-                const camEuler = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
-                const joyAngle = Math.atan2(moveVector.x, moveVector.y);
-                const targetRotation = joyAngle + camEuler.y;
-
-                let diff = targetRotation - my3DCharacter.rotation.y;
-                diff = Math.atan2(Math.sin(diff), Math.cos(diff)); 
-                my3DCharacter.rotation.y += diff * 0.15; 
-
-                const currentSpeed = Math.min(Math.sqrt(moveVector.x*moveVector.x + moveVector.y*moveVector.y), 1) * speed;
-
-                my3DCharacter.position.x += Math.sin(targetRotation) * currentSpeed;
-                my3DCharacter.position.z += Math.cos(targetRotation) * currentSpeed;
-                
-                allPlayersData[myUid] = { x: my3DCharacter.position.x, y: my3DCharacter.position.z };
-                gameSocket.emit('player-moved', { uid: myUid, x: my3DCharacter.position.x, y: my3DCharacter.position.y, z: my3DCharacter.position.z, rot: my3DCharacter.rotation.y, action: currentAction, env: currentEnvironment });
-                renderMinimap(allPlayersData, myUid);
-            }
-
-            // 🚀 ABSOLUTE HEIGHT LOCK SYSTEM (Never Sink Again!)
-            const distToPool = Math.hypot(my3DCharacter.position.x - POOL_CENTER_X, my3DCharacter.position.z - POOL_CENTER_Z);
-            let wasInWater = inWater;
-
-            if (distToPool < POOL_RADIUS) {
-                inWater = true;
-                my3DCharacter.position.y = WATER_Y; 
-            } else {
-                inWater = false;
-                if(!isBusy) my3DCharacter.position.y = GROUND_Y; // Running karte waqt height lock rahegi!
-            }
-
-            if (wasInWater !== inWater && !isBusy && currentAction !== 'jump') {
-                if (moveVector.x !== 0 || moveVector.y !== 0) playAnim(inWater ? 'swim' : 'run');
-                else playAnim(inWater ? 'treadWater' : 'dance');
-            }
-
-            if (inWater && isBusy) {
-                resetPoseUI();
-                playAnim('treadWater');
-            }
-
-            // 🎥 CAMERA FIXED: Adha cut nahi hoga, sarr se pair tak dikhega
-            if (controls) {
-                const charTarget = new THREE.Vector3(my3DCharacter.position.x, my3DCharacter.position.y + 1.2, my3DCharacter.position.z);
-                const posDelta = charTarget.clone().sub(controls.target);
-                controls.target.add(posDelta);
-                camera.position.add(posDelta);
-                controls.update(); 
-            }
-
-            const myLabel = document.getElementById('my-label');
-            if(myLabel && myLabel.innerHTML !== "") {
-                const pos = my3DCharacter.position.clone();
-                pos.y += 2.0; 
-                pos.project(camera);
-                myLabel.style.left = `${(pos.x * .5 + .5) * window.innerWidth}px`;
-                myLabel.style.top = `${-(pos.y * .5 - .5) * window.innerHeight}px`;
-            }
-        }
-
-        for(let uid in remotePlayers) {
-            const rp = remotePlayers[uid];
-            if(rp && rp.mixer) rp.mixer.update(delta);
-
-            if(rp && rp.group) {
-                rp.group.position.lerp(rp.targetPos, 0.1);
-                rp.group.rotation.y = rp.targetRot;
-                if(rp.label) {
-                    const pos = rp.group.position.clone();
-                    pos.y += 2.0; pos.project(camera);
-                    if(pos.z < 1) {
-                        rp.label.style.display = 'block';
-                        rp.label.style.left = `${(pos.x * .5 + .5) * window.innerWidth}px`;
-                        rp.label.style.top = `${-(pos.y * .5 - .5) * window.innerHeight}px`;
-                    } else { rp.label.style.display = 'none'; }
-                }
-            }
-        }
-
-        if (renderer && scene && camera) { renderer.render(scene, camera); }
-    } catch (err) { console.error("❌ Render Error:", err); }
-}
+animate();
 
 window.addEventListener('resize', () => {
-    if(camera && renderer) {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-    }
+    camera.aspect = container.clientWidth / container.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(container.clientWidth, container.clientHeight);
 });
