@@ -16,19 +16,20 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 app.use(express.static(path.join(__dirname)));
 
+// 🚀 EXPRESS ROUTES FIX: Island Mode added
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 app.get('/profile.html', (req, res) => res.sendFile(path.join(__dirname, 'profile.html')));
 app.get('/lobby.html', (req, res) => res.sendFile(path.join(__dirname, 'lobby.html')));
 app.get('/game.html', (req, res) => res.sendFile(path.join(__dirname, 'game.html')));
+app.get('/island.html', (req, res) => res.sendFile(path.join(__dirname, 'island.html'))); // ✅ FIXED
 app.get('/character.html', (req, res) => res.sendFile(path.join(__dirname, 'character.html')));
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, { cors: { origin: "*", methods: ["GET", "POST"] } });
 
 const connectedPlayers = new Map();
-const worldPlayers = {}; // 🌍 3D World ke live players ko track karne ke liye
+const worldPlayers = {}; 
 
-// 🚀 START THE DEDICATED GAME ENGINE PIPELINE
 handleGameWorld(io);
 
 io.on('connection', (socket) => {
@@ -55,36 +56,39 @@ io.on('connection', (socket) => {
     });
 
     // ==========================================
-    // 🎮 3D WORLD MULTIPLAYER SYNC (GLOBAL ROOM)
+    // 🎮 3D WORLD MULTIPLAYER SYNC (DYNAMIC ROOM FIX)
     // ==========================================
     socket.on('join-world', (data) => {
-        worldPlayers[socket.id] = data;
         const roomName = data.gameRoomId || 'GLOBAL-ROOM';
+        data.roomName = roomName; // ✅ Store player's current room
+        worldPlayers[socket.id] = data;
+        
         socket.join(roomName);
         
-        // Naye player ko batao ki map me pehle se kaun kaun hai
         socket.emit('current-players', worldPlayers);
-        
-        // Purane players ko batao ki naya player aa gaya hai
         socket.broadcast.to(roomName).emit('player-joined', data);
     });
 
     socket.on('player-moved', (data) => {
-        if(worldPlayers[socket.id]) {
-            worldPlayers[socket.id].x = data.x;
-            worldPlayers[socket.id].y = data.y;
-            worldPlayers[socket.id].z = data.z;
-            worldPlayers[socket.id].rot = data.rot;
-            worldPlayers[socket.id].action = data.action;
-            worldPlayers[socket.id].env = data.env;
+        const player = worldPlayers[socket.id];
+        if(player) {
+            player.x = data.x;
+            player.y = data.y;
+            player.z = data.z;
+            player.rot = data.rot;
+            player.action = data.action;
+            player.env = data.env;
+            
+            // ✅ Send movement ONLY to the room the player is in
+            socket.broadcast.to(player.roomName).emit('player-moved', data);
         }
-        // Sabko nayi location aur animation bhejo
-        socket.broadcast.to('GLOBAL-ROOM').emit('player-moved', data);
     });
 
     socket.on('chat-message', (data) => {
-        // 3D floating chat bubbles ke liye
-        socket.broadcast.to('GLOBAL-ROOM').emit('chat-message', data);
+        const player = worldPlayers[socket.id];
+        const roomName = player ? player.roomName : 'GLOBAL-ROOM';
+        // ✅ Send chat ONLY to the specific map
+        socket.broadcast.to(roomName).emit('chat-message', data);
     });
     // ==========================================
 
@@ -98,14 +102,17 @@ io.on('connection', (socket) => {
             handlePlayerDisconnect(socket, io, connectedPlayers);
         }
 
-        // 3D World Cleanup jab player game band kare
+        // 3D World Cleanup 
         if (worldPlayers[socket.id]) {
             const uid = worldPlayers[socket.id].uid;
+            const roomName = worldPlayers[socket.id].roomName; // ✅ Get exact room
             delete worldPlayers[socket.id];
-            io.to('GLOBAL-ROOM').emit('player-left', uid);
+            
+            io.to(roomName).emit('player-left', uid);
         }
     });
 });
 
 const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => console.log(`✅ SERVER LIVE ON PORT: ${PORT}`));
+
