@@ -6,12 +6,13 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const container = document.getElementById('render-container');
 const scene = new THREE.Scene();
 
-const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
-camera.position.set(0, 1.0, 3.5); 
+const camera = new THREE.PerspectiveCamera(40, container.clientWidth / container.clientHeight, 0.1, 100);
+// 👇 Camera position fix for proper centering and framing
+camera.position.set(0, 1.4, 2.5); 
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(container.clientWidth, container.clientHeight);
-renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 container.appendChild(renderer.domElement);
@@ -28,7 +29,8 @@ scene.add(fillLight);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.target.set(0, 0.9, 0);
+// 👇 Target ko chest/upper body par set kiya taaki character bilkul center me aaye
+controls.target.set(0, 1.2, 0);
 
 let characterModel = null;
 let mixer = null;
@@ -61,26 +63,26 @@ let currentSelectedChar = 'misaki';
 
 function createEditorUI() {
     const uiDiv = document.createElement('div');
-    uiDiv.style.cssText = 'position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; z-index: 10; max-width: 300px; border: 1px solid #3b82f6;';
+    uiDiv.style.cssText = 'position: absolute; top: 12px; left: 12px; background: rgba(0,0,0,0.85); padding: 12px; border-radius: 8px; z-index: 10; max-width: 260px; border: 1px solid #3b82f6; backdrop-filter: blur(5px);';
     
     uiDiv.innerHTML = `
-        <div style="margin-bottom: 10px;">
-            <span style="color: #38bdf8; font-size: 13px; font-weight: bold; display: block; margin-bottom: 6px;">👤 Characters</span>
+        <div style="margin-bottom: 8px;">
+            <span style="color: #38bdf8; font-size: 11px; font-weight: bold; display: block; margin-bottom: 5px;">👤 Characters</span>
             <button class='ui-btn' id='char-man' style='background:#3b82f6;'>Man</button>
             <button class='ui-btn' id='char-girl' style='background:#ec4899;'>Girl</button>
             <button class='ui-btn' id='char-hotgirl' style='background:#f43f5e;'>Hot Girl</button> 
             <button class='ui-btn' id='char-misaki' style='background:#a855f7;'>Misaki</button>
             <button class='ui-btn' id='char-mymodel' style='background:#10b981;'>My GLB</button>
         </div>
-        <hr style="border-color:#334155; margin: 10px 0;">
+        <hr style="border-color:#334155; margin: 8px 0;">
         <div>
-            <span style="color: #10b981; font-size: 13px; font-weight: bold; display: block; margin-bottom: 6px;">🎬 Test Motions</span>
+            <span style="color: #10b981; font-size: 11px; font-weight: bold; display: block; margin-bottom: 5px;">🎬 Motions</span>
             <div id="motion-buttons-container"></div>
         </div>
     `;
     
     const style = document.createElement('style');
-    style.innerHTML = `.ui-btn { color:#fff; border:none; padding:6px 10px; border-radius:4px; font-size:11px; cursor:pointer; margin: 0 4px 4px 0; font-weight:bold; } .ui-btn:active{ transform:scale(0.95); }`;
+    style.innerHTML = `.ui-btn { color:#fff; border:none; padding:5px 8px; border-radius:4px; font-size:10px; cursor:pointer; margin: 0 3px 3px 0; font-weight:bold; } .ui-btn:active{ transform:scale(0.95); }`;
     document.head.appendChild(style);
     container.appendChild(uiDiv);
 
@@ -109,10 +111,11 @@ function loadCharacter(charKey) {
     const setupModel = (model, baseAnimations) => {
         characterModel = model;
         
+        // 👇 Character scale bada kar diya hai taaki screen par chota na dikhe
         if (isGLB || charKey === 'hotgirl' || charKey === 'misaki') {
-            characterModel.scale.set(0.015, 0.015, 0.015);
+            characterModel.scale.set(0.03, 0.03, 0.03);
         } else {
-            characterModel.scale.set(0.01, 0.01, 0.01);
+            characterModel.scale.set(0.02, 0.02, 0.02);
         }
         
         characterModel.position.set(0, 0, 0);
@@ -150,7 +153,7 @@ function loadCharacter(charKey) {
                 actions[firstAnim].play();
                 currentActionName = firstAnim;
             } else {
-                btnContainer.innerHTML = '<span style="color:red; font-size:11px;">No animations found inside GLB</span>';
+                btnContainer.innerHTML = '<span style="color:red; font-size:10px;">No animations found</span>';
             }
         } else {
             const fbxButtons = [
@@ -174,10 +177,10 @@ function loadCharacter(charKey) {
     };
 
     if (isGLB) {
-        gltfLoader.load(url, (gltf) => setupModel(gltf.scene, gltf.animations), undefined, (err) => {
+        gltfLoader.load(url, (gltf) => setupModel(gltf.scene, gltf.animations), undefined, () => {
             if(loadingEl) {
                 loadingEl.style.color = '#ef4444';
-                loadingEl.innerText = "❌ Error: 'assets/all_animations.glb' file nahi mili!";
+                loadingEl.innerText = "❌ Error loading GLB!";
             }
         });
     } else {
