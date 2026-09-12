@@ -16,7 +16,6 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 container.appendChild(renderer.domElement);
 
-// 💡 UPDATE 1: Lights badha di hain taaki model dark na dikhe
 const ambientLight = new THREE.AmbientLight(0xffffff, 2.5);
 scene.add(ambientLight);
 
@@ -43,7 +42,7 @@ const gltfLoader = new GLTFLoader();
 let actions = {};
 let currentActionName = 'idle';
 
-// 💡 UPDATE 2: Yahan tumhari file ka sahi path set kiya hai
+// TUMHARI FILES KI LIST
 const characterFiles = {
     'man': './Man.fbx',
     'girl': './Peasant%20Girl.fbx',
@@ -51,14 +50,16 @@ const characterFiles = {
     'mymodel': 'assets/model_prepared.glb' 
 };
 
+// 💡 UPDATE: Tumhari alag se daali hui Running.fbx yahan link kar di
 const motionFiles = {
-    'run': './Running.fbx',
+    'run': 'assets/Running.fbx',  
+    'idle': './Idle.fbx', // Agar idle ho toh yahan path de dena
     'punch': './Punching.fbx',
     'dance': './Hip%20Hop%20Dancing.fbx',
     'bounce': './bouncing%20fight.fbx' 
 };
 
-let currentSelectedChar = 'man';
+let currentSelectedChar = 'mymodel'; // Page reload hote hi direct tera model khulega
 
 function createEditorUI() {
     const uiDiv = document.createElement('div');
@@ -90,41 +91,26 @@ function createEditorUI() {
     document.getElementById('char-mymodel').addEventListener('click', () => loadCharacter('mymodel'));
 }
 
-function buildMotionButtons(isGLB, gltfAnimations = []) {
+function buildMotionButtons() {
     const container = document.getElementById('motion-buttons-container');
     container.innerHTML = ''; 
 
-    if (isGLB) {
-        if (gltfAnimations.length > 0) {
-            gltfAnimations.forEach((clip) => {
-                const btn = document.createElement('button');
-                btn.className = 'ui-btn';
-                btn.style.background = '#8b5cf6';
-                btn.innerText = clip.name;
-                btn.onclick = () => playMotion(clip.name);
-                container.appendChild(btn);
-            });
-        } else {
-            container.innerHTML = '<span style="color:red; font-size:11px; font-weight:bold;">No motions in this GLB</span>';
-        }
-    } else {
-        const fbxButtons = [
-            { id: 'idle', label: 'Idle', color: '#64748b' },
-            { id: 'run', label: 'Run', color: '#f59e0b' },
-            { id: 'punch', label: 'Punch', color: '#ef4444' },
-            { id: 'dance', label: 'Dance', color: '#10b981' },
-            { id: 'bounce', label: 'Bounce Fight', color: '#f97316' }
-        ];
-        
-        fbxButtons.forEach(b => {
-            const btn = document.createElement('button');
-            btn.className = 'ui-btn';
-            btn.style.background = b.color;
-            btn.innerText = b.label;
-            btn.onclick = () => playMotion(b.id);
-            container.appendChild(btn);
-        });
-    }
+    // Ab GLB ke liye bhi yehi buttons banenge
+    const fbxButtons = [
+        { id: 'run', label: 'Run', color: '#f59e0b' },
+        { id: 'idle', label: 'Idle', color: '#64748b' },
+        { id: 'punch', label: 'Punch', color: '#ef4444' },
+        { id: 'dance', label: 'Dance', color: '#10b981' }
+    ];
+    
+    fbxButtons.forEach(b => {
+        const btn = document.createElement('button');
+        btn.className = 'ui-btn';
+        btn.style.background = b.color;
+        btn.innerText = b.label;
+        btn.onclick = () => playMotion(b.id);
+        container.appendChild(btn);
+    });
 }
 
 function loadCharacter(charKey) {
@@ -137,7 +123,7 @@ function loadCharacter(charKey) {
     if(loadingEl) { 
         loadingEl.style.color = '#3b82f6';
         loadingEl.style.display = 'block'; 
-        loadingEl.innerText = "Loading Model..."; 
+        loadingEl.innerText = "Loading Model & Motion..."; 
     }
 
     if (characterModel) { scene.remove(characterModel); characterModel = null; mixer = null; }
@@ -153,7 +139,6 @@ function loadCharacter(charKey) {
         
         characterModel.position.set(0, 0, 0);
         
-        // 💡 UPDATE 3: Color normal karne aur material fix karne ka code
         characterModel.traverse((node) => { 
             if (node.isMesh) { 
                 node.castShadow = true; 
@@ -167,68 +152,47 @@ function loadCharacter(charKey) {
         });
         scene.add(characterModel);
 
-        if (charKey === 'hotgirl') {
-            const textureLoader = new THREE.TextureLoader();
-            textureLoader.load('./texture.jpg', (texture) => {
-                texture.colorSpace = THREE.SRGBColorSpace;
-                characterModel.traverse((child) => {
-                    if (child.isMesh && child.material) {
-                        child.material.map = texture;
-                        child.material.needsUpdate = true;
-                    }
-                });
-            });
-        }
-
         mixer = new THREE.AnimationMixer(characterModel);
         actions = {}; 
 
-        if (isGLB) {
-            if (baseAnimations && baseAnimations.length > 0) {
-                baseAnimations.forEach(clip => {
-                    actions[clip.name] = mixer.clipAction(clip);
-                });
-                const firstAnim = baseAnimations[0].name;
-                actions[firstAnim].play();
-                currentActionName = firstAnim;
-            }
-            buildMotionButtons(true, baseAnimations);
+        // 💡 UPDATE: Agar GLB me khud ka motion nahi hai, toh bahar wali file use karo
+        buildMotionButtons();
+        if (isGLB && (!baseAnimations || baseAnimations.length === 0)) {
+            loadExternalFbxMotions(true); // GLB ke liye external FBX load karo
         } else {
-            if (baseAnimations && baseAnimations.length > 0) {
-                actions['idle'] = mixer.clipAction(baseAnimations[0]);
-                actions['idle'].play();
-                currentActionName = 'idle';
-            }
-            buildMotionButtons(false);
-            loadExternalFbxMotions();
+            loadExternalFbxMotions(false);
         }
 
-        // 💡 UPDATE 4: Load hote hi "Loading Model..." text forcefully hide karna
         if(loadingEl) loadingEl.style.display = 'none';
     };
 
-    // 💡 UPDATE 5: Error Catching - Agar file nahi mili toh laal error aayega
     if (isGLB) {
         gltfLoader.load(url, (gltf) => setupModel(gltf.scene, gltf.animations), undefined, (err) => {
             if(loadingEl) {
                 loadingEl.style.color = '#ef4444';
                 loadingEl.innerText = "❌ Error: 'assets/model_prepared.glb' file nahi mili!";
             }
-            console.error(err);
         });
     } else {
         fbxLoader.load(url, (fbx) => setupModel(fbx, fbx.animations), undefined, console.error);
     }
 }
 
-function loadExternalFbxMotions() {
+function loadExternalFbxMotions(isForGLB) {
     for (const [mKey, mUrl] of Object.entries(motionFiles)) {
         fbxLoader.load(mUrl, (animObj) => {
             if (animObj.animations && animObj.animations.length > 0) {
                 const action = mixer.clipAction(animObj.animations[0]);
                 if(mKey === 'punch') action.setLoop(THREE.LoopOnce); 
                 actions[mKey] = action;
+                
+                // Testing ke liye "Run" motion automatically play kar do
+                if(isForGLB && mKey === 'run') {
+                    playMotion('run');
+                }
             }
+        }, undefined, (err) => {
+            console.log("Motion Load Error:", mKey, mUrl); // Agar motion nahi milega toh ignore karega
         });
     }
 }
@@ -239,39 +203,10 @@ function playMotion(motionKey) {
     
     actions[motionKey].reset().fadeIn(0.2).play();
     currentActionName = motionKey;
-
-    if(motionKey === 'punch') {
-        mixer.addEventListener('finished', function listener(e) {
-            if (e.action === actions['punch']) {
-                mixer.removeEventListener('finished', listener);
-                playMotion('idle');
-            }
-        });
-    }
 }
 
 createEditorUI();
 loadCharacter(currentSelectedChar);
-
-const colorSkinInput = document.getElementById('color-skin');
-if(colorSkinInput) {
-    colorSkinInput.addEventListener('input', (e) => {
-        if (characterModel) {
-            characterModel.traverse((child) => {
-                if (child.isMesh && child.material) {
-                    if (Array.isArray(child.material)) child.material.forEach(mat => mat.color.set(e.target.value));
-                    else child.material.color.set(e.target.value);
-                }
-            });
-        }
-    });
-}
-
-window.save3DDNA = function() {
-    localStorage.setItem('selectedCharacter', currentSelectedChar);
-    alert('3D Character DNA Saved! Entering Game...');
-    window.location.href = "game.html";
-};
 
 function animate() {
     requestAnimationFrame(animate);
