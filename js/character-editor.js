@@ -38,14 +38,15 @@ const gltfLoader = new GLTFLoader();
 let actions = {};
 let currentActionName = 'idle';
 
-// 👤 CHARACTERS LIST (UPDATED)
+// SABHI CHARACTERS KI LIST
 const characterFiles = {
     'man': './Man.fbx',
     'girl': './Peasant%20Girl.fbx',
     'hotgirl': './Hotgirl.fbx', 
-    'my_model': 'assets/model_prepared.glb' // 👈 TUMHARI GLB FILE KA PATH
+    'mymodel': 'assets/all_animations.glb' // TUMHARA NAYA CHARACTER
 };
 
+// PURANE FBX CHARACTERS KE MOTIONS
 const motionFiles = {
     'run': './Running.fbx',
     'punch': './Punching.fbx',
@@ -53,8 +54,7 @@ const motionFiles = {
     'bounce': './bouncing%20fight.fbx' 
 };
 
-// 👈 DEFAULT LOAD SETTING (Page khulte hi tumhara model aayega)
-let currentSelectedChar = 'my_model'; 
+let currentSelectedChar = 'man';
 
 function createEditorUI() {
     const uiDiv = document.createElement('div');
@@ -71,11 +71,7 @@ function createEditorUI() {
         <hr style="border-color:#334155; margin: 10px 0;">
         <div>
             <span style="color: #10b981; font-size: 13px; font-weight: bold; display: block; margin-bottom: 6px;">🎬 Test Motions</span>
-            <button class='ui-btn' id='mo-idle' style='background:#64748b;'>Idle</button>
-            <button class='ui-btn' id='mo-run' style='background:#f59e0b;'>Run</button>
-            <button class='ui-btn' id='mo-punch' style='background:#ef4444;'>Punch</button>
-            <button class='ui-btn' id='mo-dance' style='background:#10b981;'>Dance</button>
-            <button class='ui-btn' id='mo-bounce' style='background:#f97316; margin-top:5px;'>Bounce Fight</button>
+            <div id="motion-buttons-container"></div>
         </div>
     `;
     
@@ -87,20 +83,53 @@ function createEditorUI() {
     document.getElementById('char-man').addEventListener('click', () => loadCharacter('man'));
     document.getElementById('char-girl').addEventListener('click', () => loadCharacter('girl'));
     document.getElementById('char-hotgirl').addEventListener('click', () => loadCharacter('hotgirl'));
-    document.getElementById('char-mymodel').addEventListener('click', () => loadCharacter('my_model')); // 👈 BUTTON LINKED
+    document.getElementById('char-mymodel').addEventListener('click', () => loadCharacter('mymodel'));
+}
 
-    document.getElementById('mo-idle').addEventListener('click', () => playMotion('idle'));
-    document.getElementById('mo-run').addEventListener('click', () => playMotion('run'));
-    document.getElementById('mo-punch').addEventListener('click', () => playMotion('punch'));
-    document.getElementById('mo-dance').addEventListener('click', () => playMotion('dance'));
-    document.getElementById('mo-bounce').addEventListener('click', () => playMotion('bounce'));
+function buildMotionButtons(isGLB, gltfAnimations = []) {
+    const container = document.getElementById('motion-buttons-container');
+    container.innerHTML = ''; 
+
+    if (isGLB) {
+        // Naye GLB model ke khud ke motions
+        if (gltfAnimations.length > 0) {
+            gltfAnimations.forEach((clip) => {
+                const btn = document.createElement('button');
+                btn.className = 'ui-btn';
+                btn.style.background = '#8b5cf6';
+                btn.innerText = clip.name;
+                btn.onclick = () => playMotion(clip.name);
+                container.appendChild(btn);
+            });
+        } else {
+            container.innerHTML = '<span style="color:red; font-size:10px;">No animations in GLB</span>';
+        }
+    } else {
+        // Purane FBX models ke standard motions
+        const fbxButtons = [
+            { id: 'idle', label: 'Idle', color: '#64748b' },
+            { id: 'run', label: 'Run', color: '#f59e0b' },
+            { id: 'punch', label: 'Punch', color: '#ef4444' },
+            { id: 'dance', label: 'Dance', color: '#10b981' },
+            { id: 'bounce', label: 'Bounce Fight', color: '#f97316' }
+        ];
+        
+        fbxButtons.forEach(b => {
+            const btn = document.createElement('button');
+            btn.className = 'ui-btn';
+            btn.style.background = b.color;
+            btn.innerText = b.label;
+            btn.onclick = () => playMotion(b.id);
+            container.appendChild(btn);
+        });
+    }
 }
 
 function loadCharacter(charKey) {
     if (currentSelectedChar === charKey && characterModel) return;
     currentSelectedChar = charKey;
     const url = characterFiles[charKey];
-    const isGLB = url.toLowerCase().endsWith('.glb');
+    const isGLB = charKey === 'mymodel';
 
     const loadingEl = document.getElementById('loading-text');
     if(loadingEl) { loadingEl.style.display = 'block'; loadingEl.innerText = "Loading Model..."; }
@@ -110,9 +139,7 @@ function loadCharacter(charKey) {
     const setupModel = (model, baseAnimations) => {
         characterModel = model;
         
-        if (isGLB) {
-            characterModel.scale.set(1, 1, 1);
-        } else if (charKey === 'hotgirl') {
+        if (isGLB || charKey === 'hotgirl') {
             characterModel.scale.set(1, 1, 1);
         } else {
             characterModel.scale.set(0.01, 0.01, 0.01);
@@ -129,7 +156,6 @@ function loadCharacter(charKey) {
                 characterModel.traverse((child) => {
                     if (child.isMesh && child.material) {
                         child.material.map = texture;
-                        child.material.color.setHex(0xffffff);
                         child.material.needsUpdate = true;
                     }
                 });
@@ -139,14 +165,29 @@ function loadCharacter(charKey) {
         mixer = new THREE.AnimationMixer(characterModel);
         actions = {}; 
 
-        if (baseAnimations && baseAnimations.length > 0) {
-            actions['idle'] = mixer.clipAction(baseAnimations[0]);
-            actions['idle'].play();
-            currentActionName = 'idle';
+        if (isGLB) {
+            // GLB Motions Setup
+            if (baseAnimations && baseAnimations.length > 0) {
+                baseAnimations.forEach(clip => {
+                    actions[clip.name] = mixer.clipAction(clip);
+                });
+                const firstAnim = baseAnimations[0].name;
+                actions[firstAnim].play();
+                currentActionName = firstAnim;
+            }
+            buildMotionButtons(true, baseAnimations);
+        } else {
+            // FBX Motions Setup
+            if (baseAnimations && baseAnimations.length > 0) {
+                actions['idle'] = mixer.clipAction(baseAnimations[0]);
+                actions['idle'].play();
+                currentActionName = 'idle';
+            }
+            buildMotionButtons(false);
+            loadExternalFbxMotions();
         }
 
         if(loadingEl) loadingEl.style.display = 'none';
-        loadAllMotions();
     };
 
     if (isGLB) {
@@ -156,7 +197,7 @@ function loadCharacter(charKey) {
     }
 }
 
-function loadAllMotions() {
+function loadExternalFbxMotions() {
     for (const [mKey, mUrl] of Object.entries(motionFiles)) {
         fbxLoader.load(mUrl, (animObj) => {
             if (animObj.animations && animObj.animations.length > 0) {
