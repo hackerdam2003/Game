@@ -18,12 +18,10 @@ container.appendChild(renderer.domElement);
 
 const ambientLight = new THREE.AmbientLight(0xffffff, 2.5);
 scene.add(ambientLight);
-
 const keyLight = new THREE.DirectionalLight(0xffffff, 2.5);
 keyLight.position.set(3, 5, 3);
 keyLight.castShadow = true;
 scene.add(keyLight);
-
 const fillLight = new THREE.DirectionalLight(0xffffff, 1.5);
 fillLight.position.set(-3, 2, -3);
 scene.add(fillLight);
@@ -46,21 +44,15 @@ const characterFiles = {
     'man': './Man.fbx',
     'girl': './Peasant%20Girl.fbx',
     'hotgirl': './Hotgirl.fbx', 
-    'mymodel': 'assets/model_prepared.glb' 
+    'mymodel': 'assets/all_animations.glb' // 👈 Yahan sab pack wali file ka naam diya hai
 };
 
-// 💡 FIX: Purane characters ke original motions wapas theek kar diye
 const defaultMotionFiles = {
     'idle': './Idle.fbx',
     'run': './Running.fbx',
     'punch': './Punching.fbx',
     'dance': './Hip%20Hop%20Dancing.fbx',
     'bounce': './bouncing%20fight.fbx' 
-};
-
-// 💡 FIX: Tumhare custom GLB ke liye alag motion list banayi hai
-const customMotionFiles = {
-    'run': 'assets/Running.fbx' 
 };
 
 let currentSelectedChar = 'mymodel'; 
@@ -93,37 +85,6 @@ function createEditorUI() {
     document.getElementById('char-girl').addEventListener('click', () => loadCharacter('girl'));
     document.getElementById('char-hotgirl').addEventListener('click', () => loadCharacter('hotgirl'));
     document.getElementById('char-mymodel').addEventListener('click', () => loadCharacter('mymodel'));
-}
-
-function buildMotionButtons(isGLB) {
-    const container = document.getElementById('motion-buttons-container');
-    container.innerHTML = ''; 
-
-    let buttons = [];
-    if (isGLB) {
-        // Naye model ke liye sirf uske apne buttons
-        buttons = [
-            { id: 'run', label: 'Custom Run', color: '#f59e0b' }
-        ];
-    } else {
-        // Purane models ke liye saare default buttons
-        buttons = [
-            { id: 'idle', label: 'Idle', color: '#64748b' },
-            { id: 'run', label: 'Run', color: '#f59e0b' },
-            { id: 'punch', label: 'Punch', color: '#ef4444' },
-            { id: 'dance', label: 'Dance', color: '#10b981' },
-            { id: 'bounce', label: 'Bounce Fight', color: '#f97316' }
-        ];
-    }
-    
-    buttons.forEach(b => {
-        const btn = document.createElement('button');
-        btn.className = 'ui-btn';
-        btn.style.background = b.color;
-        btn.innerText = b.label;
-        btn.onclick = () => playMotion(b.id);
-        container.appendChild(btn);
-    });
 }
 
 function loadCharacter(charKey) {
@@ -164,43 +125,74 @@ function loadCharacter(charKey) {
             }
         });
         scene.add(characterModel);
-
         mixer = new THREE.AnimationMixer(characterModel);
         actions = {}; 
+        
+        const btnContainer = document.getElementById('motion-buttons-container');
+        btnContainer.innerHTML = '';
 
-        buildMotionButtons(isGLB);
-        loadExternalFbxMotions(isGLB);
+        if (isGLB) {
+            // GLB ki andar ki animations khud padh kar chalayega
+            if (baseAnimations && baseAnimations.length > 0) {
+                baseAnimations.forEach(clip => {
+                    actions[clip.name] = mixer.clipAction(clip);
+                    // Dynamically button banana
+                    const btn = document.createElement('button');
+                    btn.className = 'ui-btn';
+                    btn.style.background = '#8b5cf6';
+                    btn.innerText = clip.name;
+                    btn.onclick = () => playMotion(clip.name);
+                    btnContainer.appendChild(btn);
+                });
+                const firstAnim = baseAnimations[0].name;
+                actions[firstAnim].play();
+                currentActionName = firstAnim;
+            } else {
+                btnContainer.innerHTML = '<span style="color:red; font-size:11px;">No animations found inside GLB</span>';
+            }
+        } else {
+            // Purane FBX characters ke default buttons
+            const fbxButtons = [
+                { id: 'idle', label: 'Idle', color: '#64748b' },
+                { id: 'run', label: 'Run', color: '#f59e0b' },
+                { id: 'punch', label: 'Punch', color: '#ef4444' },
+                { id: 'dance', label: 'Dance', color: '#10b981' }
+            ];
+            fbxButtons.forEach(b => {
+                const btn = document.createElement('button');
+                btn.className = 'ui-btn';
+                btn.style.background = b.color;
+                btn.innerText = b.label;
+                btn.onclick = () => playMotion(b.id);
+                btnContainer.appendChild(btn);
+            });
+            loadExternalFbxMotions();
+        }
 
         if(loadingEl) loadingEl.style.display = 'none';
     };
 
     if (isGLB) {
-        gltfLoader.load(url, (gltf) => setupModel(gltf.scene, gltf.animations), undefined, console.error);
+        gltfLoader.load(url, (gltf) => setupModel(gltf.scene, gltf.animations), undefined, (err) => {
+            if(loadingEl) {
+                loadingEl.style.color = '#ef4444';
+                loadingEl.innerText = "❌ Error: 'assets/all_animations.glb' file nahi mili!";
+            }
+        });
     } else {
         fbxLoader.load(url, (fbx) => setupModel(fbx, fbx.animations), undefined, console.error);
     }
 }
 
-function loadExternalFbxMotions(isForGLB) {
-    // 💡 FIX: Yahan decide hoga ki purani files load karni hain ya tumhari nayi files
-    const motionsToLoad = isForGLB ? customMotionFiles : defaultMotionFiles;
-
-    for (const [mKey, mUrl] of Object.entries(motionsToLoad)) {
+function loadExternalFbxMotions() {
+    for (const [mKey, mUrl] of Object.entries(defaultMotionFiles)) {
         fbxLoader.load(mUrl, (animObj) => {
             if (animObj.animations && animObj.animations.length > 0) {
                 const action = mixer.clipAction(animObj.animations[0]);
                 if(mKey === 'punch') action.setLoop(THREE.LoopOnce); 
                 actions[mKey] = action;
-                
-                // Naye model me test ke liye sidha custom run chalao
-                if(isForGLB && mKey === 'run') {
-                    playMotion('run');
-                } else if (!isForGLB && mKey === 'idle') {
-                    playMotion('idle');
-                }
+                if (mKey === 'idle') playMotion('idle');
             }
-        }, undefined, (err) => {
-            console.log("Motion Load Error:", mKey, mUrl); 
         });
     }
 }
@@ -208,7 +200,6 @@ function loadExternalFbxMotions(isForGLB) {
 function playMotion(motionKey) {
     if (!mixer || !actions[motionKey] || currentActionName === motionKey) return;
     if (actions[currentActionName]) actions[currentActionName].fadeOut(0.2);
-    
     actions[motionKey].reset().fadeIn(0.2).play();
     currentActionName = motionKey;
 }
@@ -230,4 +221,3 @@ window.addEventListener('resize', () => {
     camera.updateProjectionMatrix();
     renderer.setSize(container.clientWidth, container.clientHeight);
 });
-
