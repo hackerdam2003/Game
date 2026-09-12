@@ -26,7 +26,6 @@
         #btn-party-create { top: 20px; left: 20px; font-size: 18px; }
         #btn-friends { bottom: 25px; right: 25px; }
         
-        /* 🚀 CLEANED UP ICONS (No Duplicates) */
         #btn-mic-toggle { bottom: 95px; left: 25px; z-index: 20; } 
         #btn-music-toggle { bottom: 165px; left: 25px; z-index: 20; font-size: 20px; text-shadow: 0 0 10px rgba(251, 191, 36, 0.5); } 
 
@@ -39,17 +38,17 @@
         .volume-popup label { color: #fbbf24; font-size: 12px; font-weight: 900; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
         .volume-popup input[type="range"] { width: 130px; accent-color: #fbbf24; outline: none; }
 
-        .match-bar { padding: 15px 20px; background: #1e293b; border-top: 1px solid #334155; display: flex; flex-direction: column; gap: 10px; z-index: 10; }
+        .match-bar { padding: 15px 20px; background: #1e293b; border-top: 1px solid #334155; display: flex; flex-direction: column; gap: 10px; z-index: 100; position: relative; }
         
-        /* 🚀 REAL 2 ENGINES DROPDOWN UI (Corrected Paths) */
-        .pro-select-wrapper { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; position: relative; }
-        .pro-select { position: relative; flex: 1; margin-left: 10px; font-weight: bold; font-size: 13px; z-index: 40; }
+        /* PRO DROPDOWN UI */
+        .pro-select-wrapper { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; position: relative; z-index: 200; }
+        .pro-select { position: relative; flex: 1; margin-left: 10px; font-weight: bold; font-size: 13px; }
         .pro-select-trigger { background: #0f172a; color: white; border: 1px solid #3b82f6; padding: 12px; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 0 10px rgba(59, 130, 246, 0.2); user-select: none; }
         .pro-select-trigger::after { content: "▼"; font-size: 10px; color: #38bdf8; transition: 0.3s; }
         .pro-select.open .pro-select-trigger::after { transform: rotate(180deg); }
-        .pro-options { position: absolute; display: none; bottom: 100%; left: 0; right: 0; background: #1e293b; border: 1px solid #3b82f6; border-radius: 8px; margin-bottom: 8px; overflow: hidden; box-shadow: 0 -10px 30px rgba(0,0,0,0.8); }
+        .pro-options { position: absolute; display: none; bottom: calc(100% + 8px); left: 0; right: 0; background: #1e293b; border: 2px solid #3b82f6; border-radius: 8px; overflow: hidden; box-shadow: 0 -10px 30px rgba(0,0,0,0.9); z-index: 99999; }
         .pro-select.open .pro-options { display: block; animation: slideUp 0.2s ease-out; }
-        .pro-option { padding: 14px 12px; color: #cbd5e1; cursor: pointer; transition: 0.2s; border-bottom: 1px solid #334155; user-select: none; }
+        .pro-option { padding: 14px 12px; color: #cbd5e1; cursor: pointer; transition: 0.2s; border-bottom: 1px solid #334155; user-select: none; background: #1e293b; }
         .pro-option:hover, .pro-option:active { background: #3b82f6; color: white; }
         .pro-option:last-child { border-bottom: none; }
         @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -95,13 +94,9 @@
         <div class="icon-btn" id="btn-chat" title="Chat Hub">💬</div>
         <div class="icon-btn" id="btn-friends" title="Friends">👥</div>
         
-        <!-- 🎤 Voice Chat Button -->
         <div class="icon-btn" id="btn-mic-toggle" title="Voice Chat" onclick="window.toggleVoiceChat()">🔇</div>
-        
-        <!-- 🎵 Music Volume Control Button -->
         <div class="icon-btn" id="btn-music-toggle" title="Music Volume" onclick="window.toggleVolumePopup()">🎵</div>
         
-        <!-- Volume Popup Slider -->
         <div class="volume-popup" id="music-volume-popup">
             <label>🎵 Adjust Volume</label>
             <input type="range" id="music-volume-slider" min="0" max="1" step="0.05" value="0.5">
@@ -116,21 +111,20 @@
         </div>
     </div>
 
-    <!-- 🚀 EXACT 2 ENGINES SELECTOR (Linked to game.html & js/2engine.js) -->
+    <!-- 🚀 EXACT 2 MODES: game.html & island.html -->
     <div class="match-bar">
         
         <div id="host-controls" class="pro-select-wrapper">
             <span style="font-size: 12px; font-weight: bold; color: #38bdf8;">🎮 SELECT MODE:</span>
             
             <div class="pro-select" id="custom-mode-dropdown">
-                <div class="pro-select-trigger" onclick="toggleModeDropdown()">🏎️ Racing Universe (Engine 1)</div>
+                <div class="pro-select-trigger" onclick="toggleModeDropdown()">🏎️ Racing Universe (World Mode)</div>
                 <div class="pro-options">
-                    <div class="pro-option" onclick="selectGameMode('game.html', '🏎️ Racing Universe (Engine 1)')">🏎️ Racing Universe (Engine 1)</div>
-                    <div class="pro-option" onclick="selectGameMode('js/2engine.js', '⚔️ Combat Arena (Engine 2)')">⚔️ Combat Arena (Engine 2)</div>
+                    <div class="pro-option" onclick="selectGameMode('game.html', '🏎️ Racing Universe (World Mode)')">🏎️ Racing Universe (World Mode)</div>
+                    <div class="pro-option" onclick="selectGameMode('island.html', '🏝️ Island Mode')">🏝️ Island Mode</div>
                 </div>
             </div>
             
-            <!-- Real engine file tracker -->
             <input type="hidden" id="engine-selector-value" value="game.html">
         </div>
 
@@ -409,4 +403,3 @@
     </script>
 </body>
 </html>
-
