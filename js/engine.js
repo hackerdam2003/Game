@@ -18,7 +18,7 @@ const app = initializeApp(engineConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-console.log("🎮 [Game Engine] Fixed Ground Level, Chat Close, Sky & Genshin Character Switcher Active!");
+console.log("🎮 [Game Engine] Fixed Black Screen, Ground Level, Chat Close & Genshin Character Switcher Active!");
 
 const gameSocket = io(); 
 
@@ -32,7 +32,8 @@ let scene, camera, renderer, clock, controls;
 let worldGroup, houseGroup; 
 
 let my3DCharacter = null;
-let mixer = null;
+let monsterCharacter = null;
+let mixer = null, monsterMixer = null;
 let actions = {}; 
 let currentAction = 'dance'; 
 
@@ -41,6 +42,7 @@ let allPlayersData = {};
 let floatingLabels = document.createElement('div');
 document.body.appendChild(floatingLabels);
 
+let playerHP = 100, monsterHP = 100, isMonsterDead = false;
 let doorMesh = null, exitDoorMesh = null;
 let enterHouseBtn = null, actionUI = null, playerListUI = null;
 let isBusy = false; 
@@ -55,11 +57,10 @@ let worldHouseRef = null;
 let interiorHouseRef = null;
 let currentHouseCollider = null; 
 
-// Character files mapping
 const characterFiles = { 
     'man': './Man.fbx', 
     'girl': './Peasant%20Girl.fbx',
-    'hotgirl': './Hotgirl.fbx', 
+    'hotgirl': './Hotgirl.fbx',
     'mymodel': 'assets/all_animations.glb'
 };
 let currentSelectedChar = localStorage.getItem('selectedCharacter') || 'man';
@@ -122,15 +123,16 @@ function createUIElements() {
 
     // 🌟 GENSHIN IMPACT STYLE CHARACTER SWITCHER BUTTON (Top Right Menu)
     const charSwitchMenu = document.createElement('div');
-    charSwitchMenu.style.cssText = 'position: fixed; top: 15px; right: 200px; z-index: 100000; pointer-events: auto; display: flex; gap: 8px;';
+    charSwitchMenu.style.cssText = 'position: fixed; top: 15px; right: 180px; z-index: 100000; pointer-events: auto; display: flex; gap: 6px;';
     charSwitchMenu.innerHTML = `
-        <button onclick="window.switchGameCharacter('man')" style="background: rgba(30,41,59,0.9); border: 2px solid #3b82f6; color: white; padding: 6px 10px; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer;">👦 Man</button>
-        <button onclick="window.switchGameCharacter('girl')" style="background: rgba(30,41,59,0.9); border: 2px solid #ec4899; color: white; padding: 6px 10px; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer;">👧 Girl</button>
-        <button onclick="window.switchGameCharacter('hotgirl')" style="background: rgba(30,41,59,0.9); border: 2px solid #10b981; color: white; padding: 6px 10px; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer;">💃 Hot</button>
+        <button onclick="window.switchGameCharacter('man')" style="background: rgba(30,41,59,0.9); border: 2px solid #3b82f6; color: white; padding: 5px 8px; border-radius: 6px; font-size: 10px; font-weight: bold; cursor: pointer;">👦 Man</button>
+        <button onclick="window.switchGameCharacter('girl')" style="background: rgba(30,41,59,0.9); border: 2px solid #ec4899; color: white; padding: 5px 8px; border-radius: 6px; font-size: 10px; font-weight: bold; cursor: pointer;">👧 Girl</button>
+        <button onclick="window.switchGameCharacter('hotgirl')" style="background: rgba(30,41,59,0.9); border: 2px solid #10b981; color: white; padding: 5px 8px; border-radius: 6px; font-size: 10px; font-weight: bold; cursor: pointer;">💃 Hot</button>
+        <button onclick="window.switchGameCharacter('mymodel')" style="background: rgba(30,41,59,0.9); border: 2px solid #fbbf24; color: white; padding: 5px 8px; border-radius: 6px; font-size: 10px; font-weight: bold; cursor: pointer;">⭐ Custom</button>
     `;
     document.body.appendChild(charSwitchMenu);
 
-    // 🛑 CHAT CLOSE BUTTON FIX (Added inside #game-chat-box or via header)
+    // 🛑 CHAT CLOSE BUTTON FIX (Added inside #game-chat-box)
     const chatBox = document.getElementById('game-chat-box');
     if(chatBox && !document.getElementById('close-chat-btn')) {
         const closeChatBtn = document.createElement('button');
@@ -138,12 +140,12 @@ function createUIElements() {
         closeChatBtn.innerText = '✕';
         closeChatBtn.style.cssText = 'position: absolute; top: 5px; right: 8px; background: none; border: none; color: #ef4444; font-size: 16px; font-weight: bold; cursor: pointer; z-index: 10001;';
         closeChatBtn.onclick = () => { chatBox.style.display = 'none'; };
-        chatBox.style.position = 'absolute'; // ensure relative/absolute positioning works
+        chatBox.style.position = 'absolute';
         chatBox.appendChild(closeChatBtn);
     }
 }
 
-// 🌟 Genshin Style Instant Character Switcher Function
+// 🌟 Instant Character Switcher Function
 window.switchGameCharacter = function(charKey) {
     currentSelectedChar = charKey;
     localStorage.setItem('selectedCharacter', charKey);
@@ -223,7 +225,7 @@ function init3DWorld() {
     requestAnimationFrame(renderLoop);
 }
 
-// ☁️ Skybox Fix (Proper Scaling & Coverage)
+// ☁️ Skybox Fix
 function loadSkybox() {
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/');
@@ -232,7 +234,7 @@ function loadSkybox() {
     
     gltfLoader.load('https://hackerdam2003.github.io/Game/Sky.glb', (gltf) => {
         const sky = gltf.scene;
-        sky.scale.set(2000, 2000, 2000); // Expanded scale to completely cover horizon
+        sky.scale.set(2000, 2000, 2000);
         sky.position.set(0, 0, 0);
         
         sky.traverse((node) => {
@@ -284,7 +286,7 @@ function loadAsliGhar() {
 
         worldHouseRef = originalHouse.clone();
         worldHouseRef.position.x = 2 - center.x;
-        // 🚀 FIX: Perfectly aligned to ground level Y = 0 (no floating slab or sinking)
+        // 🚀 FIX: Exactly aligned to ground level Y = 0
         worldHouseRef.position.y = 0; 
         worldHouseRef.position.z = -10 - center.z; 
         worldGroup.add(worldHouseRef);
@@ -335,7 +337,7 @@ function loadPoolAndProps() {
         chairPositions.forEach(pos => {
             const chair = chairBase.clone();
             chair.scale.set(23.0, 23.0, 23.0);
-            chair.position.set(pos.x, 0, pos.z); // Ground level
+            chair.position.set(pos.x, 0, pos.z); 
             chair.rotation.y = pos.rot;
             worldGroup.add(chair);
         });
@@ -345,7 +347,7 @@ function loadPoolAndProps() {
     fbxLoader.load('./Hotgirl.fbx', (fbx) => {
         const hotgirl = fbx;
         hotgirl.scale.set(2.8, 2.8, 2.8);
-        hotgirl.position.set(14, 0, 2); // Ground level
+        hotgirl.position.set(14, 0, 2); 
         hotgirl.rotation.y = -Math.PI / 2;
 
         const textureLoader = new THREE.TextureLoader();
@@ -757,8 +759,8 @@ function renderLoop() {
 window.addEventListener('resize', () => {
     if(camera && renderer) {
         camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionManager(); // safe fallback
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
     }
 });
+
