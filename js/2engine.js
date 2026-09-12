@@ -18,7 +18,7 @@ const app = initializeApp(engineConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-console.log("🏝️ [Island Engine] Left Column Character Switcher & Emotes Right Side Active!");
+console.log("🏝️ [Island Engine] Flat Ground, Anti-Sink, Fixed Joystick & Character Scaling Active!");
 
 const gameSocket = io(); 
 
@@ -44,12 +44,10 @@ document.body.appendChild(floatingLabels);
 let isBusy = false; 
 let inWater = false; 
 
-// Physics Colliders Array
-let worldColliders = [];
-
-const downRaycaster = new THREE.Raycaster();
-const forwardRaycaster = new THREE.Raycaster();
-const downDirection = new THREE.Vector3(0, -1, 0);
+// Pool Position config for smart detection
+const POOL_CENTER_X = 0;
+const POOL_CENTER_Z = -10;
+const POOL_RADIUS = 7;
 
 const characterFiles = { 
     'man': './Man.fbx', 
@@ -71,7 +69,7 @@ window.enterWorld = async function() {
     if(overlay) overlay.style.display = 'none';
     if(hud) hud.style.display = 'block';
 
-    createCharSwitcherUI(); // 🚀 NEW: Left Column Switcher
+    createCharSwitcherUI(); 
     createPoseUI(); 
     init3DWorld(); 
     setupJoystick();
@@ -88,55 +86,48 @@ window.enterWorld = async function() {
     });
 };
 
-// 🌟 NEW: Genshin Style Character Switcher (Left Side Column)
+// 🌟 Left Column Character Switcher
 function createCharSwitcherUI() {
     if(document.getElementById('char-switch-menu')) return;
     const charSwitchMenu = document.createElement('div');
     charSwitchMenu.id = 'char-switch-menu';
-    // Positioned vertically centered on the left side
-    charSwitchMenu.style.cssText = 'position: fixed; top: 45%; left: 15px; transform: translateY(-50%); z-index: 100000; pointer-events: auto; display: flex; flex-direction: column; gap: 12px;';
+    charSwitchMenu.style.cssText = 'position: fixed; top: 50%; left: 15px; transform: translateY(-50%); z-index: 100000; pointer-events: auto; display: flex; flex-direction: column; gap: 15px;';
     
     charSwitchMenu.innerHTML = `
-        <button onclick="window.switchGameCharacter('man')" style="background: rgba(30,41,59,0.8); border: 2px solid #3b82f6; color: white; border-radius: 50%; width: 45px; height: 45px; font-size: 20px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;">👦</button>
-        <button onclick="window.switchGameCharacter('girl')" style="background: rgba(30,41,59,0.8); border: 2px solid #ec4899; color: white; border-radius: 50%; width: 45px; height: 45px; font-size: 20px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;">👧</button>
-        <button onclick="window.switchGameCharacter('hotgirl')" style="background: rgba(30,41,59,0.8); border: 2px solid #10b981; color: white; border-radius: 50%; width: 45px; height: 45px; font-size: 20px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;">💃</button>
+        <button onclick="window.switchGameCharacter('man')" style="background: rgba(30,41,59,0.8); border: 2px solid #3b82f6; color: white; border-radius: 50%; width: 45px; height: 45px; font-size: 20px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">👦</button>
+        <button onclick="window.switchGameCharacter('girl')" style="background: rgba(30,41,59,0.8); border: 2px solid #ec4899; color: white; border-radius: 50%; width: 45px; height: 45px; font-size: 20px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">👧</button>
+        <button onclick="window.switchGameCharacter('hotgirl')" style="background: rgba(30,41,59,0.8); border: 2px solid #10b981; color: white; border-radius: 50%; width: 45px; height: 45px; font-size: 20px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">💃</button>
     `;
     document.body.appendChild(charSwitchMenu);
 }
 
-// Function to handle instant character switch
 window.switchGameCharacter = function(charKey) {
     currentSelectedChar = charKey;
     localStorage.setItem('selectedCharacter', charKey);
     loadCharacter(charKey);
-    console.log("🔄 Switched character to:", charKey);
 };
 
+// 🌟 Emotes Menu (Right Side placement)
 function createPoseUI() {
     if(document.getElementById('pose-menu')) return;
     const poseMenu = document.createElement('div');
     poseMenu.id = 'pose-menu';
-    // Emotes shifted to Right Side (above jump/fire)
-    poseMenu.style.cssText = 'position: fixed; bottom: 160px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 10000; pointer-events: auto; align-items: flex-end;';
+    poseMenu.style.cssText = 'position: fixed; bottom: 160px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 10000; pointer-events: auto; align-items: flex-end;';
     poseMenu.innerHTML = `
-        <button id="btn-sitDazed" style="padding: 8px 12px; background: rgba(59,130,246,0.8); color: white; border: 1px solid #fff; border-radius: 8px; font-weight: bold; cursor: pointer; backdrop-filter: blur(4px);">🧘 Sit</button>
-        <button id="btn-lieDown" style="padding: 8px 12px; background: rgba(139,92,246,0.8); color: white; border: 1px solid #fff; border-radius: 8px; font-weight: bold; cursor: pointer; backdrop-filter: blur(4px);">🛌 Lie</button>
-        <button id="btn-layM" style="padding: 8px 12px; background: rgba(6,182,212,0.8); color: white; border: 1px solid #fff; border-radius: 8px; font-weight: bold; cursor: pointer; backdrop-filter: blur(4px);">🧍‍♂️ Pose</button>
-        <button id="btn-stand" style="padding: 10px 20px; background: #ef4444; color: white; border: 2px solid #fff; border-radius: 8px; font-weight: bold; cursor: pointer; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">🧍 Stand</button>
+        <button id="btn-sitDazed" style="padding: 6px 12px; background: rgba(59,130,246,0.8); color: white; border: 1px solid #fff; border-radius: 8px; font-weight: bold; cursor: pointer;">🧘 Sit</button>
+        <button id="btn-lieDown" style="padding: 6px 12px; background: rgba(139,92,246,0.8); color: white; border: 1px solid #fff; border-radius: 8px; font-weight: bold; cursor: pointer;">🛌 Lie</button>
+        <button id="btn-layM" style="padding: 6px 12px; background: rgba(6,182,212,0.8); color: white; border: 1px solid #fff; border-radius: 8px; font-weight: bold; cursor: pointer;">🧍‍♂️ Pose</button>
+        <button id="btn-stand" style="padding: 8px 16px; background: #ef4444; color: white; border: 2px solid #fff; border-radius: 8px; font-weight: bold; cursor: pointer; display: none;">🧍 Stand</button>
     `;
     document.body.appendChild(poseMenu);
 }
 
 function resetPoseUI() {
     isBusy = false;
-    const s1 = document.getElementById('btn-sitDazed');
-    const s2 = document.getElementById('btn-lieDown');
-    const s3 = document.getElementById('btn-layM');
-    const s5 = document.getElementById('btn-stand');
-    if(s1) s1.style.display = 'block';
-    if(s2) s2.style.display = 'block';
-    if(s3) s3.style.display = 'block';
-    if(s5) s5.style.display = 'none';
+    document.getElementById('btn-sitDazed').style.display = 'block';
+    document.getElementById('btn-lieDown').style.display = 'block';
+    document.getElementById('btn-layM').style.display = 'block';
+    document.getElementById('btn-stand').style.display = 'none';
 }
 
 function init3DWorld() {
@@ -149,12 +140,12 @@ function init3DWorld() {
     canvas.style.zIndex = '0';
 
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x87CEEB); 
+    scene.background = new THREE.Color(0x87CEEB); // ☁️ Skybox Hata diya, sirf Blue aasmaan
     scene.fog = new THREE.FogExp2(0x87CEEB, 0.002); 
     clock = new THREE.Clock();
 
     camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 15000); 
-    camera.position.set(0, 5, -10); 
+    camera.position.set(0, 4, 8); // 🎥 Camera Thoda Piche
 
     renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -169,6 +160,7 @@ function init3DWorld() {
     controls.minDistance = 2.0; 
     controls.maxDistance = 15; 
     controls.maxPolarAngle = Math.PI / 2 + 0.1; 
+    controls.target.set(0, 1.5, 0); // 🎥 Camera Target (Chest level par)
 
     worldGroup = new THREE.Group();
     scene.add(worldGroup);
@@ -180,54 +172,34 @@ function init3DWorld() {
     worldGroup.add(ambientW);
     worldGroup.add(dirLightW);
     
-    loadSkybox();
+    createOcean(); 
     loadIslandMap(); 
 
     loadCharacter(currentSelectedChar);
     requestAnimationFrame(renderLoop);
 }
 
-function loadSkybox() {
-    const dracoLoader = new DRACOLoader();
-    dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/');
-    const gltfLoader = new GLTFLoader();
-    gltfLoader.setDRACOLoader(dracoLoader);
-    
-    gltfLoader.load('https://hackerdam2003.github.io/Game/Sky.glb', (gltf) => {
-        const sky = gltf.scene;
-        sky.scale.set(5000, 5000, 5000); 
-        sky.position.set(0, -300, 0); 
-        
-        sky.traverse((node) => {
-            if (node.isMesh && node.material) {
-                node.castShadow = false;
-                node.receiveShadow = false;
-                if (node.material.map) {
-                    node.material = new THREE.MeshBasicMaterial({
-                        map: node.material.map,
-                        side: THREE.BackSide,
-                        depthWrite: false
-                    });
-                } else {
-                    node.material.side = THREE.BackSide;
-                    node.material.depthWrite = false;
-                }
-            }
-        });
-        worldGroup.add(sky);
+function createOcean() {
+    const waterGeo = new THREE.PlaneGeometry(3000, 3000);
+    const waterMat = new THREE.MeshStandardMaterial({
+        color: 0x0077be, transparent: true, opacity: 0.85, roughness: 0.1, metalness: 0.6
     });
+    const water = new THREE.Mesh(waterGeo, waterMat);
+    water.rotation.x = -Math.PI / 2;
+    water.position.y = -0.5; 
+    worldGroup.add(water);
 }
 
 function loadIslandMap() {
-    // 🏝️ Ground
-    const islandGeo = new THREE.CylinderGeometry(150, 150, 2, 64);
+    // 🏝️ FLAT GROUND (Sinking issue fixed permanently)
+    const islandGeo = new THREE.PlaneGeometry(500, 500);
     const islandMat = new THREE.MeshStandardMaterial({ color: 0xe6c280, roughness: 0.9 }); 
-    const tempIsland = new THREE.Mesh(islandGeo, islandMat);
-    tempIsland.position.y = -1.0; 
-    worldGroup.add(tempIsland);
-    worldColliders.push(tempIsland); 
+    const ground = new THREE.Mesh(islandGeo, islandMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = 0; // Strictly at Y=0
+    worldGroup.add(ground);
 
-    // 🏊 Load Pool
+    // 🏊 POOL
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/');
     const gltfLoader = new GLTFLoader();
@@ -240,12 +212,8 @@ function loadIslandMap() {
         const scaleFactor = 30 / maxDim; 
         pool.scale.set(scaleFactor, scaleFactor, scaleFactor);
         
-        pool.position.set(0, -0.2, -10); 
+        pool.position.set(POOL_CENTER_X, 0.05, POOL_CENTER_Z); // Just slightly above ground
         worldGroup.add(pool);
-
-        pool.traverse(child => {
-            if(child.isMesh) worldColliders.push(child);
-        });
     });
 }
 
@@ -257,11 +225,15 @@ function loadCharacter(charKey) {
     const url = characterFiles[charKey] || characterFiles['man'];
     const isGLB = url.toLowerCase().endsWith('.glb');
 
+    // 🚀 FIXED: Character Scale Boosted
+    let scaleVal = 0.013;
+    if(charKey === 'girl' || charKey === 'hotgirl') scaleVal = 0.025; // Girl aur Hotgirl badhe honge
+    
     if(isGLB) {
         gltfLoader.load(url, (gltf) => {
             my3DCharacter = gltf.scene;
             my3DCharacter.scale.set(1, 1, 1);
-            my3DCharacter.position.set(0, 5, 5); // Fall safe spawn
+            my3DCharacter.position.set(0, 0, 0); 
             scene.add(my3DCharacter);
             mixer = new THREE.AnimationMixer(my3DCharacter);
             if(gltf.animations.length > 0) {
@@ -274,8 +246,8 @@ function loadCharacter(charKey) {
     } else {
         fbxLoader.load(url, (object) => {
             my3DCharacter = object;
-            my3DCharacter.scale.set(0.013, 0.013, 0.013); 
-            my3DCharacter.position.set(0, 5, 5); // Fall safe spawn
+            my3DCharacter.scale.set(scaleVal, scaleVal, scaleVal); 
+            my3DCharacter.position.set(0, 0, 0); 
             scene.add(my3DCharacter);
             mixer = new THREE.AnimationMixer(my3DCharacter);
             loadAnimations(fbxLoader, mixer, actions, object);
@@ -321,11 +293,8 @@ function loadAdditionalAnimations(fbxLoader, targetMixer, targetActions) {
 
     targetMixer.addEventListener('finished', (e) => {
         if(e.action === targetActions.jump || e.action === targetActions.punch) {
-            if(moveVector.x !== 0 || moveVector.y !== 0) {
-                playAnim(inWater ? 'swim' : 'run');
-            } else {
-                playAnim(inWater ? 'treadWater' : 'dance');
-            }
+            if(moveVector.x !== 0 || moveVector.y !== 0) playAnim(inWater ? 'swim' : 'run');
+            else playAnim(inWater ? 'treadWater' : 'dance');
         }
     });
 }
@@ -396,9 +365,12 @@ function addRemotePlayer(data) {
     const rp = { group: group, label: label, targetPos: group.position.clone(), targetRot: 0, env: data.env, name: data.name, currentAction: 'dance', mixer: null, actions: {}, chatTimeout: null };
     remotePlayers[data.uid] = rp;
 
+    let scaleVal = 0.013;
+    if(data.char === 'girl' || data.char === 'hotgirl') scaleVal = 0.025;
+
     const charKey = data.char || 'man';
     fbxLoader.load(characterFiles[charKey] || characterFiles['man'], (object) => {
-        object.scale.set(0.013, 0.013, 0.013);
+        object.scale.set(scaleVal, scaleVal, scaleVal);
         object.position.set(0, 0, 0);
         group.add(object);
         rp.mixer = new THREE.AnimationMixer(object);
@@ -437,7 +409,7 @@ function showChatBubble(uid, msg) {
     }
 }
 
-// 🕹️ Joystick 
+// 🕹️ Joystick FIXED (Left-Right Inversion solved)
 function setupJoystick() {
     const base = document.getElementById('joystick-base'), knob = document.getElementById('joystick-knob');
     if(!base || !knob) return;
@@ -460,7 +432,8 @@ function setupJoystick() {
         if (dist > maxDist) { dx = (dx/dist)*maxDist; dy = (dy/dist)*maxDist; }
         
         knob.style.transform = `translate(${dx}px, ${dy}px)`;
-        moveVector = { x: dx/maxDist, y: -dy/maxDist }; 
+        // 🚀 INVERSION FIXED: -dx used so left is left, right is right
+        moveVector = { x: -dx/maxDist, y: -dy/maxDist }; 
         if (dist > 5 && !isBusy && currentAction !== 'jump') playAnim(inWater ? 'swim' : 'run'); 
     }
 }
@@ -477,14 +450,10 @@ function setupActionButtons() {
         if(inWater || currentAction === 'jump') return; 
         isBusy = true;
         playAnim(anim);
-        const s1 = document.getElementById('btn-sitDazed');
-        const s2 = document.getElementById('btn-lieDown');
-        const s3 = document.getElementById('btn-layM');
-        const s5 = document.getElementById('btn-stand');
-        if(s1) s1.style.display = 'none';
-        if(s2) s2.style.display = 'none';
-        if(s3) s3.style.display = 'none';
-        if(s5) s5.style.display = 'block';
+        document.getElementById('btn-sitDazed').style.display = 'none';
+        document.getElementById('btn-lieDown').style.display = 'none';
+        document.getElementById('btn-layM').style.display = 'none';
+        document.getElementById('btn-stand').style.display = 'block';
     };
 
     document.getElementById('btn-sitDazed')?.addEventListener('touchstart', () => triggerPose('sitDazed'));
@@ -493,6 +462,7 @@ function setupActionButtons() {
 
     document.getElementById('btn-stand')?.addEventListener('touchstart', () => {
         resetPoseUI();
+        my3DCharacter.position.y = 0; // Ensure they stand on ground
         playAnim(inWater ? 'treadWater' : 'dance');
     });
 }
@@ -525,70 +495,43 @@ function renderLoop() {
                 const targetRotation = Math.atan2(moveDirection.x, moveDirection.z);
                 let diff = targetRotation - my3DCharacter.rotation.y;
                 diff = Math.atan2(Math.sin(diff), Math.cos(diff)); 
-                my3DCharacter.rotation.y += diff * 0.15; 
+                my3DCharacter.rotation.y += diff * 0.2; 
 
                 const currentSpeed = Math.min(Math.sqrt(moveVector.x*moveVector.x + moveVector.y*moveVector.y), 1) * speed;
-                let canMove = true;
                 
-                // Check horizontal wall collision
-                if (worldColliders.length > 0 && !inWater) {
-                    const chestPos = my3DCharacter.position.clone();
-                    chestPos.y += 0.8; 
-                    forwardRaycaster.set(chestPos, moveDirection);
-                    const wallHits = forwardRaycaster.intersectObjects(worldColliders, true);
-                    if (wallHits.length > 0 && wallHits[0].distance < 0.5) canMove = false;
-                }
-
-                if (canMove) {
-                    my3DCharacter.position.addScaledVector(moveDirection, currentSpeed);
-                }
+                // Advance Position
+                my3DCharacter.position.addScaledVector(moveDirection, currentSpeed);
                 
                 allPlayersData[myUid] = { x: my3DCharacter.position.x, y: my3DCharacter.position.z };
                 gameSocket.emit('player-moved', { uid: myUid, x: my3DCharacter.position.x, y: my3DCharacter.position.y, z: my3DCharacter.position.z, rot: my3DCharacter.rotation.y, action: currentAction, env: currentEnvironment });
                 renderMinimap(allPlayersData, myUid);
             }
 
-            // 🧗 FIXED: RAYCASTER FOR GROUND SINKING & POOL
-            if (worldColliders.length > 0) {
-                const rayOrigin = my3DCharacter.position.clone();
-                rayOrigin.y += 10.0; // Upar se ray daalo
-                downRaycaster.set(rayOrigin, downDirection);
-                
-                const hits = downRaycaster.intersectObjects(worldColliders, true);
+            // 🚀 SOLID GROUND & POOL DISTANCE CHECK (No More Raycaster Bugs)
+            const distToPool = Math.hypot(my3DCharacter.position.x - POOL_CENTER_X, my3DCharacter.position.z - POOL_CENTER_Z);
+            let wasInWater = inWater;
 
-                let wasInWater = inWater;
-
-                if (hits.length > 0) {
-                    const hitHeight = hits[0].point.y;
-                    
-                    // 🚀 Perfect Ground Snapping (Zameen me nahi dhasega)
-                    my3DCharacter.position.y = hitHeight; 
-
-                    // Check if player stepped into the pool basin
-                    if (hitHeight < -0.1) {
-                        inWater = true;
-                    } else {
-                        inWater = false;
-                    }
-                }
-
-                if (wasInWater !== inWater && !isBusy && currentAction !== 'jump') {
-                    if (moveVector.x !== 0 || moveVector.y !== 0) {
-                        playAnim(inWater ? 'swim' : 'run');
-                    } else {
-                        playAnim(inWater ? 'treadWater' : 'dance');
-                    }
-                }
-
-                if (inWater && isBusy) {
-                    resetPoseUI();
-                    playAnim('treadWater');
-                }
+            if (distToPool < POOL_RADIUS) {
+                inWater = true;
+                my3DCharacter.position.y = -1.0; // In Pool
+            } else {
+                inWater = false;
+                if(!isBusy) my3DCharacter.position.y = 0; // Lock to Flat Ground
             }
 
-            // 🎥 360 Free Camera Follow
+            if (wasInWater !== inWater && !isBusy && currentAction !== 'jump') {
+                if (moveVector.x !== 0 || moveVector.y !== 0) playAnim(inWater ? 'swim' : 'run');
+                else playAnim(inWater ? 'treadWater' : 'dance');
+            }
+
+            if (inWater && isBusy) {
+                resetPoseUI();
+                playAnim('treadWater');
+            }
+
+            // 🎥 360 Free Camera Follow (Target Chest Level for Full Body visibility)
             if (controls) {
-                const charTarget = new THREE.Vector3(my3DCharacter.position.x, my3DCharacter.position.y + 1.5, my3DCharacter.position.z);
+                const charTarget = new THREE.Vector3(my3DCharacter.position.x, my3DCharacter.position.y + 1.2, my3DCharacter.position.z);
                 const posDelta = charTarget.clone().sub(controls.target);
                 controls.target.add(posDelta);
                 camera.position.add(posDelta);
