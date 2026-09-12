@@ -108,14 +108,19 @@ function loadCharacter(charKey) {
 
     const setupModel = (model, baseAnimations) => {
         characterModel = model;
-        
         characterModel.scale.set(1.0, 1.0, 1.0);
         characterModel.position.set(0, 0, 0);
         
+        console.log("🔍 === MODEL PARTS SCANNER ===");
         characterModel.traverse((node) => { 
             if (node.isMesh) { 
                 node.castShadow = true; 
                 node.receiveShadow = true; 
+                
+                // Print every mesh and material name to console for debugging
+                const matName = node.material && node.material.name ? node.material.name : 'No Material Name';
+                console.log(`Mesh: "${node.name}" | Material: "${matName}"`);
+
                 if (node.material) {
                     node.material.roughness = 0.6;
                     node.material.metalness = 0.1;
@@ -123,6 +128,8 @@ function loadCharacter(charKey) {
                 }
             }
         });
+        console.log("===============================");
+
         scene.add(characterModel);
         mixer = new THREE.AnimationMixer(characterModel);
         actions = {}; 
@@ -176,7 +183,13 @@ function loadCharacter(charKey) {
             }
         });
     } else {
-        fbxLoader.load(url, (fbx) => setupModel(fbx, fbx.animations), undefined, console.error);
+        fbxLoader.load(url, (fbx) => setupModel(fbx, fbx.animations), undefined, (err) => {
+            console.error("FBX Load Error:", err);
+            if(loadingEl) {
+                loadingEl.style.color = '#ef4444';
+                loadingEl.innerText = "❌ Error loading Misaki FBX!";
+            }
+        });
     }
 }
 
@@ -200,41 +213,56 @@ function playMotion(motionKey) {
     currentActionName = motionKey;
 }
 
-// 🚀 MAGIC BUTTON LOGIC: Hide Clothes (Shirt, Panties, etc.) & Apply Body Texture
+// 🚀 BULLETPROOF MAGIC TEXTURE & CLOTHES REMOVER WITH DEBUG LOGGING
 window.addEventListener('applyMagicSkin', () => {
-    if(!characterModel) return;
+    if(!characterModel) {
+        console.warn("⚠️ No character model loaded yet!");
+        return;
+    }
+
+    console.log("✨ Magic button clicked! Loading texture: assets/character/mis_body_base.png");
 
     textureLoader.load('assets/character/mis_body_base.png', (texture) => {
         texture.colorSpace = THREE.SRGBColorSpace;
         texture.flipY = false;
+
+        let hiddenCount = 0;
+        let texturedCount = 0;
 
         characterModel.traverse((node) => {
             if (node.isMesh) {
                 const matName = node.material && node.material.name ? node.material.name.toLowerCase() : '';
                 const nodeName = node.name ? node.name.toLowerCase() : '';
                 
-                // Check if this part is clothing (shirt, panties, cloth, etc.)
+                // Catching any clothing keyword aggressively
                 const isClothing = matName.includes('shirt') || matName.includes('panty') || matName.includes('panties') || 
                                  matName.includes('cloth') || matName.includes('bottom') || matName.includes('top') ||
+                                 matName.includes('bra') || matName.includes('skirt') || matName.includes('dress') ||
                                  nodeName.includes('shirt') || nodeName.includes('panty') || nodeName.includes('panties') || 
-                                 nodeName.includes('cloth');
+                                 nodeName.includes('cloth') || nodeName.includes('bottom') || nodeName.includes('top') ||
+                                 nodeName.includes('bra') || nodeName.includes('skirt') || nodeName.includes('dress');
 
                 if (isClothing) {
-                    // Poori tarah se kapdo ko hide kar do
                     node.visible = false;
+                    hiddenCount++;
+                    console.log(`👗 Hidden Clothing -> Mesh: "${node.name}" | Mat: "${matName}"`);
                 } else {
-                    // Check if it's body or skin part, then apply texture
-                    const isBodyPart = matName.includes('body') || matName.includes('skin') || nodeName.includes('body') || matName.includes('face') || nodeName.includes('face');
+                    const isBodyPart = matName.includes('body') || matName.includes('skin') || nodeName.includes('body') || 
+                                       matName.includes('face') || nodeName.includes('face') || matName.includes('arm') || 
+                                       matName.includes('leg') || matName.includes('head') || matName.includes('mis');
+                                       
                     if (isBodyPart && node.material) {
                         node.material.map = texture;
                         node.material.needsUpdate = true;
+                        texturedCount++;
+                        console.log(`✨ Textured Skin -> Mesh: "${node.name}" | Mat: "${matName}"`);
                     }
                 }
             }
         });
-        console.log("✨ Magic Triggered: Clothes Hidden & Body Skin Loaded!");
+        console.log(`🎯 Magic Complete: Hidden ${hiddenCount} clothing parts, Applied texture to ${texturedCount} body parts.`);
     }, undefined, (err) => {
-        console.error("Failed to load texture", err);
+        console.error("❌ Failed to load texture 'assets/character/mis_body_base.png'. Check file path!", err);
     });
 });
 
@@ -255,4 +283,3 @@ window.addEventListener('resize', () => {
     camera.updateProjectionMatrix();
     renderer.setSize(container.clientWidth, container.clientHeight);
 });
-
