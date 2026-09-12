@@ -38,12 +38,12 @@ const gltfLoader = new GLTFLoader();
 let actions = {};
 let currentActionName = 'idle';
 
-// 👤 CHARACTERS LIST
+// 👤 CHARACTERS LIST (UPDATED)
 const characterFiles = {
     'man': './Man.fbx',
     'girl': './Peasant%20Girl.fbx',
     'hotgirl': './Hotgirl.fbx', 
-    'exported': './exported-model.glb' 
+    'my_model': 'assets/model_prepared.glb' // 👈 TUMHARI GLB FILE KA PATH
 };
 
 const motionFiles = {
@@ -53,7 +53,8 @@ const motionFiles = {
     'bounce': './bouncing%20fight.fbx' 
 };
 
-let currentSelectedChar = 'man';
+// 👈 DEFAULT LOAD SETTING (Page khulte hi tumhara model aayega)
+let currentSelectedChar = 'my_model'; 
 
 function createEditorUI() {
     const uiDiv = document.createElement('div');
@@ -65,7 +66,7 @@ function createEditorUI() {
             <button class='ui-btn' id='char-man' style='background:#3b82f6;'>Man</button>
             <button class='ui-btn' id='char-girl' style='background:#ec4899;'>Girl</button>
             <button class='ui-btn' id='char-hotgirl' style='background:#f43f5e;'>Hot Girl</button> 
-            <button class='ui-btn' id='char-exp' style='background:#8b5cf6;'>Export GLB</button>
+            <button class='ui-btn' id='char-mymodel' style='background:#10b981;'>My GLB Model</button>
         </div>
         <hr style="border-color:#334155; margin: 10px 0;">
         <div>
@@ -86,7 +87,7 @@ function createEditorUI() {
     document.getElementById('char-man').addEventListener('click', () => loadCharacter('man'));
     document.getElementById('char-girl').addEventListener('click', () => loadCharacter('girl'));
     document.getElementById('char-hotgirl').addEventListener('click', () => loadCharacter('hotgirl'));
-    document.getElementById('char-exp').addEventListener('click', () => loadCharacter('exported'));
+    document.getElementById('char-mymodel').addEventListener('click', () => loadCharacter('my_model')); // 👈 BUTTON LINKED
 
     document.getElementById('mo-idle').addEventListener('click', () => playMotion('idle'));
     document.getElementById('mo-run').addEventListener('click', () => playMotion('run'));
@@ -109,11 +110,10 @@ function loadCharacter(charKey) {
     const setupModel = (model, baseAnimations) => {
         characterModel = model;
         
-        // 🚀 NAYA: Size (Scale) Fix
         if (isGLB) {
             characterModel.scale.set(1, 1, 1);
         } else if (charKey === 'hotgirl') {
-            characterModel.scale.set(1, 1, 1); // 👈 Isko 1 kiya, agar abhi bhi bada/chota lage toh 0.1 ya 2 karke dekhna
+            characterModel.scale.set(1, 1, 1);
         } else {
             characterModel.scale.set(0.01, 0.01, 0.01);
         }
@@ -139,7 +139,6 @@ function loadCharacter(charKey) {
         mixer = new THREE.AnimationMixer(characterModel);
         actions = {}; 
 
-        // Play Native Animation if exists
         if (baseAnimations && baseAnimations.length > 0) {
             actions['idle'] = mixer.clipAction(baseAnimations[0]);
             actions['idle'].play();
