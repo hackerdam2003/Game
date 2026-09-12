@@ -2,96 +2,405 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape">
-    <title>Racing Universe | Island Mode</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Racing Universe | Mobile Lobby</title>
+    <link rel="stylesheet" href="css/main.css">
     <style>
-        * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #f1f5f9; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        header { background: #1e293b; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; z-index: 10; }
+        .logo { font-size: 16px; font-weight: 900; color: #3b82f6; }
+        .user-info { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+        #player-coins { background: #fbbf24; color: #000; padding: 3px 10px; border-radius: 15px; font-weight: 900; font-size: 12px; }
+        .game-center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; padding: 20px; }
+        .party-stage { display: flex; align-items: center; gap: 15px; justify-content: center; flex-wrap: wrap; margin-bottom: 20px; }
+        .character-stage { width: 150px; height: 210px; background: rgba(30, 41, 59, 0.8); border: 2px solid #3b82f6; border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 0 20px rgba(59, 130, 246, 0.4); cursor: pointer; transition: 0.2s; }
+        .avatar-icon-big { font-size: 50px; margin-bottom: 8px; }
+        .char-name { font-weight: bold; font-size: 13px; color: #10b981; text-align: center; padding: 0 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; }
+        .char-sub { font-size: 10px; color: #94a3b8; margin-top: 2px; }
         
-        /* 🚨 Canvas properly fixed to prevent black screens */
-        #game-canvas { display: block; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 0; }
-
-        /* Enter Screen */
-        #enter-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.95); display: flex; align-items: center; justify-content: center; z-index: 10000; }
-        .enter-btn { background: #10b981; color: white; border: none; padding: 15px 40px; font-size: 20px; font-weight: bold; border-radius: 30px; cursor: pointer; text-transform: uppercase; box-shadow: 0 0 20px rgba(16, 185, 129, 0.5); }
-
-        #hud { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+        .icon-btn { position: absolute; width: 55px; height: 55px; background: linear-gradient(145deg, #1e293b, #0f172a); border: 1px solid #334155; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.6); z-index: 20; transition: all 0.3s ease; user-select: none; }
+        .icon-btn:active { transform: scale(0.9); }
         
-        /* Minimap Hook */
-        .hud-minimap { pointer-events: auto; }
+        #btn-chat { bottom: 25px; left: 25px; }
+        #btn-party-create { top: 20px; left: 20px; font-size: 18px; }
+        #btn-friends { bottom: 25px; right: 25px; }
+        
+        #btn-mic-toggle { bottom: 95px; left: 25px; z-index: 20; } 
+        #btn-music-toggle { bottom: 165px; left: 25px; z-index: 20; font-size: 20px; text-shadow: 0 0 10px rgba(251, 191, 36, 0.5); } 
 
-        /* Joystick Controls */
-        .joystick-zone { position: absolute; bottom: 20px; left: 30px; width: 130px; height: 130px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); pointer-events: auto; display: flex; align-items: center; justify-content: center; z-index: 100; }
-        .joystick-knob { width: 45px; height: 45px; background: rgba(255,255,255,0.6); border-radius: 50%; pointer-events: none; }
+        .volume-popup {
+            position: absolute; bottom: 165px; left: 95px; background: rgba(30, 41, 59, 0.95); backdrop-filter: blur(10px);
+            border: 1px solid #fbbf24; border-radius: 12px; padding: 15px;
+            display: none; flex-direction: column; align-items: center; z-index: 30;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.8), 0 0 15px rgba(251, 191, 36, 0.2);
+        }
+        .volume-popup label { color: #fbbf24; font-size: 12px; font-weight: 900; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
+        .volume-popup input[type="range"] { width: 130px; accent-color: #fbbf24; outline: none; }
 
-        /* Action Buttons */
-        .action-cluster { position: absolute; bottom: 20px; right: 30px; pointer-events: auto; width: 180px; height: 180px; z-index: 100; }
-        .btn-action { position: absolute; background: rgba(0,0,0,0.6); border: 2px solid rgba(255,255,255,0.4); border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); transition: 0.1s; cursor: pointer; }
-        .btn-action:active { background: rgba(255,255,255,0.4); transform: scale(0.9); }
-        .btn-main { width: 70px; height: 70px; bottom: 10px; right: 10px; font-size: 24px; }
-        .btn-skill { width: 50px; height: 50px; bottom: 90px; right: 20px; font-size: 18px; }
+        .match-bar { padding: 15px 20px; background: #1e293b; border-top: 1px solid #334155; display: flex; flex-direction: column; gap: 10px; z-index: 10; }
+        
+        /* PRO DROPDOWN UI */
+        .pro-select-wrapper { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; position: relative; }
+        .pro-select { position: relative; flex: 1; margin-left: 10px; font-weight: bold; font-size: 13px; z-index: 40; }
+        .pro-select-trigger { background: #0f172a; color: white; border: 1px solid #3b82f6; padding: 12px; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 0 10px rgba(59, 130, 246, 0.2); user-select: none; }
+        .pro-select-trigger::after { content: "▼"; font-size: 10px; color: #38bdf8; transition: 0.3s; }
+        .pro-select.open .pro-select-trigger::after { transform: rotate(180deg); }
+        .pro-options { position: absolute; display: none; bottom: 100%; left: 0; right: 0; background: #1e293b; border: 1px solid #3b82f6; border-radius: 8px; margin-bottom: 8px; overflow: hidden; box-shadow: 0 -10px 30px rgba(0,0,0,0.8); }
+        .pro-select.open .pro-options { display: block; animation: slideUp 0.2s ease-out; }
+        .pro-option { padding: 14px 12px; color: #cbd5e1; cursor: pointer; transition: 0.2s; border-bottom: 1px solid #334155; user-select: none; }
+        .pro-option:hover, .pro-option:active { background: #3b82f6; color: white; }
+        .pro-option:last-child { border-bottom: none; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .btn-play { background: #10b981; color: white; border: none; padding: 14px; border-radius: 10px; font-size: 16px; font-weight: 900; text-transform: uppercase; width: 100%; cursor: pointer; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4); }
+        
+        .drawer { position: fixed; top: 0; left: -100%; width: 85%; max-width: 340px; height: 100%; background: #1e293b; border-right: 1px solid #334155; z-index: 100; transition: 0.3s ease-in-out; display: flex; flex-direction: column; padding: 20px; box-shadow: 5px 0 25px rgba(0,0,0,0.6); }
+        .drawer.open { left: 0; }
+        .drawer-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 10px; margin-bottom: 15px; font-weight: bold; font-size: 14px; color: #cbd5e1; }
+        .close-drawer { background: none; border: none; color: #ef4444; font-size: 18px; cursor: pointer; }
+        .drawer-body { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+        .chat-subtabs { display: flex; gap: 5px; }
+        .chat-tab { flex: 1; background: #0f172a; border: 1px solid #334155; padding: 8px; font-size: 11px; font-weight: bold; text-align: center; border-radius: 6px; cursor: pointer; }
+        .chat-tab.active { background: #3b82f6; border-color: #3b82f6; }
+        .chat-messages-box { flex: 1; background: #0f172a; border-radius: 8px; padding: 10px; font-size: 12px; overflow-y: auto; border: 1px solid #334155; min-height: 250px; }
+        .chat-input-row { display: flex; gap: 8px; }
+        .chat-input-row input { flex: 1; padding: 10px; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: white; font-size: 12px; outline: none; }
+        .chat-input-row button { background: #3b82f6; border: none; color: white; padding: 0 12px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; z-index: 200; backdrop-filter: blur(3px); }
+        .profile-card-modal { background: #1e293b; border: 1px solid #334155; border-radius: 14px; width: 85%; max-width: 300px; padding: 20px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.6); }
+        .profile-card-modal h3 { margin: 10px 0 2px 0; color: #3b82f6; font-size: 18px; }
+        .btn-close-modal { background: #ef4444; color: white; border: none; padding: 8px 20px; border-radius: 6px; margin-top: 10px; font-weight: bold; cursor: pointer; width: 100%; }
+        .list-card-item { display: flex; justify-content: space-between; align-items: center; background: #0f172a; padding: 8px 10px; border-radius: 8px; border: 1px solid #334155; cursor: pointer; }
+        .live-badge { color: white; font-size: 9px; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 6px; display: inline-block; }
+        .action-btn-small { background: #3b82f6; border: none; color: white; padding: 5px 10px; border-radius: 5px; font-size: 11px; font-weight: bold; cursor: pointer; }
+        .modal-action-btn { background: #10b981; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; width: 100%; font-size: 12px; }
+        .modal-team-btn { background: #3b82f6; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; width: 100%; font-size: 12px; margin-top: 6px; }
+        .search-box-row { display: flex; gap: 6px; margin-bottom: 5px; }
+        .search-box-row input { flex: 1; padding: 8px; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: white; font-size: 12px; outline: none; }
     </style>
 </head>
 <body>
+    <header>
+        <div class="logo">🏎️ RACING UNIVERSE</div>
+        <div class="user-info">
+            <span id="player-name">Loading...</span>
+            <span id="player-coins">0 🪙</span>
+        </div>
+    </header>
 
-    <div id="enter-overlay">
-        <button class="enter-btn" onclick="enterWorld()">Drop to Island 🏝️</button>
-    </div>
-
-    <!-- 3D Canvas -->
-    <canvas id="game-canvas"></canvas>
-
-    <div id="hud">
+    <div class="game-center">
+        <div class="icon-btn" id="btn-party-create" title="Create Room">🏠</div>
+        <div class="icon-btn" id="btn-chat" title="Chat Hub">💬</div>
+        <div class="icon-btn" id="btn-friends" title="Friends">👥</div>
         
-        <!-- 🚨 FIX: Original Mic & Chat Buttons Restored -->
-        <div class="top-right-controls" style="position: absolute; top: 15px; right: 140px; display: flex; gap: 15px; z-index: 100000; pointer-events: auto;">
-            <div class="icon-btn-game" id="btn-mic-toggle" style="width: 45px; height: 45px; background: rgba(30,41,59,0.8); border: 2px solid #334155; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; backdrop-filter: blur(5px);">🔇</div>
-            <div class="icon-btn-game" id="btn-chat-toggle" style="width: 45px; height: 45px; background: rgba(30,41,59,0.8); border: 2px solid #334155; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; backdrop-filter: blur(5px);">💬</div>
+        <div class="icon-btn" id="btn-mic-toggle" title="Voice Chat" onclick="window.toggleVoiceChat()">🔇</div>
+        <div class="icon-btn" id="btn-music-toggle" title="Music Volume" onclick="window.toggleVolumePopup()">🎵</div>
+        
+        <div class="volume-popup" id="music-volume-popup">
+            <label>🎵 Adjust Volume</label>
+            <input type="range" id="music-volume-slider" min="0" max="1" step="0.05" value="0.5">
         </div>
-
-        <!-- Minimap Hook -->
-        <div class="hud-minimap"></div>
-
-        <!-- 🚨 FIX: Original In-Game Chat Overlay Restored -->
-        <div id="game-chat-box" style="position: absolute; bottom: 30px; left: 180px; width: 280px; height: 160px; background: rgba(0,0,0,0.6); border: 1px solid #334155; border-radius: 10px; display: none; flex-direction: column; pointer-events: auto; backdrop-filter: blur(5px); z-index: 100000;">
-            <div class="chat-msgs" id="in-game-msgs" style="flex: 1; overflow-y: auto; padding: 8px; color: white; font-size: 11px; display: flex; flex-direction: column; gap: 4px;">
-                <div><i>Welcome to Island Global Chat...</i></div>
+        
+        <div class="party-stage" id="party-stage-container">
+            <div class="character-stage" onclick="window.showMyProfile()">
+                <div class="avatar-icon-big" id="main-avatar-icon">👦</div>
+                <div class="char-name" id="main-char-name">Loading...</div>
+                <div class="char-sub" id="main-char-info">Host (You)</div>
             </div>
-            <div class="chat-input-row" style="display: flex; border-top: 1px solid #334;">
-                <input type="text" id="game-chat-input" placeholder="Type team message..." autocomplete="off" style="flex: 1; background: transparent; border: none; color: white; padding: 8px; outline: none; font-size: 12px;">
-                <button id="btn-send-chat" style="background: #3b82f6; border: none; color: white; padding: 0 14px; border-radius: 0 0 10px 0; font-weight: bold; cursor: pointer;">Send</button>
-            </div>
-        </div>
-
-        <!-- Joystick -->
-        <div class="joystick-zone" id="joystick-base">
-            <div class="joystick-knob" id="joystick-knob"></div>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="action-cluster">
-            <div class="btn-action btn-main" id="btn-attack">⚔️</div>
-            <div class="btn-action btn-skill" id="btn-skill">🔥</div>
         </div>
     </div>
 
-    <!-- Socket.io library -->
-    <script src="/socket.io/socket.io.js"></script>
+    <!-- 🚀 CORRECTED 2 MODES SELECTOR (game.html & island.html) -->
+    <div class="match-bar">
+        
+        <div id="host-controls" class="pro-select-wrapper">
+            <span style="font-size: 12px; font-weight: bold; color: #38bdf8;">🎮 SELECT MODE:</span>
+            
+            <div class="pro-select" id="custom-mode-dropdown">
+                <div class="pro-select-trigger" onclick="toggleModeDropdown()">🏎️ Racing Universe (World Mode)</div>
+                <div class="pro-options">
+                    <div class="pro-option" onclick="selectGameMode('game.html', '🏎️ Racing Universe (World Mode)')">🏎️ Racing Universe (World Mode)</div>
+                    <div class="pro-option" onclick="selectGameMode('island.html', '🏝️ Island Mode')">🏝️ Island Mode</div>
+                </div>
+            </div>
+            
+            <!-- Target HTML file tracker -->
+            <input type="hidden" id="engine-selector-value" value="game.html">
+        </div>
 
-    <!-- Three.js Import Map -->
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-                "fflate": "https://unpkg.com/three@0.160.0/examples/jsm/libs/fflate.module.js"
+        <div id="client-msg" style="display: none; background: rgba(245, 158, 11, 0.1); border-left: 3px solid #f59e0b; color: #f59e0b; font-size: 11px; text-align: center; padding: 8px; margin-bottom: 10px; font-weight: bold;">
+            ⏳ Waiting for Host to select mode and start...
+        </div>
+        <button id="start-match-btn" class="btn-play" onclick="window.enterWorld()">▶ START MATCH (Auto-Join)</button>
+    </div>
+
+    <!-- DRAWERS & MODALS -->
+    <div class="drawer" id="chat-drawer">
+        <div class="drawer-header"><span>💬 Communications Hub</span><button class="close-drawer" id="close-chat">✕</button></div>
+        <div class="drawer-body">
+            <div class="chat-subtabs">
+                <div class="chat-tab active" onclick="switchChatTab('world', this)">🌍 World</div>
+                <div class="chat-tab" onclick="switchChatTab('team', this)">🛡️ Team</div>
+                <div class="chat-tab" onclick="switchChatTab('dm', this)">👥 DMs</div>
+            </div>
+            <div class="chat-messages-box" id="active-chat-box"></div>
+            <div class="chat-input-row"><input type="text" id="chat-input-field" placeholder="Type message..."><button onclick="sendChatMessage()">Send</button></div>
+        </div>
+    </div>
+
+    <div class="drawer" id="friends-drawer">
+        <div class="drawer-header"><span>👥 Friends & Search</span><button class="close-drawer" id="close-friends">✕</button></div>
+        <div class="drawer-body">
+            <div style="font-size: 11px; font-weight: bold; color: #3b82f6; text-transform: uppercase;">Search Player by UID</div>
+            <div class="search-box-row"><input type="text" id="search-uid-input" placeholder="Enter Numeric Tag"><button class="action-btn-small" onclick="searchPlayerByUID()">Search</button></div>
+            <div style="font-size: 11px; font-weight: bold; color: #fbbf24; text-transform: uppercase; margin-top: 10px;">Friend Requests</div>
+            <div id="incoming-requests-container" style="display:flex; flex-direction:column; gap:6px;"></div>
+            <div style="font-size: 11px; font-weight: bold; color: #ef4444; text-transform: uppercase; margin-top: 10px;">Global Live Players</div>
+            <div id="global-live-players-container" style="display:flex; flex-direction:column; gap:6px;"></div>
+            <div style="font-size: 11px; font-weight: bold; color: #10b981; text-transform: uppercase; margin-top: 10px;">Your Friends List</div>
+            <div id="friends-list-container" style="display:flex; flex-direction:column; gap:6px;"></div>
+        </div>
+    </div>
+
+    <div class="drawer" id="party-drawer">
+        <div class="drawer-header"><span>🏠 Party Management</span><button class="close-drawer" id="close-party">✕</button></div>
+        <div class="drawer-body">
+            <div id="party-controls" style="background:#0f172a; padding:12px; border-radius:8px; border:1px solid #334155; margin-bottom:15px; text-align:center;">
+                <p style="margin:0 0 10px 0; font-size:12px; font-weight:bold; color:#f1f5f9;">Party Size Limit</p>
+                <div style="display:flex; justify-content:center; gap:10px; margin-bottom:12px;">
+                    <button id="btn-size-2" onclick="window.setPartySize(2)" style="background:#3b82f6; border:none; color:white; padding:6px 15px; border-radius:4px; cursor:pointer; font-weight:bold; flex:1;">2 Players (1v1)</button>
+                    <button id="btn-size-4" onclick="window.setPartySize(4)" style="background:#1e293b; border:1px solid #334155; color:white; padding:6px 15px; border-radius:4px; cursor:pointer; font-weight:bold; flex:1;">4 Players (2v2)</button>
+                </div>
+                <button id="btn-create-party" onclick="window.createParty()" style="background:#10b981; border:none; color:white; padding:10px; border-radius:6px; cursor:pointer; font-weight:bold; width:100%;">Create Party</button>
+                <button id="btn-leave-party" onclick="window.leaveParty()" style="background:#ef4444; border:none; color:white; padding:10px; border-radius:6px; cursor:pointer; font-weight:bold; width:100%; display:none;">Leave Party</button>
+            </div>
+            <p id="party-status-text" style="color: #fbbf24; font-size: 13px; font-weight:bold; text-align: center; margin-top: 5px;">You are Solo.</p>
+            <div id="party-list-container" style="display:flex; flex-direction:column; gap:5px; margin-top:10px;"></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="profile-modal">
+        <div class="profile-card-modal">
+            <div style="font-size: 45px; margin-bottom: 5px; transition: 0.3s;" id="modal-avatar">👦</div>
+            <h3 id="modal-gamename">Racer Name</h3>
+            <p style="font-size: 11px; color: #10b981; margin-bottom: 12px;" id="modal-realname">Identity Verified</p>
+            <div style="text-align: left; background: #0f172a; padding: 12px; border-radius: 8px; border: 1px solid #334155; display: flex; flex-direction: column; gap: 6px; font-size:13px;">
+                <p style="margin:0;">UID: <span id="modal-uid" style="color: #fbbf24; font-weight: bold;">--</span></p>
+                <p style="margin:0;">Age: <span id="modal-age">--</span></p>
+                <p style="margin:0;">Location: <span id="modal-location">India</span></p>
+                <p style="margin:0;">Gender: <span id="modal-gender">Boy</span></p>
+            </div>
+            <div id="modal-actions-wrapper" style="display: flex; flex-direction: column; gap: 6px; margin-top: 12px;"></div>
+            <button class="btn-close-modal" onclick="window.closeProfileModal()">Close</button>
+        </div>
+    </div>
+
+    <script type="module" src="js/music.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script type="module" src="js/chat.js"></script>
+    <script type="module" src="js/friends.js"></script>
+    <script type="module" src="js/team.js"></script> 
+    <script type="module" src="js/matchmaking.js"></script> 
+    <script type="module" src="js/voice.js"></script> 
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getDatabase, ref, onValue, onDisconnect, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+        window.toggleModeDropdown = function() {
+            document.getElementById('custom-mode-dropdown').classList.toggle('open');
+        };
+
+        window.selectGameMode = function(file, name) {
+            document.querySelector('.pro-select-trigger').innerText = name;
+            document.getElementById('engine-selector-value').value = file;
+            document.getElementById('custom-mode-dropdown').classList.remove('open');
+        };
+
+        window.toggleVolumePopup = function() {
+            const volPopup = document.getElementById('music-volume-popup');
+            volPopup.style.display = volPopup.style.display === 'flex' ? 'none' : 'flex';
+        };
+
+        document.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('custom-mode-dropdown');
+            if (dropdown && !dropdown.contains(e.target)) dropdown.classList.remove('open');
+            
+            const btnToggle = document.getElementById('btn-music-toggle');
+            const volPopup = document.getElementById('music-volume-popup');
+            if(btnToggle && volPopup && !btnToggle.contains(e.target) && !volPopup.contains(e.target)) {
+                volPopup.style.display = 'none';
+            }
+        });
+
+        let isHost = true; 
+        
+        function setupHostClientSync() {
+            const hostControls = document.getElementById('host-controls');
+            const clientMsg = document.getElementById('client-msg');
+            const startBtn = document.getElementById('start-match-btn');
+
+            if (!isHost) {
+                hostControls.style.display = 'none';
+                clientMsg.style.display = 'block';
+                startBtn.innerText = "WAITING FOR HOST...";
+                startBtn.style.background = "#334155";
+                startBtn.style.pointerEvents = "none";
+                
+                window.addEventListener('storage', function(e) {
+                    if (e.key === 'hostCommand' && e.newValue === 'START_GAME') {
+                        const targetFile = localStorage.getItem('targetGameFile');
+                        startBtn.innerText = "HOST STARTED! JOINING...";
+                        startBtn.style.background = "#10b981";
+                        setTimeout(() => { window.location.href = targetFile; }, 500);
+                    }
+                });
+            } else {
+                hostControls.style.display = 'flex';
+                clientMsg.style.display = 'none';
+                startBtn.innerText = "▶ START MATCH";
+                startBtn.style.background = "#10b981";
+                startBtn.style.pointerEvents = "auto";
+                localStorage.removeItem('hostCommand'); 
             }
         }
+
+        window.enterWorld = function() {
+            if (!isHost) return;
+            const targetFile = document.getElementById('engine-selector-value').value;
+            const modeName = document.querySelector('.pro-select-trigger').innerText;
+            
+            localStorage.setItem('selectedMode', modeName);
+            localStorage.setItem('targetGameFile', targetFile);
+            localStorage.setItem('hostCommand', 'START_GAME'); 
+            
+            document.getElementById('start-match-btn').innerText = "STARTING SERVER...";
+            setTimeout(() => { window.location.href = targetFile; }, 1000);
+        };
+
+        setupHostClientSync(); 
+
+        const engineConfig = {
+            apiKey: "AIzaSyCuYPugV4qIsu9ZT9E5l63bFLgIbte_S8I",
+            authDomain: "racing-universe-engine.firebaseapp.com",
+            databaseURL: "https://racing-universe-engine-default-rtdb.firebaseio.com", 
+            projectId: "racing-universe-engine",
+            storageBucket: "racing-universe-engine.firebasestorage.app",
+            messagingSenderId: "572638328716",
+            appId: "1:572638328716:web:830bd01db1fa5b45d948a9"
+        };
+
+        const app = initializeApp(engineConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const rtdb = getDatabase(app); 
+
+        window.db = db;
+        window.rtdb = rtdb; 
+        window.socket = io(); 
+        window.localUser = null;
+        window.myProfileData = null;
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                window.localUser = user;
+                try {
+                    const userRef = doc(db, "Users", user.uid);
+                    await updateDoc(userRef, { lastActive: serverTimestamp() });
+                    const docSnap = await getDoc(userRef);
+
+                    if (docSnap.exists()) {
+                        window.myProfileData = docSnap.data();
+                        
+                        document.getElementById("player-name").innerText = `${window.myProfileData.gameName} (${window.myProfileData.playerTag || 'UID'})`;
+                        document.getElementById("player-coins").innerText = `${window.myProfileData.wallet_balance || 0} 🪙`;
+
+                        document.getElementById("main-char-name").innerText = window.myProfileData.gameName || "Racer";
+                        document.getElementById("main-char-info").innerText = `${window.myProfileData.gender || 'Boy'} • Age: ${window.myProfileData.age || '--'}`;
+                        document.getElementById("main-avatar-icon").innerText = window.myProfileData.gender === 'Girl' ? '👧' : '👦';
+
+                        const myStatusRef = ref(rtdb, 'status/' + user.uid);
+                        const connectedRef = ref(rtdb, '.info/connected');
+
+                        onValue(connectedRef, (snap) => {
+                            if (snap.val() === true) {
+                                onDisconnect(myStatusRef).set({ state: 'offline' }).then(() => {
+                                    set(myStatusRef, { state: 'online' });
+                                });
+                            }
+                        });
+
+                        const bootInterval = setInterval(() => {
+                            if (window.initChatSystem && window.initFriendsSystem && window.initTeamSystem && window.initMatchmaking && window.initVoiceSystem) {
+                                clearInterval(bootInterval);
+                                window.initChatSystem();
+                                window.initFriendsSystem();
+                                window.initTeamSystem(); 
+                                window.initMatchmaking(); 
+                                window.initVoiceSystem(); 
+                                window.loadGlobalPlayers();
+                                window.loadMyFriendsData();
+                                
+                                window.socket.emit('registerPlayer', {
+                                    uid: user.uid, 
+                                    gameName: window.myProfileData.gameName,
+                                    gender: window.myProfileData.gender,
+                                    age: window.myProfileData.age,
+                                    playerTag: window.myProfileData.playerTag,
+                                    location: window.myProfileData.location
+                                });
+                            }
+                        }, 200);
+
+                    } else { window.location.href = "profile.html"; }
+                } catch (err) { console.error("Profile error", err); }
+            } else { window.location.href = "index.html"; }
+        });
+
+        const setupDrawer = (btnId, drawerId, closeId) => {
+            document.getElementById(btnId).addEventListener('click', () => document.getElementById(drawerId).classList.add('open'));
+            document.getElementById(closeId).addEventListener('click', () => document.getElementById(drawerId).classList.remove('open'));
+        };
+        setupDrawer('btn-chat', 'chat-drawer', 'close-chat');
+        setupDrawer('btn-friends', 'friends-drawer', 'close-friends');
+        setupDrawer('btn-party-create', 'party-drawer', 'close-party');
+
+        window.showMyProfile = function() {
+            if (!window.myProfileData || !window.localUser) return;
+            window.openUserProfile(window.myProfileData.gameName, window.myProfileData.age, window.myProfileData.location, window.myProfileData.gender, window.myProfileData.playerTag, window.localUser.uid, true);
+        };
+
+        window.openUserProfile = function(name, age, location, gender, uidTag, targetUid, isSelf = false) {
+            document.getElementById('modal-gamename').innerText = name;
+            document.getElementById('modal-uid').innerText = uidTag || "Old-Account";
+            document.getElementById('modal-age').innerText = age || "20";
+            document.getElementById('modal-location').innerText = location || "India";
+            document.getElementById('modal-gender').innerText = gender || "Boy";
+            
+            const avatarDiv = document.getElementById('modal-avatar');
+            avatarDiv.innerText = gender === 'Girl' ? '👧' : '👦';
+            
+            const actionsWrapper = document.getElementById('modal-actions-wrapper');
+            
+            if (isSelf) {
+                avatarDiv.style.cursor = 'pointer';
+                avatarDiv.style.textShadow = '0 0 15px #fbbf24'; 
+                avatarDiv.onclick = function() { window.location.href = 'character.html'; };
+                
+                actionsWrapper.innerHTML = `<button class="modal-action-btn" style="background: #fbbf24; color: black; font-weight: 900;" onclick="window.location.href='character.html'">✏️ Customize Character</button>`;
+            } else {
+                avatarDiv.style.cursor = 'default';
+                avatarDiv.style.textShadow = 'none';
+                avatarDiv.onclick = null; 
+                actionsWrapper.innerHTML = `<button class="modal-action-btn" onclick="window.sendFriendReq('${targetUid}', '${name}')">Send Friend Request</button>`;
+            }
+            document.getElementById('profile-modal').style.display = 'flex';
+        };
+
+        window.closeProfileModal = function() { document.getElementById('profile-modal').style.display = 'none'; };
     </script>
-
-    <!-- 🏝️ ISLAND GAME SCRIPT LINKED HERE -->
-    <script type="module" src="js/2engine.js"></script> 
-
 </body>
 </html>
-
