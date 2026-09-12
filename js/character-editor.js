@@ -16,13 +16,18 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 container.appendChild(renderer.domElement);
 
-const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+// 💡 UPDATE 1: Lights badha di hain taaki model dark na dikhe
+const ambientLight = new THREE.AmbientLight(0xffffff, 2.5);
 scene.add(ambientLight);
 
-const keyLight = new THREE.DirectionalLight(0xfff0dd, 2);
-keyLight.position.set(2, 4, 2);
+const keyLight = new THREE.DirectionalLight(0xffffff, 2.5);
+keyLight.position.set(3, 5, 3);
 keyLight.castShadow = true;
 scene.add(keyLight);
+
+const fillLight = new THREE.DirectionalLight(0xffffff, 1.5);
+fillLight.position.set(-3, 2, -3);
+scene.add(fillLight);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
@@ -38,15 +43,14 @@ const gltfLoader = new GLTFLoader();
 let actions = {};
 let currentActionName = 'idle';
 
-// SABHI CHARACTERS KI LIST
+// 💡 UPDATE 2: Yahan tumhari file ka sahi path set kiya hai
 const characterFiles = {
     'man': './Man.fbx',
     'girl': './Peasant%20Girl.fbx',
     'hotgirl': './Hotgirl.fbx', 
-    'mymodel': 'assets/all_animations.glb' // TUMHARA NAYA CHARACTER
+    'mymodel': 'assets/model_prepared.glb' 
 };
 
-// PURANE FBX CHARACTERS KE MOTIONS
 const motionFiles = {
     'run': './Running.fbx',
     'punch': './Punching.fbx',
@@ -91,7 +95,6 @@ function buildMotionButtons(isGLB, gltfAnimations = []) {
     container.innerHTML = ''; 
 
     if (isGLB) {
-        // Naye GLB model ke khud ke motions
         if (gltfAnimations.length > 0) {
             gltfAnimations.forEach((clip) => {
                 const btn = document.createElement('button');
@@ -102,10 +105,9 @@ function buildMotionButtons(isGLB, gltfAnimations = []) {
                 container.appendChild(btn);
             });
         } else {
-            container.innerHTML = '<span style="color:red; font-size:10px;">No animations in GLB</span>';
+            container.innerHTML = '<span style="color:red; font-size:11px; font-weight:bold;">No motions in this GLB</span>';
         }
     } else {
-        // Purane FBX models ke standard motions
         const fbxButtons = [
             { id: 'idle', label: 'Idle', color: '#64748b' },
             { id: 'run', label: 'Run', color: '#f59e0b' },
@@ -132,7 +134,11 @@ function loadCharacter(charKey) {
     const isGLB = charKey === 'mymodel';
 
     const loadingEl = document.getElementById('loading-text');
-    if(loadingEl) { loadingEl.style.display = 'block'; loadingEl.innerText = "Loading Model..."; }
+    if(loadingEl) { 
+        loadingEl.style.color = '#3b82f6';
+        loadingEl.style.display = 'block'; 
+        loadingEl.innerText = "Loading Model..."; 
+    }
 
     if (characterModel) { scene.remove(characterModel); characterModel = null; mixer = null; }
 
@@ -146,7 +152,19 @@ function loadCharacter(charKey) {
         }
         
         characterModel.position.set(0, 0, 0);
-        characterModel.traverse((node) => { if (node.isMesh) { node.castShadow = true; node.receiveShadow = true; }});
+        
+        // 💡 UPDATE 3: Color normal karne aur material fix karne ka code
+        characterModel.traverse((node) => { 
+            if (node.isMesh) { 
+                node.castShadow = true; 
+                node.receiveShadow = true; 
+                if (node.material) {
+                    node.material.roughness = 0.6;
+                    node.material.metalness = 0.1;
+                    node.material.needsUpdate = true;
+                }
+            }
+        });
         scene.add(characterModel);
 
         if (charKey === 'hotgirl') {
@@ -166,7 +184,6 @@ function loadCharacter(charKey) {
         actions = {}; 
 
         if (isGLB) {
-            // GLB Motions Setup
             if (baseAnimations && baseAnimations.length > 0) {
                 baseAnimations.forEach(clip => {
                     actions[clip.name] = mixer.clipAction(clip);
@@ -177,7 +194,6 @@ function loadCharacter(charKey) {
             }
             buildMotionButtons(true, baseAnimations);
         } else {
-            // FBX Motions Setup
             if (baseAnimations && baseAnimations.length > 0) {
                 actions['idle'] = mixer.clipAction(baseAnimations[0]);
                 actions['idle'].play();
@@ -187,11 +203,19 @@ function loadCharacter(charKey) {
             loadExternalFbxMotions();
         }
 
+        // 💡 UPDATE 4: Load hote hi "Loading Model..." text forcefully hide karna
         if(loadingEl) loadingEl.style.display = 'none';
     };
 
+    // 💡 UPDATE 5: Error Catching - Agar file nahi mili toh laal error aayega
     if (isGLB) {
-        gltfLoader.load(url, (gltf) => setupModel(gltf.scene, gltf.animations), undefined, console.error);
+        gltfLoader.load(url, (gltf) => setupModel(gltf.scene, gltf.animations), undefined, (err) => {
+            if(loadingEl) {
+                loadingEl.style.color = '#ef4444';
+                loadingEl.innerText = "❌ Error: 'assets/model_prepared.glb' file nahi mili!";
+            }
+            console.error(err);
+        });
     } else {
         fbxLoader.load(url, (fbx) => setupModel(fbx, fbx.animations), undefined, console.error);
     }
