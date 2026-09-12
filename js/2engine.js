@@ -18,7 +18,7 @@ const app = initializeApp(engineConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-console.log("🏝️ [Island Engine] Fixed Ground, Added Pool & Skybox Active!");
+console.log("🏝️ [Island Engine] Left Column Character Switcher & Emotes Right Side Active!");
 
 const gameSocket = io(); 
 
@@ -44,10 +44,12 @@ document.body.appendChild(floatingLabels);
 let isBusy = false; 
 let inWater = false; 
 
+// Physics Colliders Array
+let worldColliders = [];
+
 const downRaycaster = new THREE.Raycaster();
 const forwardRaycaster = new THREE.Raycaster();
 const downDirection = new THREE.Vector3(0, -1, 0);
-let currentIslandCollider = null; 
 
 const characterFiles = { 
     'man': './Man.fbx', 
@@ -69,6 +71,7 @@ window.enterWorld = async function() {
     if(overlay) overlay.style.display = 'none';
     if(hud) hud.style.display = 'block';
 
+    createCharSwitcherUI(); // 🚀 NEW: Left Column Switcher
     createPoseUI(); 
     init3DWorld(); 
     setupJoystick();
@@ -85,18 +88,41 @@ window.enterWorld = async function() {
     });
 };
 
+// 🌟 NEW: Genshin Style Character Switcher (Left Side Column)
+function createCharSwitcherUI() {
+    if(document.getElementById('char-switch-menu')) return;
+    const charSwitchMenu = document.createElement('div');
+    charSwitchMenu.id = 'char-switch-menu';
+    // Positioned vertically centered on the left side
+    charSwitchMenu.style.cssText = 'position: fixed; top: 45%; left: 15px; transform: translateY(-50%); z-index: 100000; pointer-events: auto; display: flex; flex-direction: column; gap: 12px;';
+    
+    charSwitchMenu.innerHTML = `
+        <button onclick="window.switchGameCharacter('man')" style="background: rgba(30,41,59,0.8); border: 2px solid #3b82f6; color: white; border-radius: 50%; width: 45px; height: 45px; font-size: 20px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;">👦</button>
+        <button onclick="window.switchGameCharacter('girl')" style="background: rgba(30,41,59,0.8); border: 2px solid #ec4899; color: white; border-radius: 50%; width: 45px; height: 45px; font-size: 20px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;">👧</button>
+        <button onclick="window.switchGameCharacter('hotgirl')" style="background: rgba(30,41,59,0.8); border: 2px solid #10b981; color: white; border-radius: 50%; width: 45px; height: 45px; font-size: 20px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;">💃</button>
+    `;
+    document.body.appendChild(charSwitchMenu);
+}
+
+// Function to handle instant character switch
+window.switchGameCharacter = function(charKey) {
+    currentSelectedChar = charKey;
+    localStorage.setItem('selectedCharacter', charKey);
+    loadCharacter(charKey);
+    console.log("🔄 Switched character to:", charKey);
+};
+
 function createPoseUI() {
     if(document.getElementById('pose-menu')) return;
     const poseMenu = document.createElement('div');
     poseMenu.id = 'pose-menu';
-    // 🚀 UI FIX: Shifted UP (bottom: 120px) so it doesn't overlap chat
-    poseMenu.style.cssText = 'position: fixed; bottom: 120px; left: 50%; transform: translateX(-50%); display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; z-index: 10000; width: 90%; max-width: 350px;';
+    // Emotes shifted to Right Side (above jump/fire)
+    poseMenu.style.cssText = 'position: fixed; bottom: 160px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 10000; pointer-events: auto; align-items: flex-end;';
     poseMenu.innerHTML = `
         <button id="btn-sitDazed" style="padding: 8px 12px; background: rgba(59,130,246,0.8); color: white; border: 1px solid #fff; border-radius: 8px; font-weight: bold; cursor: pointer; backdrop-filter: blur(4px);">🧘 Sit</button>
         <button id="btn-lieDown" style="padding: 8px 12px; background: rgba(139,92,246,0.8); color: white; border: 1px solid #fff; border-radius: 8px; font-weight: bold; cursor: pointer; backdrop-filter: blur(4px);">🛌 Lie</button>
-        <button id="btn-layM" style="padding: 8px 12px; background: rgba(6,182,212,0.8); color: white; border: 1px solid #fff; border-radius: 8px; font-weight: bold; cursor: pointer; backdrop-filter: blur(4px);">🧍‍♂️ Pose M</button>
-        <button id="btn-layF" style="padding: 8px 12px; background: rgba(236,72,153,0.8); color: white; border: 1px solid #fff; border-radius: 8px; font-weight: bold; cursor: pointer; backdrop-filter: blur(4px);">🧍‍♀️ Pose F</button>
-        <button id="btn-stand" style="padding: 10px 20px; background: #ef4444; color: white; border: 2px solid #fff; border-radius: 8px; font-weight: bold; cursor: pointer; display: none; width: 100%; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">🧍 Stand Up</button>
+        <button id="btn-layM" style="padding: 8px 12px; background: rgba(6,182,212,0.8); color: white; border: 1px solid #fff; border-radius: 8px; font-weight: bold; cursor: pointer; backdrop-filter: blur(4px);">🧍‍♂️ Pose</button>
+        <button id="btn-stand" style="padding: 10px 20px; background: #ef4444; color: white; border: 2px solid #fff; border-radius: 8px; font-weight: bold; cursor: pointer; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">🧍 Stand</button>
     `;
     document.body.appendChild(poseMenu);
 }
@@ -106,12 +132,10 @@ function resetPoseUI() {
     const s1 = document.getElementById('btn-sitDazed');
     const s2 = document.getElementById('btn-lieDown');
     const s3 = document.getElementById('btn-layM');
-    const s4 = document.getElementById('btn-layF');
     const s5 = document.getElementById('btn-stand');
     if(s1) s1.style.display = 'block';
     if(s2) s2.style.display = 'block';
     if(s3) s3.style.display = 'block';
-    if(s4) s4.style.display = 'block';
     if(s5) s5.style.display = 'none';
 }
 
@@ -126,10 +150,10 @@ function init3DWorld() {
 
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x87CEEB); 
-    scene.fog = new THREE.FogExp2(0x87CEEB, 0.002); // 🌫️ Adds nice depth to horizon
+    scene.fog = new THREE.FogExp2(0x87CEEB, 0.002); 
     clock = new THREE.Clock();
 
-    camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 10000); 
+    camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 15000); 
     camera.position.set(0, 5, -10); 
 
     renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
@@ -139,11 +163,12 @@ function init3DWorld() {
     renderer.domElement.style.touchAction = 'none'; 
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
+    controls.dampingFactor = 0.1;
+    controls.rotateSpeed = 0.8; 
     controls.enablePan = false; 
     controls.minDistance = 2.0; 
     controls.maxDistance = 15; 
-    controls.maxPolarAngle = Math.PI / 2 - 0.05; 
+    controls.maxPolarAngle = Math.PI / 2 + 0.1; 
 
     worldGroup = new THREE.Group();
     scene.add(worldGroup);
@@ -156,14 +181,12 @@ function init3DWorld() {
     worldGroup.add(dirLightW);
     
     loadSkybox();
-    createOcean(); 
     loadIslandMap(); 
 
     loadCharacter(currentSelectedChar);
     requestAnimationFrame(renderLoop);
 }
 
-// ☁️ FIXED SKYBOX (Massive scale so it doesn't clip)
 function loadSkybox() {
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/');
@@ -172,8 +195,8 @@ function loadSkybox() {
     
     gltfLoader.load('https://hackerdam2003.github.io/Game/Sky.glb', (gltf) => {
         const sky = gltf.scene;
-        sky.scale.set(5000, 5000, 5000); // 🚀 Increased scale massively
-        sky.position.set(0, -500, 0); // Lowered slightly so clouds look better
+        sky.scale.set(5000, 5000, 5000); 
+        sky.position.set(0, -300, 0); 
         
         sky.traverse((node) => {
             if (node.isMesh && node.material) {
@@ -192,37 +215,19 @@ function loadSkybox() {
             }
         });
         worldGroup.add(sky);
-        console.log("☁️ Skybox loaded properly!");
-    }, undefined, (err) => { console.log("Skybox skipped"); });
-}
-
-function createOcean() {
-    const waterGeo = new THREE.PlaneGeometry(3000, 3000);
-    const waterMat = new THREE.MeshStandardMaterial({
-        color: 0x0077be, 
-        transparent: true,
-        opacity: 0.85,
-        roughness: 0.1,
-        metalness: 0.6
     });
-    const water = new THREE.Mesh(waterGeo, waterMat);
-    water.rotation.x = -Math.PI / 2;
-    water.position.y = -1.5; 
-    worldGroup.add(water);
 }
 
-// 🏝️ FIXED GROUND LEVEL & ADDED POOL
 function loadIslandMap() {
-    // Sand Island
+    // 🏝️ Ground
     const islandGeo = new THREE.CylinderGeometry(150, 150, 2, 64);
-    const islandMat = new THREE.MeshStandardMaterial({ color: 0xe6c280, roughness: 0.8 }); // Sandy color
+    const islandMat = new THREE.MeshStandardMaterial({ color: 0xe6c280, roughness: 0.9 }); 
     const tempIsland = new THREE.Mesh(islandGeo, islandMat);
-    tempIsland.position.y = -1.0; // The top surface of this cylinder will be exactly at Y = 0
-    tempIsland.receiveShadow = true;
+    tempIsland.position.y = -1.0; 
     worldGroup.add(tempIsland);
-    currentIslandCollider = tempIsland; 
+    worldColliders.push(tempIsland); 
 
-    // 🏊 Load Pool in the middle of the island
+    // 🏊 Load Pool
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/');
     const gltfLoader = new GLTFLoader();
@@ -235,10 +240,12 @@ function loadIslandMap() {
         const scaleFactor = 30 / maxDim; 
         pool.scale.set(scaleFactor, scaleFactor, scaleFactor);
         
-        // Place pool right on the ground in the middle
-        pool.position.set(0, 0, -10); 
+        pool.position.set(0, -0.2, -10); 
         worldGroup.add(pool);
-        console.log("🏊 Pool loaded on Island!");
+
+        pool.traverse(child => {
+            if(child.isMesh) worldColliders.push(child);
+        });
     });
 }
 
@@ -254,7 +261,7 @@ function loadCharacter(charKey) {
         gltfLoader.load(url, (gltf) => {
             my3DCharacter = gltf.scene;
             my3DCharacter.scale.set(1, 1, 1);
-            my3DCharacter.position.set(0, 0, 5); // 🚀 Start safely on ground (Y=0)
+            my3DCharacter.position.set(0, 5, 5); // Fall safe spawn
             scene.add(my3DCharacter);
             mixer = new THREE.AnimationMixer(my3DCharacter);
             if(gltf.animations.length > 0) {
@@ -268,7 +275,7 @@ function loadCharacter(charKey) {
         fbxLoader.load(url, (object) => {
             my3DCharacter = object;
             my3DCharacter.scale.set(0.013, 0.013, 0.013); 
-            my3DCharacter.position.set(0, 0, 5); // 🚀 Start safely on ground (Y=0)
+            my3DCharacter.position.set(0, 5, 5); // Fall safe spawn
             scene.add(my3DCharacter);
             mixer = new THREE.AnimationMixer(my3DCharacter);
             loadAnimations(fbxLoader, mixer, actions, object);
@@ -295,7 +302,6 @@ function loadAdditionalAnimations(fbxLoader, targetMixer, targetActions) {
     
     fbxLoader.load('./Sitting%20Dazed.fbx', (anim) => { if(anim.animations.length) targetActions.sitDazed = targetMixer.clipAction(anim.animations[0]); });
     fbxLoader.load('./Lying%20Down.fbx', (anim) => { if(anim.animations.length) targetActions.lieDown = targetMixer.clipAction(anim.animations[0]); });
-    fbxLoader.load('./Female%20Laying%20Pose.fbx', (anim) => { if(anim.animations.length) targetActions.layFemale = targetMixer.clipAction(anim.animations[0]); });
     fbxLoader.load('./Male%20Laying%20Pose.fbx', (anim) => { if(anim.animations.length) targetActions.layMale = targetMixer.clipAction(anim.animations[0]); });
     
     fbxLoader.load('./Jump.fbx', (anim) => { 
@@ -401,14 +407,8 @@ function addRemotePlayer(data) {
 }
 
 function setupChatAndVoice() {
-    const chatToggle = document.getElementById('btn-chat-toggle'), chatBox = document.getElementById('game-chat-box'), sendBtn = document.getElementById('btn-send-chat'), input = document.getElementById('game-chat-input'), micToggle = document.getElementById('btn-mic-toggle');
-    
-    if(chatToggle && chatBox) { 
-        const toggleBox = () => { chatBox.style.display = chatBox.style.display === 'flex' ? 'none' : 'flex'; }; 
-        chatToggle.addEventListener('click', toggleBox); 
-        chatToggle.addEventListener('touchstart', toggleBox, {passive: true}); 
-    }
-    
+    const chatToggle = document.getElementById('btn-chat-toggle'), chatBox = document.getElementById('game-chat-box'), sendBtn = document.getElementById('btn-send-chat'), input = document.getElementById('game-chat-input');
+    if(chatToggle && chatBox) { const toggleBox = () => { chatBox.style.display = chatBox.style.display === 'flex' ? 'none' : 'flex'; }; chatToggle.addEventListener('click', toggleBox); chatToggle.addEventListener('touchstart', toggleBox, {passive: true}); }
     const sendChatMsg = () => {
         if(!input) return;
         const msg = input.value.trim();
@@ -419,36 +419,6 @@ function setupChatAndVoice() {
     };
     if(sendBtn) { sendBtn.addEventListener('click', sendChatMsg); sendBtn.addEventListener('touchstart', sendChatMsg, {passive: true}); }
     if(input) input.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendChatMsg(); });
-
-    let isMicOn = false;
-    let localStream = null;
-    if(micToggle) {
-        const toggleMic = async () => {
-            if(!isMicOn) { 
-                try { 
-                    localStream = await navigator.mediaDevices.getUserMedia({ audio: true }); 
-                    micToggle.innerText = '🎙️'; 
-                    micToggle.style.background = 'rgba(16, 185, 129, 0.8)'; 
-                    isMicOn = true; 
-                    
-                    const audioEl = document.createElement('audio');
-                    audioEl.srcObject = localStream;
-                    audioEl.autoplay = true;
-                    audioEl.muted = true; 
-                    document.body.appendChild(audioEl);
-                } catch(err) { 
-                    alert("Mic permission denied or unavailable!"); 
-                }
-            } else { 
-                if(localStream) { localStream.getTracks().forEach(track => track.stop()); }
-                micToggle.innerText = '🔇'; 
-                micToggle.style.background = 'rgba(30,41,59,0.8)'; 
-                isMicOn = false; 
-            }
-        };
-        micToggle.addEventListener('click', toggleMic); 
-        micToggle.addEventListener('touchstart', toggleMic, {passive: true});
-    }
 }
 
 function appendChatUI(name, msg, color) { const chatBox = document.getElementById('in-game-msgs'); if(chatBox) { chatBox.innerHTML += `<div><b style="color:${color}">${name}:</b> ${msg}</div>`; chatBox.scrollTop = chatBox.scrollHeight; } }
@@ -467,6 +437,7 @@ function showChatBubble(uid, msg) {
     }
 }
 
+// 🕹️ Joystick 
 function setupJoystick() {
     const base = document.getElementById('joystick-base'), knob = document.getElementById('joystick-knob');
     if(!base || !knob) return;
@@ -509,19 +480,16 @@ function setupActionButtons() {
         const s1 = document.getElementById('btn-sitDazed');
         const s2 = document.getElementById('btn-lieDown');
         const s3 = document.getElementById('btn-layM');
-        const s4 = document.getElementById('btn-layF');
         const s5 = document.getElementById('btn-stand');
         if(s1) s1.style.display = 'none';
         if(s2) s2.style.display = 'none';
         if(s3) s3.style.display = 'none';
-        if(s4) s4.style.display = 'none';
         if(s5) s5.style.display = 'block';
     };
 
     document.getElementById('btn-sitDazed')?.addEventListener('touchstart', () => triggerPose('sitDazed'));
     document.getElementById('btn-lieDown')?.addEventListener('touchstart', () => triggerPose('lieDown'));
     document.getElementById('btn-layM')?.addEventListener('touchstart', () => triggerPose('layMale'));
-    document.getElementById('btn-layF')?.addEventListener('touchstart', () => triggerPose('layFemale'));
 
     document.getElementById('btn-stand')?.addEventListener('touchstart', () => {
         resetPoseUI();
@@ -557,16 +525,17 @@ function renderLoop() {
                 const targetRotation = Math.atan2(moveDirection.x, moveDirection.z);
                 let diff = targetRotation - my3DCharacter.rotation.y;
                 diff = Math.atan2(Math.sin(diff), Math.cos(diff)); 
-                my3DCharacter.rotation.y += diff * 0.2; 
+                my3DCharacter.rotation.y += diff * 0.15; 
 
                 const currentSpeed = Math.min(Math.sqrt(moveVector.x*moveVector.x + moveVector.y*moveVector.y), 1) * speed;
                 let canMove = true;
                 
-                if (currentIslandCollider && !inWater) {
+                // Check horizontal wall collision
+                if (worldColliders.length > 0 && !inWater) {
                     const chestPos = my3DCharacter.position.clone();
                     chestPos.y += 0.8; 
                     forwardRaycaster.set(chestPos, moveDirection);
-                    const wallHits = forwardRaycaster.intersectObject(currentIslandCollider, true);
+                    const wallHits = forwardRaycaster.intersectObjects(worldColliders, true);
                     if (wallHits.length > 0 && wallHits[0].distance < 0.5) canMove = false;
                 }
 
@@ -579,22 +548,28 @@ function renderLoop() {
                 renderMinimap(allPlayersData, myUid);
             }
 
-            // 🧗 FIXED GROUND SNAP SENSOR
-            if (currentIslandCollider) {
+            // 🧗 FIXED: RAYCASTER FOR GROUND SINKING & POOL
+            if (worldColliders.length > 0) {
                 const rayOrigin = my3DCharacter.position.clone();
-                rayOrigin.y += 10.0; 
+                rayOrigin.y += 10.0; // Upar se ray daalo
                 downRaycaster.set(rayOrigin, downDirection);
-                const hits = downRaycaster.intersectObject(currentIslandCollider, true);
+                
+                const hits = downRaycaster.intersectObjects(worldColliders, true);
 
                 let wasInWater = inWater;
 
                 if (hits.length > 0) {
-                    // Force strictly snap to ground
-                    my3DCharacter.position.y = hits[0].point.y; 
-                    inWater = false;
-                } else {
-                    my3DCharacter.position.y = -1.2; 
-                    inWater = true;
+                    const hitHeight = hits[0].point.y;
+                    
+                    // 🚀 Perfect Ground Snapping (Zameen me nahi dhasega)
+                    my3DCharacter.position.y = hitHeight; 
+
+                    // Check if player stepped into the pool basin
+                    if (hitHeight < -0.1) {
+                        inWater = true;
+                    } else {
+                        inWater = false;
+                    }
                 }
 
                 if (wasInWater !== inWater && !isBusy && currentAction !== 'jump') {
