@@ -18,7 +18,7 @@ const app = initializeApp(engineConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-console.log("🏝️ [Island Engine] Flat Ground, Anti-Sink, Fixed Joystick & Character Scaling Active!");
+console.log("🏝️ [Island Engine] Full Body Camera, Solid Ground, Pool Fix & True Joystick Active!");
 
 const gameSocket = io(); 
 
@@ -44,10 +44,13 @@ document.body.appendChild(floatingLabels);
 let isBusy = false; 
 let inWater = false; 
 
-// Pool Position config for smart detection
+// 🚀 FIXED HEIGHTS (Ground aur Pool dono neeche kiye gaye hain)
+const GROUND_Y = -1.5; 
+const POOL_Y = -1.6;
+const WATER_Y = -2.5; 
 const POOL_CENTER_X = 0;
 const POOL_CENTER_Z = -10;
-const POOL_RADIUS = 7;
+const POOL_RADIUS = 9;
 
 const characterFiles = { 
     'man': './Man.fbx', 
@@ -86,7 +89,6 @@ window.enterWorld = async function() {
     });
 };
 
-// 🌟 Left Column Character Switcher
 function createCharSwitcherUI() {
     if(document.getElementById('char-switch-menu')) return;
     const charSwitchMenu = document.createElement('div');
@@ -107,7 +109,6 @@ window.switchGameCharacter = function(charKey) {
     loadCharacter(charKey);
 };
 
-// 🌟 Emotes Menu (Right Side placement)
 function createPoseUI() {
     if(document.getElementById('pose-menu')) return;
     const poseMenu = document.createElement('div');
@@ -140,12 +141,12 @@ function init3DWorld() {
     canvas.style.zIndex = '0';
 
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x87CEEB); // ☁️ Skybox Hata diya, sirf Blue aasmaan
-    scene.fog = new THREE.FogExp2(0x87CEEB, 0.002); 
+    // 🚀 FIXED: Clean Sky without 3D model load
+    scene.background = new THREE.Color(0x87CEEB); 
     clock = new THREE.Clock();
 
     camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 15000); 
-    camera.position.set(0, 4, 8); // 🎥 Camera Thoda Piche
+    camera.position.set(0, 5, 8); 
 
     renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -157,10 +158,9 @@ function init3DWorld() {
     controls.dampingFactor = 0.1;
     controls.rotateSpeed = 0.8; 
     controls.enablePan = false; 
-    controls.minDistance = 2.0; 
+    controls.minDistance = 3.0; 
     controls.maxDistance = 15; 
-    controls.maxPolarAngle = Math.PI / 2 + 0.1; 
-    controls.target.set(0, 1.5, 0); // 🎥 Camera Target (Chest level par)
+    controls.maxPolarAngle = Math.PI / 2; 
 
     worldGroup = new THREE.Group();
     scene.add(worldGroup);
@@ -172,31 +172,19 @@ function init3DWorld() {
     worldGroup.add(ambientW);
     worldGroup.add(dirLightW);
     
-    createOcean(); 
     loadIslandMap(); 
 
     loadCharacter(currentSelectedChar);
     requestAnimationFrame(renderLoop);
 }
 
-function createOcean() {
-    const waterGeo = new THREE.PlaneGeometry(3000, 3000);
-    const waterMat = new THREE.MeshStandardMaterial({
-        color: 0x0077be, transparent: true, opacity: 0.85, roughness: 0.1, metalness: 0.6
-    });
-    const water = new THREE.Mesh(waterGeo, waterMat);
-    water.rotation.x = -Math.PI / 2;
-    water.position.y = -0.5; 
-    worldGroup.add(water);
-}
-
 function loadIslandMap() {
-    // 🏝️ FLAT GROUND (Sinking issue fixed permanently)
-    const islandGeo = new THREE.PlaneGeometry(500, 500);
+    // 🏝️ FLAT GROUND 
+    const islandGeo = new THREE.PlaneGeometry(1500, 1500);
     const islandMat = new THREE.MeshStandardMaterial({ color: 0xe6c280, roughness: 0.9 }); 
     const ground = new THREE.Mesh(islandGeo, islandMat);
     ground.rotation.x = -Math.PI / 2;
-    ground.position.y = 0; // Strictly at Y=0
+    ground.position.y = GROUND_Y; // Locked Ground Level
     worldGroup.add(ground);
 
     // 🏊 POOL
@@ -212,7 +200,7 @@ function loadIslandMap() {
         const scaleFactor = 30 / maxDim; 
         pool.scale.set(scaleFactor, scaleFactor, scaleFactor);
         
-        pool.position.set(POOL_CENTER_X, 0.05, POOL_CENTER_Z); // Just slightly above ground
+        pool.position.set(POOL_CENTER_X, POOL_Y, POOL_CENTER_Z); 
         worldGroup.add(pool);
     });
 }
@@ -225,15 +213,14 @@ function loadCharacter(charKey) {
     const url = characterFiles[charKey] || characterFiles['man'];
     const isGLB = url.toLowerCase().endsWith('.glb');
 
-    // 🚀 FIXED: Character Scale Boosted
     let scaleVal = 0.013;
-    if(charKey === 'girl' || charKey === 'hotgirl') scaleVal = 0.025; // Girl aur Hotgirl badhe honge
+    if(charKey === 'girl' || charKey === 'hotgirl') scaleVal = 0.025; // Girls scaled up properly
     
     if(isGLB) {
         gltfLoader.load(url, (gltf) => {
             my3DCharacter = gltf.scene;
             my3DCharacter.scale.set(1, 1, 1);
-            my3DCharacter.position.set(0, 0, 0); 
+            my3DCharacter.position.set(0, GROUND_Y, 5); 
             scene.add(my3DCharacter);
             mixer = new THREE.AnimationMixer(my3DCharacter);
             if(gltf.animations.length > 0) {
@@ -247,7 +234,7 @@ function loadCharacter(charKey) {
         fbxLoader.load(url, (object) => {
             my3DCharacter = object;
             my3DCharacter.scale.set(scaleVal, scaleVal, scaleVal); 
-            my3DCharacter.position.set(0, 0, 0); 
+            my3DCharacter.position.set(0, GROUND_Y, 5); 
             scene.add(my3DCharacter);
             mixer = new THREE.AnimationMixer(my3DCharacter);
             loadAnimations(fbxLoader, mixer, actions, object);
@@ -409,7 +396,7 @@ function showChatBubble(uid, msg) {
     }
 }
 
-// 🕹️ Joystick FIXED (Left-Right Inversion solved)
+// 🕹️ FIXED JOYSTICK (Left is Left, Right is Right)
 function setupJoystick() {
     const base = document.getElementById('joystick-base'), knob = document.getElementById('joystick-knob');
     if(!base || !knob) return;
@@ -432,8 +419,8 @@ function setupJoystick() {
         if (dist > maxDist) { dx = (dx/dist)*maxDist; dy = (dy/dist)*maxDist; }
         
         knob.style.transform = `translate(${dx}px, ${dy}px)`;
-        // 🚀 INVERSION FIXED: -dx used so left is left, right is right
-        moveVector = { x: -dx/maxDist, y: -dy/maxDist }; 
+        // 🚀 TRUE JOYSTICK DIRECTION FIX
+        moveVector = { x: dx/maxDist, y: dy/maxDist }; 
         if (dist > 5 && !isBusy && currentAction !== 'jump') playAnim(inWater ? 'swim' : 'run'); 
     }
 }
@@ -450,10 +437,14 @@ function setupActionButtons() {
         if(inWater || currentAction === 'jump') return; 
         isBusy = true;
         playAnim(anim);
-        document.getElementById('btn-sitDazed').style.display = 'none';
-        document.getElementById('btn-lieDown').style.display = 'none';
-        document.getElementById('btn-layM').style.display = 'none';
-        document.getElementById('btn-stand').style.display = 'block';
+        const s1 = document.getElementById('btn-sitDazed');
+        const s2 = document.getElementById('btn-lieDown');
+        const s3 = document.getElementById('btn-layM');
+        const s5 = document.getElementById('btn-stand');
+        if(s1) s1.style.display = 'none';
+        if(s2) s2.style.display = 'none';
+        if(s3) s3.style.display = 'none';
+        if(s5) s5.style.display = 'block';
     };
 
     document.getElementById('btn-sitDazed')?.addEventListener('touchstart', () => triggerPose('sitDazed'));
@@ -462,7 +453,7 @@ function setupActionButtons() {
 
     document.getElementById('btn-stand')?.addEventListener('touchstart', () => {
         resetPoseUI();
-        my3DCharacter.position.y = 0; // Ensure they stand on ground
+        my3DCharacter.position.y = GROUND_Y; // Lock to ground after stand
         playAnim(inWater ? 'treadWater' : 'dance');
     });
 }
@@ -489,7 +480,7 @@ function renderLoop() {
 
                 const moveDirection = new THREE.Vector3()
                     .addScaledVector(camRight, moveVector.x)
-                    .addScaledVector(camForward, moveVector.y)
+                    .addScaledVector(camForward, -moveVector.y)
                     .normalize();
 
                 const targetRotation = Math.atan2(moveDirection.x, moveDirection.z);
@@ -499,7 +490,6 @@ function renderLoop() {
 
                 const currentSpeed = Math.min(Math.sqrt(moveVector.x*moveVector.x + moveVector.y*moveVector.y), 1) * speed;
                 
-                // Advance Position
                 my3DCharacter.position.addScaledVector(moveDirection, currentSpeed);
                 
                 allPlayersData[myUid] = { x: my3DCharacter.position.x, y: my3DCharacter.position.z };
@@ -507,16 +497,16 @@ function renderLoop() {
                 renderMinimap(allPlayersData, myUid);
             }
 
-            // 🚀 SOLID GROUND & POOL DISTANCE CHECK (No More Raycaster Bugs)
+            // 🚀 ABSOLUTE HARD LOCK HEIGHT SYSTEM (Never Sink Again!)
             const distToPool = Math.hypot(my3DCharacter.position.x - POOL_CENTER_X, my3DCharacter.position.z - POOL_CENTER_Z);
             let wasInWater = inWater;
 
             if (distToPool < POOL_RADIUS) {
                 inWater = true;
-                my3DCharacter.position.y = -1.0; // In Pool
+                my3DCharacter.position.y = WATER_Y; 
             } else {
                 inWater = false;
-                if(!isBusy) my3DCharacter.position.y = 0; // Lock to Flat Ground
+                if(!isBusy) my3DCharacter.position.y = GROUND_Y; // Character strictly glued to ground
             }
 
             if (wasInWater !== inWater && !isBusy && currentAction !== 'jump') {
@@ -529,7 +519,7 @@ function renderLoop() {
                 playAnim('treadWater');
             }
 
-            // 🎥 360 Free Camera Follow (Target Chest Level for Full Body visibility)
+            // 🎥 FULL BODY CAMERA FOLLOW
             if (controls) {
                 const charTarget = new THREE.Vector3(my3DCharacter.position.x, my3DCharacter.position.y + 1.2, my3DCharacter.position.z);
                 const posDelta = charTarget.clone().sub(controls.target);
