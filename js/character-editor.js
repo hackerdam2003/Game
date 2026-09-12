@@ -36,6 +36,7 @@ const clock = new THREE.Clock();
 
 const fbxLoader = new FBXLoader();
 const gltfLoader = new GLTFLoader(); 
+const textureLoader = new THREE.TextureLoader();
 
 let actions = {};
 let currentActionName = 'idle';
@@ -44,7 +45,8 @@ const characterFiles = {
     'man': './Man.fbx',
     'girl': './Peasant%20Girl.fbx',
     'hotgirl': './Hotgirl.fbx', 
-    'mymodel': 'assets/all_animations.glb' // 👈 Yahan sab pack wali file ka naam diya hai
+    'misaki': 'assets/character/misaki.fbx',
+    'mymodel': 'assets/all_animations.glb' 
 };
 
 const defaultMotionFiles = {
@@ -55,7 +57,7 @@ const defaultMotionFiles = {
     'bounce': './bouncing%20fight.fbx' 
 };
 
-let currentSelectedChar = 'mymodel'; 
+let currentSelectedChar = 'misaki'; 
 
 function createEditorUI() {
     const uiDiv = document.createElement('div');
@@ -67,7 +69,8 @@ function createEditorUI() {
             <button class='ui-btn' id='char-man' style='background:#3b82f6;'>Man</button>
             <button class='ui-btn' id='char-girl' style='background:#ec4899;'>Girl</button>
             <button class='ui-btn' id='char-hotgirl' style='background:#f43f5e;'>Hot Girl</button> 
-            <button class='ui-btn' id='char-mymodel' style='background:#10b981;'>My GLB Model</button>
+            <button class='ui-btn' id='char-misaki' style='background:#a855f7;'>Misaki</button>
+            <button class='ui-btn' id='char-mymodel' style='background:#10b981;'>My GLB</button>
         </div>
         <hr style="border-color:#334155; margin: 10px 0;">
         <div>
@@ -84,6 +87,7 @@ function createEditorUI() {
     document.getElementById('char-man').addEventListener('click', () => loadCharacter('man'));
     document.getElementById('char-girl').addEventListener('click', () => loadCharacter('girl'));
     document.getElementById('char-hotgirl').addEventListener('click', () => loadCharacter('hotgirl'));
+    document.getElementById('char-misaki').addEventListener('click', () => loadCharacter('misaki'));
     document.getElementById('char-mymodel').addEventListener('click', () => loadCharacter('mymodel'));
 }
 
@@ -105,8 +109,8 @@ function loadCharacter(charKey) {
     const setupModel = (model, baseAnimations) => {
         characterModel = model;
         
-        if (isGLB || charKey === 'hotgirl') {
-            characterModel.scale.set(1, 1, 1);
+        if (isGLB || charKey === 'hotgirl' || charKey === 'misaki') {
+            characterModel.scale.set(0.015, 0.015, 0.015);
         } else {
             characterModel.scale.set(0.01, 0.01, 0.01);
         }
@@ -132,11 +136,9 @@ function loadCharacter(charKey) {
         btnContainer.innerHTML = '';
 
         if (isGLB) {
-            // GLB ki andar ki animations khud padh kar chalayega
             if (baseAnimations && baseAnimations.length > 0) {
                 baseAnimations.forEach(clip => {
                     actions[clip.name] = mixer.clipAction(clip);
-                    // Dynamically button banana
                     const btn = document.createElement('button');
                     btn.className = 'ui-btn';
                     btn.style.background = '#8b5cf6';
@@ -151,7 +153,6 @@ function loadCharacter(charKey) {
                 btnContainer.innerHTML = '<span style="color:red; font-size:11px;">No animations found inside GLB</span>';
             }
         } else {
-            // Purane FBX characters ke default buttons
             const fbxButtons = [
                 { id: 'idle', label: 'Idle', color: '#64748b' },
                 { id: 'run', label: 'Run', color: '#f59e0b' },
@@ -203,6 +204,29 @@ function playMotion(motionKey) {
     actions[motionKey].reset().fadeIn(0.2).play();
     currentActionName = motionKey;
 }
+
+window.addEventListener('applyMagicSkin', () => {
+    if(!characterModel) return;
+
+    textureLoader.load('assets/character/mis_body_base.png', (texture) => {
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.flipY = false;
+
+        characterModel.traverse((node) => {
+            if (node.isMesh && node.material) {
+                const matName = node.material.name ? node.material.name.toLowerCase() : '';
+                
+                if (matName.includes('body') || matName.includes('skin')) {
+                    node.material.map = texture;
+                    node.material.needsUpdate = true;
+                }
+            }
+        });
+        console.log("✨ Magic Skin Applied!");
+    }, undefined, (err) => {
+        console.error("Failed to load texture", err);
+    });
+});
 
 createEditorUI();
 loadCharacter(currentSelectedChar);
