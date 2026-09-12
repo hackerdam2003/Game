@@ -109,9 +109,7 @@ function loadCharacter(charKey) {
     const setupModel = (model, baseAnimations) => {
         characterModel = model;
         
-        // 🚀 SCALE SET TO 1.0 AS REQUESTED
         characterModel.scale.set(1.0, 1.0, 1.0);
-        
         characterModel.position.set(0, 0, 0);
         
         characterModel.traverse((node) => { 
@@ -202,7 +200,7 @@ function playMotion(motionKey) {
     currentActionName = motionKey;
 }
 
-// 🚀 MAGIC SKIN TEXTURE APPLIES ONLY TO BODY/SKIN, CLOTHES PROTECTED
+// 🚀 MAGIC BUTTON LOGIC: Hide Clothes (Shirt, Panties, etc.) & Apply Body Texture
 window.addEventListener('applyMagicSkin', () => {
     if(!characterModel) return;
 
@@ -211,20 +209,30 @@ window.addEventListener('applyMagicSkin', () => {
         texture.flipY = false;
 
         characterModel.traverse((node) => {
-            if (node.isMesh && node.material) {
-                const matName = node.material.name ? node.material.name.toLowerCase() : '';
+            if (node.isMesh) {
+                const matName = node.material && node.material.name ? node.material.name.toLowerCase() : '';
                 const nodeName = node.name ? node.name.toLowerCase() : '';
                 
-                const isBodyPart = matName.includes('body') || matName.includes('skin') || nodeName.includes('body');
-                const isClothingOrHair = matName.includes('shirt') || matName.includes('panties') || matName.includes('hair') || matName.includes('metal') || matName.includes('cloth');
+                // Check if this part is clothing (shirt, panties, cloth, etc.)
+                const isClothing = matName.includes('shirt') || matName.includes('panty') || matName.includes('panties') || 
+                                 matName.includes('cloth') || matName.includes('bottom') || matName.includes('top') ||
+                                 nodeName.includes('shirt') || nodeName.includes('panty') || nodeName.includes('panties') || 
+                                 nodeName.includes('cloth');
 
-                if (isBodyPart && !isClothingOrHair) {
-                    node.material.map = texture;
-                    node.material.needsUpdate = true;
+                if (isClothing) {
+                    // Poori tarah se kapdo ko hide kar do
+                    node.visible = false;
+                } else {
+                    // Check if it's body or skin part, then apply texture
+                    const isBodyPart = matName.includes('body') || matName.includes('skin') || nodeName.includes('body') || matName.includes('face') || nodeName.includes('face');
+                    if (isBodyPart && node.material) {
+                        node.material.map = texture;
+                        node.material.needsUpdate = true;
+                    }
                 }
             }
         });
-        console.log("✨ Magic Skin Applied Safely (Clothes Protected)!");
+        console.log("✨ Magic Triggered: Clothes Hidden & Body Skin Loaded!");
     }, undefined, (err) => {
         console.error("Failed to load texture", err);
     });
@@ -247,3 +255,4 @@ window.addEventListener('resize', () => {
     camera.updateProjectionMatrix();
     renderer.setSize(container.clientWidth, container.clientHeight);
 });
+
