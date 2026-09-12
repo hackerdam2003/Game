@@ -18,7 +18,7 @@ const app = initializeApp(engineConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-console.log("🎮 [Game Engine] Skybox, Fixed Ground, Pool, Hotgirl & House Active!");
+console.log("🎮 [Game Engine] Fixed Ground Level, Chat Close, Sky & Genshin Character Switcher Active!");
 
 const gameSocket = io(); 
 
@@ -32,8 +32,7 @@ let scene, camera, renderer, clock, controls;
 let worldGroup, houseGroup; 
 
 let my3DCharacter = null;
-let monsterCharacter = null;
-let mixer = null, monsterMixer = null;
+let mixer = null;
 let actions = {}; 
 let currentAction = 'dance'; 
 
@@ -42,12 +41,10 @@ let allPlayersData = {};
 let floatingLabels = document.createElement('div');
 document.body.appendChild(floatingLabels);
 
-let playerHP = 100, monsterHP = 100, isMonsterDead = false;
 let doorMesh = null, exitDoorMesh = null;
 let enterHouseBtn = null, actionUI = null, playerListUI = null;
 let isBusy = false; 
 
-const HOUSE_Y_OFFSET = 0; 
 const CHAIR_POS = { x: -3, z: -2 };
 const BED_POS = { x: 3, z: -4 };
 
@@ -58,7 +55,13 @@ let worldHouseRef = null;
 let interiorHouseRef = null;
 let currentHouseCollider = null; 
 
-const characterFiles = { 'man': './Man.fbx', 'girl': './Peasant%20Girl.fbx' };
+// Character files mapping
+const characterFiles = { 
+    'man': './Man.fbx', 
+    'girl': './Peasant%20Girl.fbx',
+    'hotgirl': './Hotgirl.fbx', 
+    'mymodel': 'assets/all_animations.glb'
+};
 let currentSelectedChar = localStorage.getItem('selectedCharacter') || 'man';
 
 window.enterWorld = async function() {
@@ -90,20 +93,24 @@ window.enterWorld = async function() {
 };
 
 function createUIElements() {
+    // HP & Boss HUD
     const hudBar = document.createElement('div');
     hudBar.style.cssText = 'position: fixed; top: 10px; left: 10px; z-index: 9999; pointer-events: none;';
     hudBar.innerHTML = `<div style="background: rgba(0,0,0,0.7); color: #fff; font-size: 11px; padding: 10px; border-radius: 8px; border: 1px solid #3b82f6;"><b>❤️ HP:</b> <span id='p-hp'>100</span> | <b>🧟 Boss:</b> <span id='m-hp'>100</span></div>`;
     document.body.appendChild(hudBar);
 
+    // Live Players List
     playerListUI = document.createElement('div');
     playerListUI.style.cssText = 'position: fixed; top: 60px; left: 10px; background: rgba(0,0,0,0.7); color: #fff; font-size: 11px; padding: 10px; z-index: 99999; border-radius: 8px; min-width: 120px; border: 1px solid #3b82f6;';
     document.body.appendChild(playerListUI);
     updatePlayerListUI();
 
+    // Enter / Exit House Button
     enterHouseBtn = document.createElement('button');
     enterHouseBtn.style.cssText = "position: fixed; top: 20%; left: 50%; transform: translateX(-50%); padding: 12px 24px; font-size: 16px; font-weight: bold; background: #10b981; color: white; border: none; border-radius: 8px; display: none; z-index: 10000; box-shadow: 0px 4px 10px rgba(0,0,0,0.5); cursor: pointer;";
     document.body.appendChild(enterHouseBtn);
 
+    // Action UI (Sit, Sleep, Stand)
     actionUI = document.createElement('div');
     actionUI.style.cssText = 'position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); display: none; gap: 10px; z-index: 10000;';
     actionUI.innerHTML = `
@@ -112,7 +119,37 @@ function createUIElements() {
         <button id="btn-stand" style="padding: 12px 24px; background: #f59e0b; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; display:none;">🧍 Stand</button>
     `;
     document.body.appendChild(actionUI);
+
+    // 🌟 GENSHIN IMPACT STYLE CHARACTER SWITCHER BUTTON (Top Right Menu)
+    const charSwitchMenu = document.createElement('div');
+    charSwitchMenu.style.cssText = 'position: fixed; top: 15px; right: 200px; z-index: 100000; pointer-events: auto; display: flex; gap: 8px;';
+    charSwitchMenu.innerHTML = `
+        <button onclick="window.switchGameCharacter('man')" style="background: rgba(30,41,59,0.9); border: 2px solid #3b82f6; color: white; padding: 6px 10px; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer;">👦 Man</button>
+        <button onclick="window.switchGameCharacter('girl')" style="background: rgba(30,41,59,0.9); border: 2px solid #ec4899; color: white; padding: 6px 10px; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer;">👧 Girl</button>
+        <button onclick="window.switchGameCharacter('hotgirl')" style="background: rgba(30,41,59,0.9); border: 2px solid #10b981; color: white; padding: 6px 10px; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer;">💃 Hot</button>
+    `;
+    document.body.appendChild(charSwitchMenu);
+
+    // 🛑 CHAT CLOSE BUTTON FIX (Added inside #game-chat-box or via header)
+    const chatBox = document.getElementById('game-chat-box');
+    if(chatBox && !document.getElementById('close-chat-btn')) {
+        const closeChatBtn = document.createElement('button');
+        closeChatBtn.id = 'close-chat-btn';
+        closeChatBtn.innerText = '✕';
+        closeChatBtn.style.cssText = 'position: absolute; top: 5px; right: 8px; background: none; border: none; color: #ef4444; font-size: 16px; font-weight: bold; cursor: pointer; z-index: 10001;';
+        closeChatBtn.onclick = () => { chatBox.style.display = 'none'; };
+        chatBox.style.position = 'absolute'; // ensure relative/absolute positioning works
+        chatBox.appendChild(closeChatBtn);
+    }
 }
+
+// 🌟 Genshin Style Instant Character Switcher Function
+window.switchGameCharacter = function(charKey) {
+    currentSelectedChar = charKey;
+    localStorage.setItem('selectedCharacter', charKey);
+    loadCharacter(charKey);
+    console.log("🔄 Switched character to:", charKey);
+};
 
 function updatePlayerListUI() {
     let html = `<b style="color:#38bdf8;">🌐 Live Players</b><hr style="border-color:#333; margin:4px 0;">`;
@@ -173,7 +210,7 @@ function init3DWorld() {
     
     loadSkybox();
     loadAsliGhar();
-    loadPoolAndProps(); // 🏊 Pool, Chairs & Hotgirl Loader
+    loadPoolAndProps(); 
 
     exitDoorMesh = new THREE.Mesh(new THREE.BoxGeometry(4, 4, 4), new THREE.MeshBasicMaterial({ visible: false }));
     exitDoorMesh.position.set(0, 1, 6); 
@@ -186,6 +223,7 @@ function init3DWorld() {
     requestAnimationFrame(renderLoop);
 }
 
+// ☁️ Skybox Fix (Proper Scaling & Coverage)
 function loadSkybox() {
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/');
@@ -194,7 +232,7 @@ function loadSkybox() {
     
     gltfLoader.load('https://hackerdam2003.github.io/Game/Sky.glb', (gltf) => {
         const sky = gltf.scene;
-        sky.scale.set(500, 500, 500);
+        sky.scale.set(2000, 2000, 2000); // Expanded scale to completely cover horizon
         sky.position.set(0, 0, 0);
         
         sky.traverse((node) => {
@@ -208,6 +246,7 @@ function loadSkybox() {
     }, undefined, (err) => { console.error("Skybox load error:", err); });
 }
 
+// 🏡 House Ground Level Fix ("Ghar ko ground me karo")
 function loadAsliGhar() {
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/');
@@ -245,7 +284,8 @@ function loadAsliGhar() {
 
         worldHouseRef = originalHouse.clone();
         worldHouseRef.position.x = 2 - center.x;
-        worldHouseRef.position.y = -scaledBox.min.y; 
+        // 🚀 FIX: Perfectly aligned to ground level Y = 0 (no floating slab or sinking)
+        worldHouseRef.position.y = 0; 
         worldHouseRef.position.z = -10 - center.z; 
         worldGroup.add(worldHouseRef);
         
@@ -257,13 +297,13 @@ function loadAsliGhar() {
 
         interiorHouseRef = originalHouse.clone();
         interiorHouseRef.position.x = -center.x;
-        interiorHouseRef.position.y = -scaledBox.min.y; 
+        interiorHouseRef.position.y = 0; 
         interiorHouseRef.position.z = -center.z;
         houseGroup.add(interiorHouseRef);
     });
 }
 
-// 🏊 POOL, CHAIRS & HOTGIRL LOADER
+// 🏊 Pool, Chairs & Hotgirl Loader on Ground Level
 function loadPoolAndProps() {
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/');
@@ -271,7 +311,7 @@ function loadPoolAndProps() {
     gltfLoader.setDRACOLoader(dracoLoader);
     const fbxLoader = new FBXLoader();
 
-    // 1. Load Pool.glb
+    // 1. Pool
     gltfLoader.load('https://hackerdam2003.github.io/Game/Pool.glb', (gltf) => {
         const pool = gltf.scene;
         const box = new THREE.Box3().setFromObject(pool);
@@ -282,7 +322,7 @@ function loadPoolAndProps() {
         worldGroup.add(pool);
     });
 
-    // 2. Load chair.glb (60% larger & elevated)
+    // 2. Chairs
     gltfLoader.load('https://hackerdam2003.github.io/Game/chair.glb', (chairGltf) => {
         const chairBase = chairGltf.scene;
         const chairPositions = [
@@ -295,17 +335,17 @@ function loadPoolAndProps() {
         chairPositions.forEach(pos => {
             const chair = chairBase.clone();
             chair.scale.set(23.0, 23.0, 23.0);
-            chair.position.set(pos.x, 2.2, pos.z);
+            chair.position.set(pos.x, 0, pos.z); // Ground level
             chair.rotation.y = pos.rot;
             worldGroup.add(chair);
         });
     });
 
-    // 3. Load Hotgirl FBX with texture
+    // 3. Hotgirl FBX
     fbxLoader.load('./Hotgirl.fbx', (fbx) => {
         const hotgirl = fbx;
         hotgirl.scale.set(2.8, 2.8, 2.8);
-        hotgirl.position.set(14, 2.2, 2);
+        hotgirl.position.set(14, 0, 2); // Ground level
         hotgirl.rotation.y = -Math.PI / 2;
 
         const textureLoader = new THREE.TextureLoader();
@@ -331,14 +371,14 @@ function switchEnvironment(targetEnv) {
         worldGroup.visible = false;
         houseGroup.visible = true;
         scene.background = new THREE.Color(0x1e293b); 
-        my3DCharacter.position.set(0, 0.5, 4); 
+        my3DCharacter.position.set(0, 0, 4); 
         currentHouseCollider = interiorHouseRef; 
         enterHouseBtn.style.display = "none";
     } else {
         worldGroup.visible = true;
         houseGroup.visible = false;
         scene.background = new THREE.Color(0x87CEEB); 
-        my3DCharacter.position.set(2, 0.5, 0); 
+        my3DCharacter.position.set(2, 0, 0); 
         currentHouseCollider = worldHouseRef; 
         enterHouseBtn.style.display = "none";
     }
@@ -348,37 +388,48 @@ function switchEnvironment(targetEnv) {
 
 function loadCharacter(charKey) {
     const fbxLoader = new FBXLoader();
+    const gltfLoader = new GLTFLoader();
     if (my3DCharacter) scene.remove(my3DCharacter);
     
-    fbxLoader.load(characterFiles[charKey] || characterFiles['man'], (object) => {
-        my3DCharacter = object;
-        my3DCharacter.scale.set(0.01, 0.01, 0.01);
-        my3DCharacter.position.set(0, 0.5, 0); 
-        scene.add(my3DCharacter);
-        mixer = new THREE.AnimationMixer(my3DCharacter);
-        loadAnimations(fbxLoader, mixer, actions, object);
-    });
+    const url = characterFiles[charKey] || characterFiles['man'];
+    const isGLB = url.toLowerCase().endsWith('.glb');
+
+    if(isGLB) {
+        gltfLoader.load(url, (gltf) => {
+            my3DCharacter = gltf.scene;
+            my3DCharacter.scale.set(1, 1, 1);
+            my3DCharacter.position.set(2, 0, 0);
+            scene.add(my3DCharacter);
+            mixer = new THREE.AnimationMixer(my3DCharacter);
+            if(gltf.animations.length > 0) {
+                actions.dance = mixer.clipAction(gltf.animations[0]);
+                actions.dance.play();
+                currentAction = 'dance';
+            }
+            loadAdditionalAnimations(fbxLoader, mixer, actions);
+        });
+    } else {
+        fbxLoader.load(url, (object) => {
+            my3DCharacter = object;
+            my3DCharacter.scale.set(0.013, 0.013, 0.013); 
+            my3DCharacter.position.set(2, 0, 0); 
+            scene.add(my3DCharacter);
+            mixer = new THREE.AnimationMixer(my3DCharacter);
+            loadAnimations(fbxLoader, mixer, actions, object);
+        });
+    }
 }
 
 function loadAnimations(fbxLoader, targetMixer, targetActions, baseObject) {
     if (baseObject.animations.length > 0) targetActions.idle = targetMixer.clipAction(baseObject.animations[0]);
-    
-    fbxLoader.load('./Running.fbx', (anim) => { 
-        if(anim.animations.length) targetActions.run = targetMixer.clipAction(anim.animations[0]); 
-    });
-    fbxLoader.load('./Punching.fbx', (anim) => { 
-        if(anim.animations.length) { 
-            targetActions.punch = targetMixer.clipAction(anim.animations[0]); 
-            targetActions.punch.setLoop(THREE.LoopOnce); 
-        }
-    });
-    fbxLoader.load('./Sitting.fbx', (anim) => { 
-        if(anim.animations.length) targetActions.sit = targetMixer.clipAction(anim.animations[0]); 
-    });
-    fbxLoader.load('./Sleeping.fbx', (anim) => { 
-        if(anim.animations.length) targetActions.sleep = targetMixer.clipAction(anim.animations[0]); 
-    });
-    
+    loadAdditionalAnimations(fbxLoader, targetMixer, targetActions);
+}
+
+function loadAdditionalAnimations(fbxLoader, targetMixer, targetActions) {
+    fbxLoader.load('./Running.fbx', (anim) => { if(anim.animations.length) targetActions.run = targetMixer.clipAction(anim.animations[0]); });
+    fbxLoader.load('./Punching.fbx', (anim) => { if(anim.animations.length) { targetActions.punch = targetMixer.clipAction(anim.animations[0]); targetActions.punch.setLoop(THREE.LoopOnce); }});
+    fbxLoader.load('./Sitting.fbx', (anim) => { if(anim.animations.length) targetActions.sit = targetMixer.clipAction(anim.animations[0]); });
+    fbxLoader.load('./Sleeping.fbx', (anim) => { if(anim.animations.length) targetActions.sleep = targetMixer.clipAction(anim.animations[0]); });
     fbxLoader.load('./Hip%20Hop%20Dancing.fbx', (anim) => { 
         if(anim.animations.length) {
             targetActions.dance = targetMixer.clipAction(anim.animations[0]); 
@@ -556,9 +607,9 @@ function setupActionButtons() {
         }
     });
 
-    document.getElementById('btn-sit').addEventListener('touchstart', () => { isBusy = true; my3DCharacter.position.set(CHAIR_POS.x, 0.5, CHAIR_POS.z); playAnim('sit'); });
-    document.getElementById('btn-sleep').addEventListener('touchstart', () => { isBusy = true; my3DCharacter.position.set(BED_POS.x, 0.5, BED_POS.z); my3DCharacter.rotation.y = Math.PI / 2; playAnim('sleep'); });
-    document.getElementById('btn-stand').addEventListener('touchstart', () => { isBusy = false; my3DCharacter.position.set(0, 0.5, 0); playAnim('dance'); });
+    document.getElementById('btn-sit').addEventListener('touchstart', () => { isBusy = true; my3DCharacter.position.set(CHAIR_POS.x, 0, CHAIR_POS.z); playAnim('sit'); });
+    document.getElementById('btn-sleep').addEventListener('touchstart', () => { isBusy = true; my3DCharacter.position.set(BED_POS.x, 0, BED_POS.z); my3DCharacter.rotation.y = Math.PI / 2; playAnim('sleep'); });
+    document.getElementById('btn-stand').addEventListener('touchstart', () => { isBusy = false; my3DCharacter.position.set(2, 0, 0); playAnim('dance'); });
 }
 
 function renderLoop() {
@@ -607,7 +658,7 @@ function renderLoop() {
                 renderMinimap(allPlayersData, myUid);
             }
 
-            // 🧗 FLOOR DETECTION
+            // 🧗 FLOOR DETECTION & GROUND LEVEL ALIGNMENT
             if (currentHouseCollider && !isBusy) {
                 const rayOrigin = my3DCharacter.position.clone();
                 rayOrigin.y += 5.0; 
@@ -706,6 +757,7 @@ function renderLoop() {
 window.addEventListener('resize', () => {
     if(camera && renderer) {
         camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionManager(); // safe fallback
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
     }
