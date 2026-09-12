@@ -28,7 +28,7 @@
         #btn-music-toggle { bottom: 165px; left: 25px; z-index: 20; font-size: 20px; }
         .music-playing { border-color: #10b981 !important; color: #10b981 !important; box-shadow: 0 0 15px rgba(16, 185, 129, 0.4) !important; }
         
-        /* 🚀 NAYA: Music Volume Popup UI */
+        /* 🚀 Volume Popup UI */
         .volume-popup {
             position: absolute; bottom: 165px; left: 95px; background: #1e293b;
             border: 1px solid #3b82f6; border-radius: 8px; padding: 12px;
@@ -79,14 +79,14 @@
         <div class="icon-btn" id="btn-chat" title="Chat Hub">💬</div>
         <div class="icon-btn" id="btn-friends" title="Friends">👥</div>
         
-        <!-- 🎵 Music Toggles -->
-        <div class="icon-btn" id="btn-music-toggle" title="Toggle Music (Hold for Volume)">🎵</div>
+        <!-- 🎵 NAYA: Music Play/Pause Button -->
+        <div class="icon-btn" id="btn-music-toggle" title="Toggle Music (Hold for Volume)" onclick="window.toggleMusic()">▶️</div>
         <div class="icon-btn" id="btn-mic-toggle" title="Voice Chat" onclick="window.toggleVoiceChat()">🔇</div>
         
-        <!-- 🚀 NAYA: Hidden Volume Popup -->
+        <!-- Volume Popup -->
         <div class="volume-popup" id="music-volume-popup">
             <label>Music Volume</label>
-            <input type="range" id="music-volume-slider" min="0" max="1" step="0.05">
+            <input type="range" id="music-volume-slider" min="0" max="1" step="0.05" value="0.5">
         </div>
         
         <div class="party-stage" id="party-stage-container">
@@ -98,12 +98,20 @@
         </div>
     </div>
 
+    <!-- 🚀 NAYA: Match Bar with Host Mode Selection -->
     <div class="match-bar">
-        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #94a3b8;">
-            <span>Matchmaking: <b style="color: #10b981;">1:1 Balanced</b></span>
-            <span id="gps-status-text">📍 GPS Ready</span>
+        <div id="host-controls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <span style="font-size: 12px; font-weight: bold; color: #38bdf8;">🎮 SELECT MODE:</span>
+            <select id="engine-selector" style="background: #0f172a; color: white; border: 1px solid #334155; padding: 8px; border-radius: 6px; outline: none; font-weight: bold; font-size: 12px;">
+                <option value="game.html">🏎️ Racing Universe</option>
+                <option value="fight.html">⚔️ Combat Arena</option>
+                <option value="city.html">🏙️ Free Roam City</option>
+            </select>
         </div>
-        <button id="start-match-btn" class="btn-play" onclick="window.startMatchmakingProcess()">▶ Find Match (Auto-Join Lobby)</button>
+        <div id="client-msg" style="display: none; background: rgba(245, 158, 11, 0.1); border-left: 3px solid #f59e0b; color: #f59e0b; font-size: 11px; text-align: center; padding: 8px; margin-bottom: 10px; font-weight: bold;">
+            ⏳ Waiting for Host to select mode and start...
+        </div>
+        <button id="start-match-btn" class="btn-play" onclick="window.enterWorld()">▶ START MATCH</button>
     </div>
 
     <!-- CHAT DRAWER -->
@@ -191,9 +199,7 @@
         <source src="Sound/Music/BGM.mp3" type="audio/mpeg">
     </audio>
 
-    <!-- 🚀 Music Script Import -->
     <script type="module" src="js/music.js"></script>
-    
     <script src="/socket.io/socket.io.js"></script>
     <script type="module" src="js/chat.js"></script>
     <script type="module" src="js/friends.js"></script>
@@ -206,26 +212,41 @@
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { getFirestore, doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
         import { getDatabase, ref, onValue, onDisconnect, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-        
-        // 🚀 Music Script Import for Volume Slider
-        import { setVolume, getVolume } from './js/music.js';
+
+        // 🎵 MUSIC PLAY/PAUSE LOGIC
+        window.toggleMusic = function() {
+            const audio = document.getElementById('bg-music');
+            const btn = document.getElementById('btn-music-toggle');
+            if (audio.paused) {
+                audio.play().catch(e => console.log("Audio play blocked by browser", e));
+                btn.innerText = '⏸️'; 
+                btn.classList.add('music-playing');
+            } else {
+                audio.pause();
+                btn.innerText = '▶️'; 
+                btn.classList.remove('music-playing');
+            }
+        };
 
         // Long Press UI Handler
         const volPopup = document.getElementById('music-volume-popup');
         const volSlider = document.getElementById('music-volume-slider');
         const musicBtn = document.getElementById('btn-music-toggle');
         
-        if (volSlider) volSlider.value = getVolume();
-
+        let pressTimer;
         if (musicBtn) {
-            musicBtn.addEventListener('longpress', () => {
-                volPopup.style.display = volPopup.style.display === 'flex' ? 'none' : 'flex';
+            musicBtn.addEventListener('mousedown', () => {
+                pressTimer = window.setTimeout(() => {
+                    volPopup.style.display = volPopup.style.display === 'flex' ? 'none' : 'flex';
+                }, 500); 
             });
+            musicBtn.addEventListener('mouseup', () => clearTimeout(pressTimer));
+            musicBtn.addEventListener('mouseleave', () => clearTimeout(pressTimer));
         }
 
         if (volSlider) {
             volSlider.addEventListener('input', (e) => {
-                setVolume(e.target.value);
+                document.getElementById('bg-music').volume = e.target.value;
             });
         }
 
@@ -234,6 +255,56 @@
                 volPopup.style.display = 'none';
             }
         });
+
+        // 🚀 HOST & CLIENT AUTO-START LOGIC
+        let isHost = true; // TODO: Ise Party system ke "Leader" status se link karna
+        
+        function setupHostClientSync() {
+            const hostControls = document.getElementById('host-controls');
+            const clientMsg = document.getElementById('client-msg');
+            const startBtn = document.getElementById('start-match-btn');
+
+            if (!isHost) {
+                hostControls.style.display = 'none';
+                clientMsg.style.display = 'block';
+                startBtn.innerText = "WAITING FOR HOST...";
+                startBtn.style.background = "#334155";
+                startBtn.style.pointerEvents = "none";
+                
+                // Client wait karega Host ke start dabane ka
+                window.addEventListener('storage', function(e) {
+                    if (e.key === 'hostCommand' && e.newValue === 'START_GAME') {
+                        const targetFile = localStorage.getItem('targetGameFile');
+                        startBtn.innerText = "HOST STARTED! JOINING...";
+                        startBtn.style.background = "#10b981";
+                        setTimeout(() => { window.location.href = targetFile; }, 500);
+                    }
+                });
+            } else {
+                hostControls.style.display = 'flex';
+                clientMsg.style.display = 'none';
+                startBtn.innerText = "▶ START MATCH";
+                startBtn.style.background = "#10b981";
+                startBtn.style.pointerEvents = "auto";
+                localStorage.removeItem('hostCommand'); 
+            }
+        }
+
+        window.enterWorld = function() {
+            if (!isHost) return;
+            const selector = document.getElementById('engine-selector');
+            const targetFile = selector.value;
+            const modeName = selector.options[selector.selectedIndex].text;
+            
+            localStorage.setItem('selectedMode', modeName);
+            localStorage.setItem('targetGameFile', targetFile);
+            localStorage.setItem('hostCommand', 'START_GAME'); 
+            
+            document.getElementById('start-match-btn').innerText = "STARTING SERVER...";
+            setTimeout(() => { window.location.href = targetFile; }, 1000);
+        };
+
+        setupHostClientSync(); // Run sync setup on load
 
         const engineConfig = {
             apiKey: "AIzaSyCuYPugV4qIsu9ZT9E5l63bFLgIbte_S8I",
@@ -304,7 +375,6 @@
                                     playerTag: window.myProfileData.playerTag,
                                     location: window.myProfileData.location
                                 });
-                                console.log("🚀 HotFake Engine Booted Successfully!");
                             }
                         }, 200);
 
@@ -345,11 +415,7 @@
             if (isSelf) {
                 avatarDiv.style.cursor = 'pointer';
                 avatarDiv.style.textShadow = '0 0 15px #fbbf24'; 
-                avatarDiv.title = "Tap to Customize Character";
-                
-                avatarDiv.onclick = function() {
-                    window.location.href = 'character.html';
-                };
+                avatarDiv.onclick = function() { window.location.href = 'character.html'; };
                 
                 actionsWrapper.innerHTML = `
                     <button class="modal-action-btn" style="background: #fbbf24; color: black; font-weight: 900;" onclick="window.location.href='character.html'">
@@ -367,7 +433,6 @@
                     </button>
                 `;
             }
-            
             document.getElementById('profile-modal').style.display = 'flex';
         };
 
