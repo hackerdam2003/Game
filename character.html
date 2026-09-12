@@ -8,12 +8,10 @@
         * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
         body { margin: 0; background: #000; color: white; display: flex; height: 100vh; overflow: hidden; }
         
-        /* Left: 3D Render Area */
         #render-container { flex: 1.5; position: relative; background: radial-gradient(circle, #1e293b 0%, #000 100%); }
         
-        /* Right: 3D Blendshape Controls */
         .controls-box { flex: 1; padding: 20px; background: #0b0f19; overflow-y: auto; border-left: 1px solid #1f2937; }
-        h3 { color: #38bdf8; font-size: 12px; text-transform: uppercase; border-bottom: 1px solid #1f2937; padding-bottom: 5px; }
+        h3 { color: #38bdf8; font-size: 12px; text-transform: uppercase; border-bottom: 1px solid #1f2937; padding-bottom: 5px; margin-top: 20px; }
         .slider-row { display: flex; align-items: center; margin-bottom: 15px; font-size: 12px; font-weight: bold; }
         .slider-row span { width: 120px; color: #9ca3af; }
         .slider-row input[type=range] { flex: 1; accent-color: #3b82f6; }
@@ -21,7 +19,9 @@
         .loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 20px; font-weight: bold; color: #3b82f6; z-index: 10; pointer-events: none; }
         .btn-save { background: #10b981; color: white; border: none; padding: 15px; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 20px; }
         
-        /* 👇 Mobile-Friendly Layout 👇 */
+        .magic-btn { background: linear-gradient(45deg, #a855f7, #ec4899); color: white; border: none; padding: 12px; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 15px; box-shadow: 0 4px 15px rgba(236, 72, 153, 0.4); display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 14px; transition: transform 0.2s; }
+        .magic-btn:active { transform: scale(0.98); }
+
         @media (max-width: 768px) {
             body { flex-direction: column; }
             #render-container { flex: 1.5; width: 100%; }
@@ -33,7 +33,6 @@
 
     <div id="render-container">
         <div id="loading-text" class="loading">Loading Ultra 3D Core...</div>
-        <!-- 3D Canvas will be injected here by Three.js -->
     </div>
 
     <div class="controls-box">
@@ -59,10 +58,11 @@
             <input type="color" id="color-skin" value="#d28965">
         </div>
 
+        <button class="magic-btn" onclick="applyMagicTexture()">✨ Magic (Apply Skin Texture)</button>
+
         <button class="btn-save" onclick="save3DDNA()">💾 Save 3D DNA & Enter World</button>
     </div>
 
-    <!-- Import Map with fflate -->
     <script type="importmap">
         {
             "imports": {
@@ -73,5 +73,15 @@
         }
     </script>
     <script type="module" src="js/character-editor.js"></script>
+    <script>
+        window.applyMagicTexture = function() {
+            const event = new CustomEvent('applyMagicSkin');
+            window.dispatchEvent(event);
+        };
+        window.save3DDNA = function() {
+            alert('Settings Saved! Proceeding to Lobby...');
+            window.location.href = 'lobby.html';
+        };
+    </script>
 </body>
 </html>
