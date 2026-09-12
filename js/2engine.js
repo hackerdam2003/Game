@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { renderMinimap } from './minimap.js';
 
 // Setup Firebase
@@ -17,7 +18,7 @@ const app = initializeApp(engineConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-console.log("🏝️ [Island Engine] Custom Heights: Ground -2.5, Pool -3.5 Active!");
+console.log("🏝️ [Island Engine] Sky/Ground Removed, Big Pool & Original Joystick Restored!");
 
 const gameSocket = io(); 
 
@@ -43,13 +44,13 @@ document.body.appendChild(floatingLabels);
 let isBusy = false; 
 let inWater = false; 
 
-// 🚀 CUSTOM HEIGHTS SET BY YOU
-const GROUND_Y = -2.5; 
-const POOL_Y = -3.5; 
-const WATER_Y = -3.5; // Swimming level matched with pool depth
+// 🚀 FIXED HEIGHTS & POOL SCALE
+const GROUND_Y = -2.5;  // Invisible Ground Level
+const POOL_Y = -4.0;    // Pool pushed completely down
+const WATER_Y = -3.5;   // Swimming level
 const POOL_CENTER_X = 0;
 const POOL_CENTER_Z = -10;
-const POOL_RADIUS = 9;
+const POOL_RADIUS = 15; // Increased radius because pool is bigger
 
 const characterFiles = { 
     'man': './Man.fbx', 
@@ -74,7 +75,7 @@ window.enterWorld = async function() {
     createCharSwitcherUI(); 
     createPoseUI(); 
     init3DWorld(); 
-    setupJoystick();
+    setupJoystick(); // 🚀 Old original joystick is back!
     setupActionButtons();
     setupMultiplayer();
     setupChatAndVoice();
@@ -88,6 +89,7 @@ window.enterWorld = async function() {
     });
 };
 
+// 🌟 Left Column Character Switcher
 function createCharSwitcherUI() {
     if(document.getElementById('char-switch-menu')) return;
     const charSwitchMenu = document.createElement('div');
@@ -108,6 +110,7 @@ window.switchGameCharacter = function(charKey) {
     loadCharacter(charKey);
 };
 
+// 🌟 Emotes Menu (Right Side)
 function createPoseUI() {
     if(document.getElementById('pose-menu')) return;
     const poseMenu = document.createElement('div');
@@ -141,11 +144,10 @@ function init3DWorld() {
 
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x87CEEB); 
-    scene.fog = new THREE.FogExp2(0x87CEEB, 0.002); 
     clock = new THREE.Clock();
 
     camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 15000); 
-    camera.position.set(0, 5, 10); 
+    camera.position.set(0, 2, 8); 
 
     renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -178,24 +180,23 @@ function init3DWorld() {
 }
 
 function loadIslandMap() {
-    // 🏝️ FLAT GROUND (Now at -2.5)
-    const islandGeo = new THREE.PlaneGeometry(1500, 1500);
-    const islandMat = new THREE.MeshStandardMaterial({ color: 0xe6c280, roughness: 0.9 }); 
-    const ground = new THREE.Mesh(islandGeo, islandMat);
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.y = GROUND_Y; 
-    worldGroup.add(ground);
+    // 🚀 YELLOW GROUND COMPLETELY REMOVED!
 
-    // 🏊 POOL (Now at -3.5)
+    // 🏊 POOL ONLY (Big Size and Lowered to -4.0)
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/');
     const gltfLoader = new GLTFLoader();
+    gltfLoader.setDRACOLoader(dracoLoader);
 
     gltfLoader.load('https://hackerdam2003.github.io/Game/Pool.glb', (gltf) => {
         const pool = gltf.scene;
         const box = new THREE.Box3().setFromObject(pool);
         const maxDim = Math.max(box.max.x - box.min.x, box.max.z - box.min.z);
-        const scaleFactor = 30 / maxDim; 
+        // 🚀 Doubled the scale of the pool to make it BIG
+        const scaleFactor = 60 / maxDim; 
         pool.scale.set(scaleFactor, scaleFactor, scaleFactor);
         
+        // 🚀 Pushed Pool down to -4.0
         pool.position.set(POOL_CENTER_X, POOL_Y, POOL_CENTER_Z); 
         worldGroup.add(pool);
     });
@@ -392,30 +393,34 @@ function showChatBubble(uid, msg) {
     }
 }
 
+// 🚀 TERA ORIGINAL JOYSTICK WAPAS AA GAYA HAI 100% SAME!
 function setupJoystick() {
     const base = document.getElementById('joystick-base'), knob = document.getElementById('joystick-knob');
     if(!base || !knob) return;
     let isDragging = false, center = {x:0, y:0};
 
-    base.addEventListener('touchstart', (e) => { e.stopPropagation(); if(isBusy) return; isDragging = true; center = { x: base.getBoundingClientRect().left + base.clientWidth / 2, y: base.getBoundingClientRect().top + base.clientHeight / 2 }; handleTouch(e); });
-    base.addEventListener('touchmove', (e) => { e.stopPropagation(); if(isDragging) handleTouch(e); });
-    base.addEventListener('touchend', (e) => { 
+    base.addEventListener('touchstart', (e) => {
         e.stopPropagation(); 
-        isDragging = false; 
-        knob.style.transform = `translate(0, 0)`; 
-        moveVector = { x: 0, y: 0 }; 
-        if(!isBusy && currentAction !== 'jump') playAnim(inWater ? 'treadWater' : 'dance'); 
+        if(isBusy) return;
+        isDragging = true;
+        const rect = base.getBoundingClientRect();
+        center = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+        handleTouch(e);
+    });
+    base.addEventListener('touchmove', (e) => { e.stopPropagation(); if(isDragging) handleTouch(e); });
+    base.addEventListener('touchend', (e) => {
+        e.stopPropagation(); 
+        isDragging = false; knob.style.transform = `translate(0, 0)`; moveVector = { x: 0, y: 0 };
+        if(!isBusy) playAnim('dance'); 
     });
 
     function handleTouch(e) {
         let dx = e.touches[0].clientX - center.x, dy = e.touches[0].clientY - center.y;
         const dist = Math.sqrt(dx*dx + dy*dy);
-        const maxDist = 45;
-        if (dist > maxDist) { dx = (dx/dist)*maxDist; dy = (dy/dist)*maxDist; }
-        
+        if (dist > 45) { dx = (dx/dist)*45; dy = (dy/dist)*45; }
         knob.style.transform = `translate(${dx}px, ${dy}px)`;
-        moveVector = { x: dx/maxDist, y: dy/maxDist }; 
-        if (dist > 5 && !isBusy && currentAction !== 'jump') playAnim(inWater ? 'swim' : 'run'); 
+        moveVector = { x: dx/45, y: dy/45 }; // Exactly tera purana code (No inversion)
+        if (dist > 5) playAnim('run'); 
     }
 }
 
@@ -443,7 +448,7 @@ function setupActionButtons() {
 
     document.getElementById('btn-stand')?.addEventListener('touchstart', () => {
         resetPoseUI();
-        my3DCharacter.position.y = GROUND_Y; 
+        my3DCharacter.position.y = GROUND_Y; // Hamesha zameen par rahega
         playAnim(inWater ? 'treadWater' : 'dance');
     });
 }
@@ -457,35 +462,27 @@ function renderLoop() {
 
         if (my3DCharacter) {
             
+            // 🚀 TERA ORIGINAL MOVEMENT CODE WAPAS LAGA DIYA
             if (!isBusy && (moveVector.x !== 0 || moveVector.y !== 0)) {
-                
-                const camForward = new THREE.Vector3();
-                camera.getWorldDirection(camForward);
-                camForward.y = 0; 
-                camForward.normalize();
+                const camEuler = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
+                const joyAngle = Math.atan2(moveVector.x, moveVector.y);
+                const targetRotation = joyAngle + camEuler.y;
 
-                const camRight = new THREE.Vector3();
-                camRight.crossVectors(camera.up, camForward).normalize();
-
-                const moveDirection = new THREE.Vector3()
-                    .addScaledVector(camRight, moveVector.x)
-                    .addScaledVector(camForward, -moveVector.y)
-                    .normalize();
-
-                const targetRotation = Math.atan2(moveDirection.x, moveDirection.z);
                 let diff = targetRotation - my3DCharacter.rotation.y;
                 diff = Math.atan2(Math.sin(diff), Math.cos(diff)); 
-                my3DCharacter.rotation.y += diff * 0.2; 
+                my3DCharacter.rotation.y += diff * 0.15; 
 
                 const currentSpeed = Math.min(Math.sqrt(moveVector.x*moveVector.x + moveVector.y*moveVector.y), 1) * speed;
-                
-                my3DCharacter.position.addScaledVector(moveDirection, currentSpeed);
+
+                my3DCharacter.position.x += Math.sin(targetRotation) * currentSpeed;
+                my3DCharacter.position.z += Math.cos(targetRotation) * currentSpeed;
                 
                 allPlayersData[myUid] = { x: my3DCharacter.position.x, y: my3DCharacter.position.z };
                 gameSocket.emit('player-moved', { uid: myUid, x: my3DCharacter.position.x, y: my3DCharacter.position.y, z: my3DCharacter.position.z, rot: my3DCharacter.rotation.y, action: currentAction, env: currentEnvironment });
                 renderMinimap(allPlayersData, myUid);
             }
 
+            // 🚀 ABSOLUTE HEIGHT LOCK SYSTEM (Never Sink Again!)
             const distToPool = Math.hypot(my3DCharacter.position.x - POOL_CENTER_X, my3DCharacter.position.z - POOL_CENTER_Z);
             let wasInWater = inWater;
 
@@ -494,7 +491,7 @@ function renderLoop() {
                 my3DCharacter.position.y = WATER_Y; 
             } else {
                 inWater = false;
-                if(!isBusy) my3DCharacter.position.y = GROUND_Y; 
+                if(!isBusy) my3DCharacter.position.y = GROUND_Y; // Running karte waqt height lock rahegi!
             }
 
             if (wasInWater !== inWater && !isBusy && currentAction !== 'jump') {
@@ -507,8 +504,9 @@ function renderLoop() {
                 playAnim('treadWater');
             }
 
+            // 🎥 CAMERA FIXED: Adha cut nahi hoga, sarr se pair tak dikhega
             if (controls) {
-                const charTarget = new THREE.Vector3(my3DCharacter.position.x, my3DCharacter.position.y + 2.5, my3DCharacter.position.z);
+                const charTarget = new THREE.Vector3(my3DCharacter.position.x, my3DCharacter.position.y + 1.2, my3DCharacter.position.z);
                 const posDelta = charTarget.clone().sub(controls.target);
                 controls.target.add(posDelta);
                 camera.position.add(posDelta);
@@ -518,7 +516,7 @@ function renderLoop() {
             const myLabel = document.getElementById('my-label');
             if(myLabel && myLabel.innerHTML !== "") {
                 const pos = my3DCharacter.position.clone();
-                pos.y += 3.0; 
+                pos.y += 2.0; 
                 pos.project(camera);
                 myLabel.style.left = `${(pos.x * .5 + .5) * window.innerWidth}px`;
                 myLabel.style.top = `${-(pos.y * .5 - .5) * window.innerHeight}px`;
@@ -534,7 +532,7 @@ function renderLoop() {
                 rp.group.rotation.y = rp.targetRot;
                 if(rp.label) {
                     const pos = rp.group.position.clone();
-                    pos.y += 3.0; pos.project(camera);
+                    pos.y += 2.0; pos.project(camera);
                     if(pos.z < 1) {
                         rp.label.style.display = 'block';
                         rp.label.style.left = `${(pos.x * .5 + .5) * window.innerWidth}px`;
@@ -555,4 +553,3 @@ window.addEventListener('resize', () => {
         renderer.setSize(window.innerWidth, window.innerHeight);
     }
 });
-
