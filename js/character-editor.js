@@ -42,7 +42,6 @@ const gltfLoader = new GLTFLoader();
 let actions = {};
 let currentActionName = 'idle';
 
-// TUMHARI FILES KI LIST
 const characterFiles = {
     'man': './Man.fbx',
     'girl': './Peasant%20Girl.fbx',
@@ -50,16 +49,21 @@ const characterFiles = {
     'mymodel': 'assets/model_prepared.glb' 
 };
 
-// 💡 UPDATE: Tumhari alag se daali hui Running.fbx yahan link kar di
-const motionFiles = {
-    'run': 'assets/Running.fbx',  
-    'idle': './Idle.fbx', // Agar idle ho toh yahan path de dena
+// 💡 FIX: Purane characters ke original motions wapas theek kar diye
+const defaultMotionFiles = {
+    'idle': './Idle.fbx',
+    'run': './Running.fbx',
     'punch': './Punching.fbx',
     'dance': './Hip%20Hop%20Dancing.fbx',
     'bounce': './bouncing%20fight.fbx' 
 };
 
-let currentSelectedChar = 'mymodel'; // Page reload hote hi direct tera model khulega
+// 💡 FIX: Tumhare custom GLB ke liye alag motion list banayi hai
+const customMotionFiles = {
+    'run': 'assets/Running.fbx' 
+};
+
+let currentSelectedChar = 'mymodel'; 
 
 function createEditorUI() {
     const uiDiv = document.createElement('div');
@@ -91,19 +95,28 @@ function createEditorUI() {
     document.getElementById('char-mymodel').addEventListener('click', () => loadCharacter('mymodel'));
 }
 
-function buildMotionButtons() {
+function buildMotionButtons(isGLB) {
     const container = document.getElementById('motion-buttons-container');
     container.innerHTML = ''; 
 
-    // Ab GLB ke liye bhi yehi buttons banenge
-    const fbxButtons = [
-        { id: 'run', label: 'Run', color: '#f59e0b' },
-        { id: 'idle', label: 'Idle', color: '#64748b' },
-        { id: 'punch', label: 'Punch', color: '#ef4444' },
-        { id: 'dance', label: 'Dance', color: '#10b981' }
-    ];
+    let buttons = [];
+    if (isGLB) {
+        // Naye model ke liye sirf uske apne buttons
+        buttons = [
+            { id: 'run', label: 'Custom Run', color: '#f59e0b' }
+        ];
+    } else {
+        // Purane models ke liye saare default buttons
+        buttons = [
+            { id: 'idle', label: 'Idle', color: '#64748b' },
+            { id: 'run', label: 'Run', color: '#f59e0b' },
+            { id: 'punch', label: 'Punch', color: '#ef4444' },
+            { id: 'dance', label: 'Dance', color: '#10b981' },
+            { id: 'bounce', label: 'Bounce Fight', color: '#f97316' }
+        ];
+    }
     
-    fbxButtons.forEach(b => {
+    buttons.forEach(b => {
         const btn = document.createElement('button');
         btn.className = 'ui-btn';
         btn.style.background = b.color;
@@ -155,44 +168,39 @@ function loadCharacter(charKey) {
         mixer = new THREE.AnimationMixer(characterModel);
         actions = {}; 
 
-        // 💡 UPDATE: Agar GLB me khud ka motion nahi hai, toh bahar wali file use karo
-        buildMotionButtons();
-        if (isGLB && (!baseAnimations || baseAnimations.length === 0)) {
-            loadExternalFbxMotions(true); // GLB ke liye external FBX load karo
-        } else {
-            loadExternalFbxMotions(false);
-        }
+        buildMotionButtons(isGLB);
+        loadExternalFbxMotions(isGLB);
 
         if(loadingEl) loadingEl.style.display = 'none';
     };
 
     if (isGLB) {
-        gltfLoader.load(url, (gltf) => setupModel(gltf.scene, gltf.animations), undefined, (err) => {
-            if(loadingEl) {
-                loadingEl.style.color = '#ef4444';
-                loadingEl.innerText = "❌ Error: 'assets/model_prepared.glb' file nahi mili!";
-            }
-        });
+        gltfLoader.load(url, (gltf) => setupModel(gltf.scene, gltf.animations), undefined, console.error);
     } else {
         fbxLoader.load(url, (fbx) => setupModel(fbx, fbx.animations), undefined, console.error);
     }
 }
 
 function loadExternalFbxMotions(isForGLB) {
-    for (const [mKey, mUrl] of Object.entries(motionFiles)) {
+    // 💡 FIX: Yahan decide hoga ki purani files load karni hain ya tumhari nayi files
+    const motionsToLoad = isForGLB ? customMotionFiles : defaultMotionFiles;
+
+    for (const [mKey, mUrl] of Object.entries(motionsToLoad)) {
         fbxLoader.load(mUrl, (animObj) => {
             if (animObj.animations && animObj.animations.length > 0) {
                 const action = mixer.clipAction(animObj.animations[0]);
                 if(mKey === 'punch') action.setLoop(THREE.LoopOnce); 
                 actions[mKey] = action;
                 
-                // Testing ke liye "Run" motion automatically play kar do
+                // Naye model me test ke liye sidha custom run chalao
                 if(isForGLB && mKey === 'run') {
                     playMotion('run');
+                } else if (!isForGLB && mKey === 'idle') {
+                    playMotion('idle');
                 }
             }
         }, undefined, (err) => {
-            console.log("Motion Load Error:", mKey, mUrl); // Agar motion nahi milega toh ignore karega
+            console.log("Motion Load Error:", mKey, mUrl); 
         });
     }
 }
@@ -222,3 +230,4 @@ window.addEventListener('resize', () => {
     camera.updateProjectionMatrix();
     renderer.setSize(container.clientWidth, container.clientHeight);
 });
+
