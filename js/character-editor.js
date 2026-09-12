@@ -7,7 +7,7 @@ const container = document.getElementById('render-container');
 const scene = new THREE.Scene();
 
 const camera = new THREE.PerspectiveCamera(40, container.clientWidth / container.clientHeight, 0.1, 100);
-camera.position.set(0, 1.4, 3.0); 
+camera.position.set(0, 1.4, 3.5); 
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(container.clientWidth, container.clientHeight);
@@ -109,12 +109,8 @@ function loadCharacter(charKey) {
     const setupModel = (model, baseAnimations) => {
         characterModel = model;
         
-        // 🚀 SCALE UPDATED TO 0.3 FOR PROPER SIZING
-        if (isGLB || charKey === 'hotgirl' || charKey === 'misaki') {
-            characterModel.scale.set(0.3, 0.3, 0.3);
-        } else {
-            characterModel.scale.set(0.2, 0.2, 0.2);
-        }
+        // 🚀 SCALE SET TO 1.0 AS REQUESTED
+        characterModel.scale.set(1.0, 1.0, 1.0);
         
         characterModel.position.set(0, 0, 0);
         
@@ -206,7 +202,7 @@ function playMotion(motionKey) {
     currentActionName = motionKey;
 }
 
-// 🚀 OPTIMIZED MAGIC SKIN APPLICATION (Protects Clothes & Hair from mixing)
+// 🚀 MAGIC SKIN TEXTURE APPLIES ONLY TO BODY/SKIN, CLOTHES PROTECTED
 window.addEventListener('applyMagicSkin', () => {
     if(!characterModel) return;
 
@@ -219,7 +215,6 @@ window.addEventListener('applyMagicSkin', () => {
                 const matName = node.material.name ? node.material.name.toLowerCase() : '';
                 const nodeName = node.name ? node.name.toLowerCase() : '';
                 
-                // Sirf skin ya body par lagega, shirt/panties/hair par bilkul nahi!
                 const isBodyPart = matName.includes('body') || matName.includes('skin') || nodeName.includes('body');
                 const isClothingOrHair = matName.includes('shirt') || matName.includes('panties') || matName.includes('hair') || matName.includes('metal') || matName.includes('cloth');
 
