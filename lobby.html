@@ -18,30 +18,32 @@
         .avatar-icon-big { font-size: 50px; margin-bottom: 8px; }
         .char-name { font-weight: bold; font-size: 13px; color: #10b981; text-align: center; padding: 0 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; }
         .char-sub { font-size: 10px; color: #94a3b8; margin-top: 2px; }
-        .icon-btn { position: absolute; width: 55px; height: 55px; background: #1e293b; border: 1px solid #334155; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 20; transition: 0.2s; user-select: none; }
+        
+        .icon-btn { position: absolute; width: 55px; height: 55px; background: linear-gradient(145deg, #1e293b, #0f172a); border: 1px solid #334155; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.6); z-index: 20; transition: all 0.3s ease; user-select: none; }
+        .icon-btn:active { transform: scale(0.9); }
         
         #btn-chat { bottom: 25px; left: 25px; }
         #btn-party-create { top: 20px; left: 20px; font-size: 18px; }
         #btn-friends { bottom: 25px; right: 25px; }
         
-        /* 🎤 Mic Aur 🎵 Music Buttons */
-        #btn-music-play { bottom: 95px; left: 25px; z-index: 20; font-size: 20px; } 
-        #btn-mic-toggle { bottom: 165px; left: 25px; z-index: 20; } 
+        #btn-music-play { bottom: 95px; left: 25px; z-index: 20; font-size: 22px; text-shadow: 0 0 10px rgba(56, 189, 248, 0.5); } 
+        #btn-music-toggle { bottom: 165px; left: 25px; z-index: 20; font-size: 20px; text-shadow: 0 0 10px rgba(251, 191, 36, 0.5); } 
+        #btn-mic-toggle { bottom: 235px; left: 25px; z-index: 20; } 
 
-        .music-playing { border-color: #10b981 !important; color: #10b981 !important; box-shadow: 0 0 15px rgba(16, 185, 129, 0.4) !important; }
-        
+        .music-playing { border-color: #3b82f6 !important; box-shadow: 0 0 20px rgba(59, 130, 246, 0.6), inset 0 0 10px rgba(59, 130, 246, 0.3) !important; }
+
         .volume-popup {
-            position: absolute; bottom: 95px; left: 95px; background: #1e293b;
-            border: 1px solid #3b82f6; border-radius: 8px; padding: 12px;
+            position: absolute; bottom: 165px; left: 95px; background: rgba(30, 41, 59, 0.95); backdrop-filter: blur(10px);
+            border: 1px solid #fbbf24; border-radius: 12px; padding: 15px;
             display: none; flex-direction: column; align-items: center; z-index: 30;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.8), 0 0 15px rgba(251, 191, 36, 0.2);
         }
-        .volume-popup label { color: #38bdf8; font-size: 11px; font-weight: bold; margin-bottom: 8px; text-transform: uppercase; }
-        .volume-popup input[type="range"] { width: 120px; accent-color: #10b981; outline: none; }
+        .volume-popup label { color: #fbbf24; font-size: 12px; font-weight: 900; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
+        .volume-popup input[type="range"] { width: 130px; accent-color: #fbbf24; outline: none; }
 
         .match-bar { padding: 15px 20px; background: #1e293b; border-top: 1px solid #334155; display: flex; flex-direction: column; gap: 10px; z-index: 10; }
         
-        /* 🚀 NAYA: 100% CUSTOM PRO GAME DROPDOWN UI (NO MORE OS POPUP) */
+        /* 🚀 REAL 2 ENGINES DROPDOWN UI */
         .pro-select-wrapper { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; position: relative; }
         .pro-select { position: relative; flex: 1; margin-left: 10px; font-weight: bold; font-size: 13px; z-index: 40; }
         .pro-select-trigger { background: #0f172a; color: white; border: 1px solid #3b82f6; padding: 12px; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 0 10px rgba(59, 130, 246, 0.2); user-select: none; }
@@ -55,6 +57,7 @@
         @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
         .btn-play { background: #10b981; color: white; border: none; padding: 14px; border-radius: 10px; font-size: 16px; font-weight: 900; text-transform: uppercase; width: 100%; cursor: pointer; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4); }
+        
         .drawer { position: fixed; top: 0; left: -100%; width: 85%; max-width: 340px; height: 100%; background: #1e293b; border-right: 1px solid #334155; z-index: 100; transition: 0.3s ease-in-out; display: flex; flex-direction: column; padding: 20px; box-shadow: 5px 0 25px rgba(0,0,0,0.6); }
         .drawer.open { left: 0; }
         .drawer-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 10px; margin-bottom: 15px; font-weight: bold; font-size: 14px; color: #cbd5e1; }
@@ -94,13 +97,12 @@
         <div class="icon-btn" id="btn-chat" title="Chat Hub">💬</div>
         <div class="icon-btn" id="btn-friends" title="Friends">👥</div>
         
-        <!-- 🎤 Voice Chat & ▶️ Play/Pause Music Buttons -->
         <div class="icon-btn" id="btn-mic-toggle" title="Voice Chat" onclick="window.toggleVoiceChat()">🔇</div>
-        <div class="icon-btn" id="btn-music-play" title="Play/Pause (Hold for Volume)">▶️</div>
+        <div class="icon-btn" id="btn-music-toggle" title="Music Volume" onclick="window.toggleVolumePopup()">🎵</div>
+        <div class="icon-btn" id="btn-music-play" title="Play/Stop Music" onclick="window.toggleMusic()">🎶</div>
         
-        <!-- Volume Popup -->
         <div class="volume-popup" id="music-volume-popup">
-            <label>Music Volume</label>
+            <label>🎵 Adjust Volume</label>
             <input type="range" id="music-volume-slider" min="0" max="1" step="0.05" value="0.5">
         </div>
         
@@ -113,22 +115,21 @@
         </div>
     </div>
 
-    <!-- 🚀 PRO MODE SELECTION BAR (NO OS POPUP) -->
+    <!-- 🚀 EXACT 2 ENGINES SELECTOR (NO FAKE OPTIONS) -->
     <div class="match-bar">
         
         <div id="host-controls" class="pro-select-wrapper">
             <span style="font-size: 12px; font-weight: bold; color: #38bdf8;">🎮 SELECT MODE:</span>
             
             <div class="pro-select" id="custom-mode-dropdown">
-                <div class="pro-select-trigger" onclick="toggleModeDropdown()">🏎️ Racing Universe</div>
+                <div class="pro-select-trigger" onclick="toggleModeDropdown()">🏎️ Racing Universe (Engine 1)</div>
                 <div class="pro-options">
-                    <div class="pro-option" onclick="selectGameMode('game.html', '🏎️ Racing Universe')">🏎️ Racing Universe</div>
-                    <div class="pro-option" onclick="selectGameMode('fight.html', '⚔️ Combat Arena')">⚔️ Combat Arena</div>
-                    <div class="pro-option" onclick="selectGameMode('city.html', '🏙️ Free Roam City')">🏙️ Free Roam City</div>
+                    <div class="pro-option" onclick="selectGameMode('game.html', '🏎️ Racing Universe (Engine 1)')">🏎️ Racing Universe (Engine 1)</div>
+                    <div class="pro-option" onclick="selectGameMode('fight.html', '⚔️ Combat Arena (Engine 2)')">⚔️ Combat Arena (Engine 2)</div>
                 </div>
             </div>
             
-            <!-- Hidden input for engine selection -->
+            <!-- Real engine file tracker -->
             <input type="hidden" id="engine-selector-value" value="game.html">
         </div>
 
@@ -138,7 +139,7 @@
         <button id="start-match-btn" class="btn-play" onclick="window.enterWorld()">▶ START MATCH (Auto-Join)</button>
     </div>
 
-    <!-- CHAT, FRIENDS, PARTY & PROFILE UI... (No changes here, kept safe) -->
+    <!-- DRAWERS & MODALS -->
     <div class="drawer" id="chat-drawer">
         <div class="drawer-header"><span>💬 Communications Hub</span><button class="close-drawer" id="close-chat">✕</button></div>
         <div class="drawer-body">
@@ -148,10 +149,7 @@
                 <div class="chat-tab" onclick="switchChatTab('dm', this)">👥 DMs</div>
             </div>
             <div class="chat-messages-box" id="active-chat-box"></div>
-            <div class="chat-input-row">
-                <input type="text" id="chat-input-field" placeholder="Type message...">
-                <button onclick="sendChatMessage()">Send</button>
-            </div>
+            <div class="chat-input-row"><input type="text" id="chat-input-field" placeholder="Type message..."><button onclick="sendChatMessage()">Send</button></div>
         </div>
     </div>
 
@@ -202,7 +200,6 @@
         </div>
     </div>
 
-    <!-- 🎵 Audio Element -->
     <audio id="bg-music" loop preload="auto">
         <source src="Sound/Music/BGM.mp3" type="audio/mpeg">
     </audio>
@@ -221,7 +218,6 @@
         import { getFirestore, doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
         import { getDatabase, ref, onValue, onDisconnect, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-        // 🚀 CUSTOM DROPDOWN LOGIC
         window.toggleModeDropdown = function() {
             document.getElementById('custom-mode-dropdown').classList.toggle('open');
         };
@@ -232,48 +228,28 @@
             document.getElementById('custom-mode-dropdown').classList.remove('open');
         };
 
-        // 🎵 MUSIC PLAY/PAUSE & LONG PRESS LOGIC
-        const musicBtn = document.getElementById('btn-music-play');
-        const volPopup = document.getElementById('music-volume-popup');
-        let pressTimer = null;
-
         window.toggleMusic = function() {
             const audio = document.getElementById('bg-music');
+            const musicBtn = document.getElementById('btn-music-play');
+            
             if (audio.paused) {
                 audio.play().then(() => {
-                    musicBtn.innerText = '⏸️'; 
+                    musicBtn.innerText = '⏹️'; 
                     musicBtn.classList.add('music-playing');
-                }).catch(e => { alert("Tap anywhere first to allow audio!"); });
+                }).catch(e => {
+                    console.log("Audio play blocked by browser:", e);
+                });
             } else {
                 audio.pause();
-                musicBtn.innerText = '▶️'; 
+                musicBtn.innerText = '🎶'; 
                 musicBtn.classList.remove('music-playing');
             }
         };
 
-        // Long Press Detectors (Touch for Mobile, Mouse for PC)
-        function startPress(e) {
-            if(e.type === 'touchstart') e.preventDefault(); // Stop click overlap
-            pressTimer = setTimeout(() => {
-                volPopup.style.display = volPopup.style.display === 'flex' ? 'none' : 'flex';
-                pressTimer = null;
-            }, 500); // 500ms Hold
-        }
-
-        function endPress(e) {
-            if(e.type === 'touchend') e.preventDefault();
-            if (pressTimer) {
-                clearTimeout(pressTimer); // Short Tap
-                pressTimer = null;
-                window.toggleMusic();
-            }
-        }
-
-        musicBtn.addEventListener('touchstart', startPress, {passive: false});
-        musicBtn.addEventListener('touchend', endPress, {passive: false});
-        musicBtn.addEventListener('mousedown', startPress);
-        musicBtn.addEventListener('mouseup', endPress);
-        musicBtn.addEventListener('mouseleave', () => { if(pressTimer) { clearTimeout(pressTimer); pressTimer = null; } });
+        window.toggleVolumePopup = function() {
+            const volPopup = document.getElementById('music-volume-popup');
+            volPopup.style.display = volPopup.style.display === 'flex' ? 'none' : 'flex';
+        };
 
         const volSlider = document.getElementById('music-volume-slider');
         if (volSlider) {
@@ -286,12 +262,13 @@
             const dropdown = document.getElementById('custom-mode-dropdown');
             if (dropdown && !dropdown.contains(e.target)) dropdown.classList.remove('open');
             
-            if(musicBtn && volPopup && !musicBtn.contains(e.target) && !volPopup.contains(e.target)) {
+            const btnToggle = document.getElementById('btn-music-toggle');
+            const volPopup = document.getElementById('music-volume-popup');
+            if(btnToggle && volPopup && !btnToggle.contains(e.target) && !volPopup.contains(e.target)) {
                 volPopup.style.display = 'none';
             }
         });
 
-        // 🚀 HOST & CLIENT AUTO-START LOGIC
         let isHost = true; 
         
         function setupHostClientSync() {
