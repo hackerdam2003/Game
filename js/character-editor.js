@@ -7,8 +7,7 @@ const container = document.getElementById('render-container');
 const scene = new THREE.Scene();
 
 const camera = new THREE.PerspectiveCamera(40, container.clientWidth / container.clientHeight, 0.1, 100);
-// 👇 Camera position fix for proper centering and framing
-camera.position.set(0, 1.4, 2.5); 
+camera.position.set(0, 1.4, 3.0); 
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(container.clientWidth, container.clientHeight);
@@ -29,7 +28,6 @@ scene.add(fillLight);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-// 👇 Target ko chest/upper body par set kiya taaki character bilkul center me aaye
 controls.target.set(0, 1.2, 0);
 
 let characterModel = null;
@@ -111,11 +109,11 @@ function loadCharacter(charKey) {
     const setupModel = (model, baseAnimations) => {
         characterModel = model;
         
-        // 👇 Character scale bada kar diya hai taaki screen par chota na dikhe
+        // 🚀 SCALE UPDATED TO 0.3 FOR PROPER SIZING
         if (isGLB || charKey === 'hotgirl' || charKey === 'misaki') {
-            characterModel.scale.set(0.03, 0.03, 0.03);
+            characterModel.scale.set(0.3, 0.3, 0.3);
         } else {
-            characterModel.scale.set(0.02, 0.02, 0.02);
+            characterModel.scale.set(0.2, 0.2, 0.2);
         }
         
         characterModel.position.set(0, 0, 0);
@@ -208,6 +206,7 @@ function playMotion(motionKey) {
     currentActionName = motionKey;
 }
 
+// 🚀 OPTIMIZED MAGIC SKIN APPLICATION (Protects Clothes & Hair from mixing)
 window.addEventListener('applyMagicSkin', () => {
     if(!characterModel) return;
 
@@ -218,14 +217,19 @@ window.addEventListener('applyMagicSkin', () => {
         characterModel.traverse((node) => {
             if (node.isMesh && node.material) {
                 const matName = node.material.name ? node.material.name.toLowerCase() : '';
+                const nodeName = node.name ? node.name.toLowerCase() : '';
                 
-                if (matName.includes('body') || matName.includes('skin')) {
+                // Sirf skin ya body par lagega, shirt/panties/hair par bilkul nahi!
+                const isBodyPart = matName.includes('body') || matName.includes('skin') || nodeName.includes('body');
+                const isClothingOrHair = matName.includes('shirt') || matName.includes('panties') || matName.includes('hair') || matName.includes('metal') || matName.includes('cloth');
+
+                if (isBodyPart && !isClothingOrHair) {
                     node.material.map = texture;
                     node.material.needsUpdate = true;
                 }
             }
         });
-        console.log("✨ Magic Skin Applied!");
+        console.log("✨ Magic Skin Applied Safely (Clothes Protected)!");
     }, undefined, (err) => {
         console.error("Failed to load texture", err);
     });
