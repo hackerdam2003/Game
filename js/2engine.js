@@ -5,7 +5,6 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { renderMinimap } from './minimap.js';
 
 // Setup Firebase
@@ -18,7 +17,7 @@ const app = initializeApp(engineConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-console.log("🏝️ [Island Engine] Full Body Camera, Solid Ground, Pool Fix & True Joystick Active!");
+console.log("🏝️ [Island Engine] Custom Heights: Ground -2.5, Pool -3.5 Active!");
 
 const gameSocket = io(); 
 
@@ -44,10 +43,10 @@ document.body.appendChild(floatingLabels);
 let isBusy = false; 
 let inWater = false; 
 
-// 🚀 FIXED HEIGHTS (Ground aur Pool dono neeche kiye gaye hain)
-const GROUND_Y = -1.5; 
-const POOL_Y = -1.6;
-const WATER_Y = -2.5; 
+// 🚀 CUSTOM HEIGHTS SET BY YOU
+const GROUND_Y = -2.5; 
+const POOL_Y = -3.5; 
+const WATER_Y = -3.5; // Swimming level matched with pool depth
 const POOL_CENTER_X = 0;
 const POOL_CENTER_Z = -10;
 const POOL_RADIUS = 9;
@@ -141,12 +140,12 @@ function init3DWorld() {
     canvas.style.zIndex = '0';
 
     scene = new THREE.Scene();
-    // 🚀 FIXED: Clean Sky without 3D model load
     scene.background = new THREE.Color(0x87CEEB); 
+    scene.fog = new THREE.FogExp2(0x87CEEB, 0.002); 
     clock = new THREE.Clock();
 
     camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 15000); 
-    camera.position.set(0, 5, 8); 
+    camera.position.set(0, 5, 10); 
 
     renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -179,19 +178,16 @@ function init3DWorld() {
 }
 
 function loadIslandMap() {
-    // 🏝️ FLAT GROUND 
+    // 🏝️ FLAT GROUND (Now at -2.5)
     const islandGeo = new THREE.PlaneGeometry(1500, 1500);
     const islandMat = new THREE.MeshStandardMaterial({ color: 0xe6c280, roughness: 0.9 }); 
     const ground = new THREE.Mesh(islandGeo, islandMat);
     ground.rotation.x = -Math.PI / 2;
-    ground.position.y = GROUND_Y; // Locked Ground Level
+    ground.position.y = GROUND_Y; 
     worldGroup.add(ground);
 
-    // 🏊 POOL
-    const dracoLoader = new DRACOLoader();
-    dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/');
+    // 🏊 POOL (Now at -3.5)
     const gltfLoader = new GLTFLoader();
-    gltfLoader.setDRACOLoader(dracoLoader);
 
     gltfLoader.load('https://hackerdam2003.github.io/Game/Pool.glb', (gltf) => {
         const pool = gltf.scene;
@@ -214,7 +210,7 @@ function loadCharacter(charKey) {
     const isGLB = url.toLowerCase().endsWith('.glb');
 
     let scaleVal = 0.013;
-    if(charKey === 'girl' || charKey === 'hotgirl') scaleVal = 0.025; // Girls scaled up properly
+    if(charKey === 'girl' || charKey === 'hotgirl') scaleVal = 0.025; 
     
     if(isGLB) {
         gltfLoader.load(url, (gltf) => {
@@ -396,7 +392,6 @@ function showChatBubble(uid, msg) {
     }
 }
 
-// 🕹️ FIXED JOYSTICK (Left is Left, Right is Right)
 function setupJoystick() {
     const base = document.getElementById('joystick-base'), knob = document.getElementById('joystick-knob');
     if(!base || !knob) return;
@@ -419,7 +414,6 @@ function setupJoystick() {
         if (dist > maxDist) { dx = (dx/dist)*maxDist; dy = (dy/dist)*maxDist; }
         
         knob.style.transform = `translate(${dx}px, ${dy}px)`;
-        // 🚀 TRUE JOYSTICK DIRECTION FIX
         moveVector = { x: dx/maxDist, y: dy/maxDist }; 
         if (dist > 5 && !isBusy && currentAction !== 'jump') playAnim(inWater ? 'swim' : 'run'); 
     }
@@ -437,14 +431,10 @@ function setupActionButtons() {
         if(inWater || currentAction === 'jump') return; 
         isBusy = true;
         playAnim(anim);
-        const s1 = document.getElementById('btn-sitDazed');
-        const s2 = document.getElementById('btn-lieDown');
-        const s3 = document.getElementById('btn-layM');
-        const s5 = document.getElementById('btn-stand');
-        if(s1) s1.style.display = 'none';
-        if(s2) s2.style.display = 'none';
-        if(s3) s3.style.display = 'none';
-        if(s5) s5.style.display = 'block';
+        document.getElementById('btn-sitDazed').style.display = 'none';
+        document.getElementById('btn-lieDown').style.display = 'none';
+        document.getElementById('btn-layM').style.display = 'none';
+        document.getElementById('btn-stand').style.display = 'block';
     };
 
     document.getElementById('btn-sitDazed')?.addEventListener('touchstart', () => triggerPose('sitDazed'));
@@ -453,7 +443,7 @@ function setupActionButtons() {
 
     document.getElementById('btn-stand')?.addEventListener('touchstart', () => {
         resetPoseUI();
-        my3DCharacter.position.y = GROUND_Y; // Lock to ground after stand
+        my3DCharacter.position.y = GROUND_Y; 
         playAnim(inWater ? 'treadWater' : 'dance');
     });
 }
@@ -467,7 +457,6 @@ function renderLoop() {
 
         if (my3DCharacter) {
             
-            // ⚔️ 360° Left-Right Running
             if (!isBusy && (moveVector.x !== 0 || moveVector.y !== 0)) {
                 
                 const camForward = new THREE.Vector3();
@@ -497,7 +486,6 @@ function renderLoop() {
                 renderMinimap(allPlayersData, myUid);
             }
 
-            // 🚀 ABSOLUTE HARD LOCK HEIGHT SYSTEM (Never Sink Again!)
             const distToPool = Math.hypot(my3DCharacter.position.x - POOL_CENTER_X, my3DCharacter.position.z - POOL_CENTER_Z);
             let wasInWater = inWater;
 
@@ -506,7 +494,7 @@ function renderLoop() {
                 my3DCharacter.position.y = WATER_Y; 
             } else {
                 inWater = false;
-                if(!isBusy) my3DCharacter.position.y = GROUND_Y; // Character strictly glued to ground
+                if(!isBusy) my3DCharacter.position.y = GROUND_Y; 
             }
 
             if (wasInWater !== inWater && !isBusy && currentAction !== 'jump') {
@@ -519,9 +507,8 @@ function renderLoop() {
                 playAnim('treadWater');
             }
 
-            // 🎥 FULL BODY CAMERA FOLLOW
             if (controls) {
-                const charTarget = new THREE.Vector3(my3DCharacter.position.x, my3DCharacter.position.y + 1.2, my3DCharacter.position.z);
+                const charTarget = new THREE.Vector3(my3DCharacter.position.x, my3DCharacter.position.y + 2.5, my3DCharacter.position.z);
                 const posDelta = charTarget.clone().sub(controls.target);
                 controls.target.add(posDelta);
                 camera.position.add(posDelta);
@@ -531,7 +518,8 @@ function renderLoop() {
             const myLabel = document.getElementById('my-label');
             if(myLabel && myLabel.innerHTML !== "") {
                 const pos = my3DCharacter.position.clone();
-                pos.y += 2.0; pos.project(camera);
+                pos.y += 3.0; 
+                pos.project(camera);
                 myLabel.style.left = `${(pos.x * .5 + .5) * window.innerWidth}px`;
                 myLabel.style.top = `${-(pos.y * .5 - .5) * window.innerHeight}px`;
             }
@@ -546,7 +534,7 @@ function renderLoop() {
                 rp.group.rotation.y = rp.targetRot;
                 if(rp.label) {
                     const pos = rp.group.position.clone();
-                    pos.y += 2.0; pos.project(camera);
+                    pos.y += 3.0; pos.project(camera);
                     if(pos.z < 1) {
                         rp.label.style.display = 'block';
                         rp.label.style.left = `${(pos.x * .5 + .5) * window.innerWidth}px`;
@@ -567,3 +555,4 @@ window.addEventListener('resize', () => {
         renderer.setSize(window.innerWidth, window.innerHeight);
     }
 });
+
