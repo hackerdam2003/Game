@@ -114,7 +114,6 @@ function loadCharacter(charKey) {
         const partsContainer = document.getElementById('parts-list-container');
         partsContainer.innerHTML = '';
 
-        // 🚀 SMART TRAVERSAL: Handles Single and Multi-Material Meshes
         characterModel.traverse((node) => { 
             if (node.isMesh) { 
                 node.castShadow = true; 
@@ -129,9 +128,11 @@ function loadCharacter(charKey) {
                     const partName = mat.name || `Part_${index}`;
                     const row = document.createElement('div');
                     row.className = 'part-row';
+                    
+                    // 🚀 NAAM CUTNE KI PROBLEM FIX: ellipsis hata diya, ab pura naam doosri line me wrap ho jayega
                     row.innerHTML = `
-                        <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px;" title="${partName}">${partName}</span>
-                        <button id="btn-part-${node.id}-${index}">Hide</button>
+                        <span style="word-wrap: break-word; flex: 1; padding-right: 10px; line-height: 1.3;" title="${partName}">${partName}</span>
+                        <button id="btn-part-${node.id}-${index}" style="min-width: 45px;">Hide</button>
                     `;
                     partsContainer.appendChild(row);
 
@@ -139,7 +140,6 @@ function loadCharacter(charKey) {
                         const btn = document.getElementById(`btn-part-${node.id}-${index}`);
                         if(btn) {
                             btn.onclick = () => {
-                                // Kapdo ko mesh hide karke nahi, balki material invisible karke hatayenge
                                 mat.visible = !mat.visible;
                                 btn.innerText = mat.visible ? "Hide" : "Show";
                                 btn.className = mat.visible ? "" : "show";
@@ -148,7 +148,6 @@ function loadCharacter(charKey) {
                     }, 50);
                 };
 
-                // Check if material is an array (Multi-Material Mesh like Misaki)
                 if (Array.isArray(node.material)) {
                     node.material.forEach((mat, idx) => {
                         processMaterialForUI(mat, idx);
@@ -235,7 +234,6 @@ function playMotion(motionKey) {
     currentActionName = motionKey;
 }
 
-// 🚀 SMART MAGIC BUTTON: Automatically parses materials inside the mesh
 window.addEventListener('applyMagicSkin', () => {
     if(!characterModel) return;
 
@@ -252,10 +250,7 @@ window.addEventListener('applyMagicSkin', () => {
                             name.includes('bra') || name.includes('bottom') || name.includes('top');
 
             if (isCloth) {
-                // Sirf kapde wale material ko hide karega, poore mesh ko nahi
                 mat.visible = false; 
-                
-                // UI Toggle button ko automatically 'Show' (Green) par set karega
                 const btn = document.getElementById(`btn-part-${meshNode.id}-${index}`);
                 if(btn) { btn.innerText = "Show"; btn.className = "show"; }
             } else {
@@ -265,7 +260,7 @@ window.addEventListener('applyMagicSkin', () => {
                 if (isSkin) {
                     mat.map = texture;
                     mat.needsUpdate = true;
-                    mat.visible = true; // Ensure skin is visible
+                    mat.visible = true; 
                 }
             }
         };
