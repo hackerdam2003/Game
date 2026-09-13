@@ -22,10 +22,10 @@
         .magic-btn { background: linear-gradient(45deg, #a855f7, #ec4899); color: white; border: none; padding: 10px; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 13px; box-shadow: 0 4px 15px rgba(236, 72, 153, 0.4); }
         .magic-btn:active { transform: scale(0.98); }
 
-        /* Dynamic Parts List Styling */
-        #parts-list-container { background: rgba(255,255,255,0.05); border: 1px solid #334155; border-radius: 6px; padding: 8px; margin-top: 10px; max-height: 150px; overflow-y: auto; }
-        .part-row { display: flex; justify-content: space-between; align-items: center; font-size: 10px; margin-bottom: 5px; background: rgba(0,0,0,0.4); padding: 4px 8px; border-radius: 4px; }
-        .part-row button { background: #ef4444; color: white; border: none; padding: 2px 6px; border-radius: 3px; cursor: pointer; font-size: 9px; font-weight: bold; }
+        /* Parts List Styling */
+        #parts-list-container { background: rgba(255,255,255,0.05); border: 1px solid #334155; border-radius: 6px; padding: 8px; margin-top: 10px; max-height: 160px; overflow-y: auto; }
+        .part-row { display: flex; justify-content: space-between; align-items: center; font-size: 10px; margin-bottom: 6px; background: rgba(0,0,0,0.5); padding: 5px 8px; border-radius: 4px; border-left: 3px solid #3b82f6; }
+        .part-row button { background: #ef4444; color: white; border: none; padding: 3px 8px; border-radius: 3px; cursor: pointer; font-size: 9px; font-weight: bold; }
         .part-row button.show { background: #10b981; }
 
         @media (max-width: 768px) {
@@ -56,10 +56,10 @@
             <input type="range" id="morph-hips" min="0" max="1" step="0.01" value="0.5">
         </div>
         
-        <h3>👗 Model Parts & Wardrobe Inspector</h3>
-        <p style="font-size: 9px; color: #38bdf8; margin: 2px 0;">Click 'Hide' to remove specific clothes/parts instantly:</p>
+        <h3>👗 Model Parts & Wardrobe Control</h3>
+        <p style="font-size: 9px; color: #38bdf8; margin: 2px 0;">Toggle individual parts here to find clothes/body:</p>
         <div id="parts-list-container">
-            <span style="font-size: 10px; color: #9ca3af;">Load a model to see parts list...</span>
+            <span style="font-size: 10px; color: #9ca3af;">Loading parts...</span>
         </div>
 
         <h3>🎨 Advanced Texturing</h3>
