@@ -101,7 +101,7 @@ function loadCharacter(charKey) {
     if(loadingEl) { 
         loadingEl.style.color = '#3b82f6';
         loadingEl.style.display = 'block'; 
-        loadingEl.innerText = "Loading Model & Motion..."; 
+        loadingEl.innerText = "Loading Model & Parts..."; 
     }
 
     if (characterModel) { scene.remove(characterModel); characterModel = null; mixer = null; }
@@ -114,36 +114,48 @@ function loadCharacter(charKey) {
         const partsContainer = document.getElementById('parts-list-container');
         partsContainer.innerHTML = '';
 
+        // 🚀 SMART TRAVERSAL: Handles Single and Multi-Material Meshes
         characterModel.traverse((node) => { 
             if (node.isMesh) { 
                 node.castShadow = true; 
                 node.receiveShadow = true; 
-                if (node.material) {
-                    node.material.roughness = 0.6;
-                    node.material.metalness = 0.1;
-                    node.material.needsUpdate = true;
+                
+                const processMaterialForUI = (mat, index) => {
+                    if(!mat) return;
+                    mat.roughness = 0.6;
+                    mat.metalness = 0.1;
+                    mat.needsUpdate = true;
+
+                    const partName = mat.name || `Part_${index}`;
+                    const row = document.createElement('div');
+                    row.className = 'part-row';
+                    row.innerHTML = `
+                        <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px;" title="${partName}">${partName}</span>
+                        <button id="btn-part-${node.id}-${index}">Hide</button>
+                    `;
+                    partsContainer.appendChild(row);
+
+                    setTimeout(() => {
+                        const btn = document.getElementById(`btn-part-${node.id}-${index}`);
+                        if(btn) {
+                            btn.onclick = () => {
+                                // Kapdo ko mesh hide karke nahi, balki material invisible karke hatayenge
+                                mat.visible = !mat.visible;
+                                btn.innerText = mat.visible ? "Hide" : "Show";
+                                btn.className = mat.visible ? "" : "show";
+                            };
+                        }
+                    }, 50);
+                };
+
+                // Check if material is an array (Multi-Material Mesh like Misaki)
+                if (Array.isArray(node.material)) {
+                    node.material.forEach((mat, idx) => {
+                        processMaterialForUI(mat, idx);
+                    });
+                } else {
+                    processMaterialForUI(node.material, 0);
                 }
-
-                // Populate individual mesh list in UI
-                const partName = node.name || (node.material && node.material.name) || "Mesh";
-                const row = document.createElement('div');
-                row.className = 'part-row';
-                row.innerHTML = `
-                    <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px;" title="${partName}">${partName}</span>
-                    <button id="btn-part-${node.id}">Hide</button>
-                `;
-                partsContainer.appendChild(row);
-
-                setTimeout(() => {
-                    const btn = document.getElementById(`btn-part-${node.id}`);
-                    if(btn) {
-                        btn.onclick = () => {
-                            node.visible = !node.visible;
-                            btn.innerText = node.visible ? "Hide" : "Show";
-                            btn.className = node.visible ? "" : "show";
-                        };
-                    }
-                }, 50);
             }
         });
 
@@ -194,18 +206,11 @@ function loadCharacter(charKey) {
 
     if (isGLB) {
         gltfLoader.load(url, (gltf) => setupModel(gltf.scene, gltf.animations), undefined, () => {
-            if(loadingEl) {
-                loadingEl.style.color = '#ef4444';
-                loadingEl.innerText = "❌ Error loading GLB!";
-            }
+            if(loadingEl) { loadingEl.style.color = '#ef4444'; loadingEl.innerText = "❌ Error loading GLB!"; }
         });
     } else {
         fbxLoader.load(url, (fbx) => setupModel(fbx, fbx.animations), undefined, (err) => {
-            console.error("FBX Load Error:", err);
-            if(loadingEl) {
-                loadingEl.style.color = '#ef4444';
-                loadingEl.innerText = "❌ Error loading Misaki FBX!";
-            }
+            if(loadingEl) { loadingEl.style.color = '#ef4444'; loadingEl.innerText = "❌ Error loading Misaki FBX!"; }
         });
     }
 }
@@ -230,7 +235,7 @@ function playMotion(motionKey) {
     currentActionName = motionKey;
 }
 
-// 🚀 SAFE MAGIC BUTTON: Hides clothing meshes safely & textures the body without breaking anything
+// 🚀 SMART MAGIC BUTTON: Automatically parses materials inside the mesh
 window.addEventListener('applyMagicSkin', () => {
     if(!characterModel) return;
 
@@ -238,34 +243,44 @@ window.addEventListener('applyMagicSkin', () => {
         texture.colorSpace = THREE.SRGBColorSpace;
         texture.flipY = false;
 
+        const processMagicOnMaterial = (mat, meshNode, index) => {
+            if(!mat) return;
+            const name = (mat.name + " " + meshNode.name).toLowerCase();
+            
+            const isCloth = name.includes('shirt') || name.includes('panty') || name.includes('panties') || 
+                            name.includes('cloth') || name.includes('skirt') || name.includes('dress') ||
+                            name.includes('bra') || name.includes('bottom') || name.includes('top');
+
+            if (isCloth) {
+                // Sirf kapde wale material ko hide karega, poore mesh ko nahi
+                mat.visible = false; 
+                
+                // UI Toggle button ko automatically 'Show' (Green) par set karega
+                const btn = document.getElementById(`btn-part-${meshNode.id}-${index}`);
+                if(btn) { btn.innerText = "Show"; btn.className = "show"; }
+            } else {
+                const isSkin = name.includes('body') || name.includes('skin') || name.includes('face') || 
+                               name.includes('arm') || name.includes('leg') || name.includes('mis');
+                               
+                if (isSkin) {
+                    mat.map = texture;
+                    mat.needsUpdate = true;
+                    mat.visible = true; // Ensure skin is visible
+                }
+            }
+        };
+
         characterModel.traverse((node) => {
             if (node.isMesh) {
-                const name = (node.name + " " + (node.material ? node.material.name : "")).toLowerCase();
-                
-                // Identify clothing parts safely
-                const isCloth = name.includes('shirt') || name.includes('panty') || name.includes('panties') || 
-                                name.includes('cloth') || name.includes('bottom') || name.includes('top') ||
-                                name.includes('bra') || name.includes('skirt') || name.includes('dress') ||
-                                name.includes('jacket') || name.includes('suit');
-
-                if (isCloth) {
-                    node.visible = false; // Hide clothing
-                    const btn = document.getElementById(`btn-part-${node.id}`);
-                    if(btn) { btn.innerText = "Show"; btn.className = "show"; }
+                if (Array.isArray(node.material)) {
+                    node.material.forEach((mat, idx) => processMagicOnMaterial(mat, node, idx));
                 } else {
-                    // Identify body or face parts
-                    const isSkin = name.includes('body') || name.includes('skin') || name.includes('face') || 
-                                   name.includes('arm') || name.includes('leg') || name.includes('head') || name.includes('mis');
-                    if (isSkin && node.material) {
-                        node.material.map = texture;
-                        node.material.needsUpdate = true;
-                    }
+                    processMagicOnMaterial(node.material, node, 0);
                 }
             }
         });
-        console.log("✨ Magic Applied Successfully!");
     }, undefined, (err) => {
-        console.error("Failed to load texture:", err);
+        console.error("Texture Load Failed:", err);
     });
 });
 
