@@ -124,8 +124,8 @@ function loadCharacter(charKey) {
                     node.material.needsUpdate = true;
                 }
 
-                // 🚀 DYNAMICALLY POPULATE PARTS LIST IN UI
-                const partName = node.name || node.material.name || "Unnamed Mesh";
+                // Populate individual mesh list in UI
+                const partName = node.name || (node.material && node.material.name) || "Mesh";
                 const row = document.createElement('div');
                 row.className = 'part-row';
                 row.innerHTML = `
@@ -134,7 +134,6 @@ function loadCharacter(charKey) {
                 `;
                 partsContainer.appendChild(row);
 
-                // Add toggle event for each mesh part
                 setTimeout(() => {
                     const btn = document.getElementById(`btn-part-${node.id}`);
                     if(btn) {
@@ -144,7 +143,7 @@ function loadCharacter(charKey) {
                             btn.className = node.visible ? "" : "show";
                         };
                     }
-                }, 100);
+                }, 50);
             }
         });
 
@@ -231,7 +230,7 @@ function playMotion(motionKey) {
     currentActionName = motionKey;
 }
 
-// 🚀 MAGIC BUTTON: Automatically hides clothing keywords & applies mis_body_base.png to the rest
+// 🚀 SAFE MAGIC BUTTON: Hides clothing meshes safely & textures the body without breaking anything
 window.addEventListener('applyMagicSkin', () => {
     if(!characterModel) return;
 
@@ -243,18 +242,18 @@ window.addEventListener('applyMagicSkin', () => {
             if (node.isMesh) {
                 const name = (node.name + " " + (node.material ? node.material.name : "")).toLowerCase();
                 
-                // Aggressive clothing detector
+                // Identify clothing parts safely
                 const isCloth = name.includes('shirt') || name.includes('panty') || name.includes('panties') || 
                                 name.includes('cloth') || name.includes('bottom') || name.includes('top') ||
                                 name.includes('bra') || name.includes('skirt') || name.includes('dress') ||
                                 name.includes('jacket') || name.includes('suit');
 
                 if (isCloth) {
-                    node.visible = false; // Hide clothing part
-                    // Update UI button state if exists
+                    node.visible = false; // Hide clothing
                     const btn = document.getElementById(`btn-part-${node.id}`);
                     if(btn) { btn.innerText = "Show"; btn.className = "show"; }
                 } else {
+                    // Identify body or face parts
                     const isSkin = name.includes('body') || name.includes('skin') || name.includes('face') || 
                                    name.includes('arm') || name.includes('leg') || name.includes('head') || name.includes('mis');
                     if (isSkin && node.material) {
